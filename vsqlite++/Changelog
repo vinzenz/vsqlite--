@@ -1,0 +1,10 @@
+* 2006-09-27 <vinzenz.feenstra@virtuosic-bytes.com>
+	* Ported to Linux
+	* Dropped Trigger.{cpp|hpp}
+	* sqlite::transaction executes begin() and commit()/end() automatically on
+	creation and destroy
+
+* 2006-08-25 <vinzenz.feenstra@virtuosic-bytes.com>
+	* Starting Changelog
+	* Initial Checkin
+
