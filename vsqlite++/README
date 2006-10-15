@@ -1,0 +1,24 @@
+VSQLite++ - A welldesigned and portable SQLite3 Wrapper for C++
+(C) 2006 by virtuosic bytes  - vinzenz.feenstra@virtuosic-bytes.com
+
+Author: Vinzenz Feenstra
+
+For license details please see LICENSE
+
+# Supported Compilers
+- GCC and G++ 4.x (maybe 3.4.x too, but it wasn't tested until now)
+- Visual C++ 8/2005 (Visual C++ 7.1/2003 wasn't tested, maybe will be added later)
+
+# Tested Operating Systems
+- Ubuntu Dapper Drake 32-Bit
+- Windows XP SP2 
+
+# Dependencies
+- Boost Libraries [ http://www.boost.org ] (Tested with 1.33.1 but should work with 1.33.0 too)
+
+
+Additional notices:
+
+- Please let me know if you want to suggest features
+- Contributions are welcome
+- Proposals for Design Improvement are welcome

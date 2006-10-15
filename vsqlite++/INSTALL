@@ -1,0 +1,19 @@
+VSQLite++ - A welldesigned and portable SQLite3 Wrapper for C++
+
+Overview:
+  1. Instructions for POSIX Systems
+  2. Instructions for Windows Systems with Visual C++
+
+Requirements:
+- boost 1.33.x (headers only)
+- GCC/G++ 3.4.x and higher or Visual C++ 8/2005
+
+1. Instructions for POSIX Systems
+
+- Edit 'options.py' if boost is not available through /usr/include
+- run ./build.sh
+
+Installation is not implemented at the moment. Building only. 
+Library output is copied to ./libs
+Include ./vsqlite++/include for build
+

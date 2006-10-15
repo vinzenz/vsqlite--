@@ -1,3 +1,8 @@
+* 2006-10-16 <vinzenz.feenstra@virtuosic-bytes.com>
+	* Fixed a compilation error (cannot convert from 'const unsigned char *'
+	to 'const char *')
+	* Added scons based buildscript
+
 * 2006-09-27 <vinzenz.feenstra@virtuosic-bytes.com>
 	* Ported to Linux
 	* Dropped Trigger.{cpp|hpp}

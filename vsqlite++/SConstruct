@@ -47,7 +47,7 @@ if not os.path.isfile('options.py'):
 opts = Options(['options.py'])
 opts.Add(BoolOption('RELEASE', 'Release build', 1))
 opts.Add(BoolOption('DEBUG', 'Improve debugging (overrides HIDE_SYMBOLS)', 0))
-opts.Add(BoolOption('DEBUG_BUILD_CMD', 'Whether to showthe complete build commands', 1))
+opts.Add(BoolOption('DEBUG_BUILD_CMD', 'Whether to showthe complete build commands', 0))
 opts.Add(EnumOption('OPTIMIZATION', 'Optimization level', 'default', 
                     allowed_values=('default', 'none', 'some', 'full')))
 opts.Add(BoolOption('HIDE_SYMBOLS', 'Hide unused symbols', 1))
