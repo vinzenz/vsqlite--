@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="8,00"
-	Name="sqlite_wrapper"
+	Name="vsqlite++"
 	ProjectGUID="{4FF18FE2-4A24-4558-9785-3ED20E214A62}"
-	RootNamespace="sqlite_wrapper"
+	RootNamespace="vsqlite++"
 	Keyword="Win32Proj"
 	>
 	<Platforms>

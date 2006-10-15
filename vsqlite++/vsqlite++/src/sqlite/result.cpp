@@ -68,7 +68,8 @@ namespace sqlite{
         access_check(idx);
         if(sqlite3_column_type(m_params->statement,idx) == SQLITE_NULL)
             return std::string("NULL");
-        return sqlite3_column_text(m_params->statement,idx);
+        return reinterpret_cast<char const*>
+                         (sqlite3_column_text(m_params->statement,idx));
     }
 
     double result::get_double(int idx){
