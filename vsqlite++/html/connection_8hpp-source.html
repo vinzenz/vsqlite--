@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html><head><meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1">
-<title>VSQLite++: sqlite_wrapper/include/sqlite/connection.hpp Source File</title>
+<title>VSQLite++: vsqlite++/include/sqlite/connection.hpp Source File</title>
 <link href="doxygen.css" rel="stylesheet" type="text/css">
 <link href="tabs.css" rel="stylesheet" type="text/css">
 </head><body>
@@ -11,63 +11,81 @@
     <li><a href="namespaces.html"><span>Namespaces</span></a></li>
     <li><a href="classes.html"><span>Classes</span></a></li>
     <li id="current"><a href="files.html"><span>Files</span></a></li>
+    <li>
+      <form action="search.php" method="get">
+        <table cellspacing="0" cellpadding="0" border="0">
+          <tr>
+            <td><label>&nbsp;<u>S</u>earch&nbsp;for&nbsp;</label></td>
+            <td><input type="text" name="query" value="" size="20" accesskey="s"/></td>
+          </tr>
+        </table>
+      </form>
+    </li>
   </ul></div>
 <div class="tabs">
   <ul>
     <li><a href="files.html"><span>File&nbsp;List</span></a></li>
     <li><a href="globals.html"><span>File&nbsp;Members</span></a></li>
   </ul></div>
-<h1>sqlite_wrapper/include/sqlite/connection.hpp</h1><a href="connection_8hpp.html">Go to the documentation of this file.</a><div class="fragment"><pre class="fragment"><a name="l00001"></a>00001 <span class="comment">/*##############################################################################   </span>
-<a name="l00002"></a>00002 <span class="comment">VSQLite++ - virtuosic bytes SQLite3 C++ wrapper</span>
+<h1>vsqlite++/include/sqlite/connection.hpp</h1><a href="connection_8hpp.html">Go to the documentation of this file.</a><div class="fragment"><pre class="fragment"><a name="l00001"></a>00001 <span class="comment">/*##############################################################################   </span>
+<a name="l00002"></a>00002 <span class="comment"> VSQLite++ - virtuosic bytes SQLite3 C++ wrapper</span>
 <a name="l00003"></a>00003 <span class="comment"></span>
-<a name="l00004"></a>00004 <span class="comment">Copyright (c) 2006 Vinzenz Feenstra vinzenz.feenstra@virtuosic-bytes.com</span>
-<a name="l00005"></a>00005 <span class="comment"></span>
-<a name="l00006"></a>00006 <span class="comment">Permission is hereby granted, free of charge, to any person obtaining a copy </span>
-<a name="l00007"></a>00007 <span class="comment">of this software and associated documentation files (the "Software"), to deal </span>
-<a name="l00008"></a>00008 <span class="comment">in the Software without restriction, including without limitation the rights </span>
-<a name="l00009"></a>00009 <span class="comment">to use, copy, modify, merge, publish, distribute, sublicense, and/or sell </span>
-<a name="l00010"></a>00010 <span class="comment">copies of the Software, and to permit persons to whom the Software is </span>
-<a name="l00011"></a>00011 <span class="comment">furnished to do so, subject to the following conditions:</span>
-<a name="l00012"></a>00012 <span class="comment"></span>
-<a name="l00013"></a>00013 <span class="comment">The above copyright notice and this permission notice shall be included in </span>
-<a name="l00014"></a>00014 <span class="comment">all copies or substantial portions of the Software.</span>
-<a name="l00015"></a>00015 <span class="comment"></span>
-<a name="l00016"></a>00016 <span class="comment">THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR </span>
-<a name="l00017"></a>00017 <span class="comment">IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, </span>
-<a name="l00018"></a>00018 <span class="comment">FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE </span>
-<a name="l00019"></a>00019 <span class="comment">AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER </span>
-<a name="l00020"></a>00020 <span class="comment">LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,</span>
-<a name="l00021"></a>00021 <span class="comment">OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE</span>
-<a name="l00022"></a>00022 <span class="comment">SOFTWARE                                                                     </span>
-<a name="l00023"></a>00023 <span class="comment">##############################################################################*/</span>
-<a name="l00024"></a>00024 <span class="preprocessor">#ifndef GUARD_SQLITE_CONNECTION_HPP_INCLUDED</span>
-<a name="l00025"></a>00025 <span class="preprocessor"></span><span class="preprocessor">#define GUARD_SQLITE_CONNECTION_HPP_INCLUDED</span>
-<a name="l00026"></a>00026 <span class="preprocessor"></span><span class="preprocessor">#include &lt;string&gt;</span>
-<a name="l00027"></a>00027 <span class="preprocessor">#include &lt;boost/noncopyable.hpp&gt;</span>
-<a name="l00028"></a>00028 <span class="keyword">struct </span>sqlite3;
-<a name="l00029"></a>00029 
-<a name="l00030"></a>00030 <span class="keyword">namespace </span>sqlite{
-<a name="l00037"></a><a class="code" href="structsqlite_1_1connection.html">00037</a>     <span class="keyword">struct </span><a class="code" href="structsqlite_1_1connection.html">connection</a> : boost::noncopyable{
-<a name="l00044"></a>00044         <a class="code" href="structsqlite_1_1connection.html#cc76e93f9d24e0b270f39a9814c7766d">connection</a>(std::string <span class="keyword">const</span> &amp; db);
-<a name="l00045"></a>00045 
-<a name="l00049"></a>00049         <a class="code" href="structsqlite_1_1connection.html#e283598f09765b48dea026b93c43d4c4">~connection</a>();
-<a name="l00050"></a>00050 
-<a name="l00057"></a>00057         <span class="keywordtype">void</span> <a class="code" href="structsqlite_1_1connection.html#134ee0ccce14979cc0cc732ca6e1888a">attach</a>(std::string <span class="keyword">const</span> &amp; db, std::string <span class="keyword">const</span> &amp; database_alias);
+<a name="l00004"></a>00004 <span class="comment"> Copyright (c) 2006 Vinzenz Feenstra vinzenz.feenstra@virtuosic-bytes.com</span>
+<a name="l00005"></a>00005 <span class="comment"> All rights reserved.</span>
+<a name="l00006"></a>00006 <span class="comment"></span>
+<a name="l00007"></a>00007 <span class="comment"> Redistribution and use in source and binary forms, with or without modification, </span>
+<a name="l00008"></a>00008 <span class="comment"> are permitted provided that the following conditions are met:</span>
+<a name="l00009"></a>00009 <span class="comment"></span>
+<a name="l00010"></a>00010 <span class="comment"> * Redistributions of source code must retain the above copyright notice, </span>
+<a name="l00011"></a>00011 <span class="comment">   this list of conditions and the following disclaimer.</span>
+<a name="l00012"></a>00012 <span class="comment"> * Redistributions in binary form must reproduce the above copyright notice, </span>
+<a name="l00013"></a>00013 <span class="comment">   this list of conditions and the following disclaimer in the documentation </span>
+<a name="l00014"></a>00014 <span class="comment">   and/or other materials provided with the distribution.</span>
+<a name="l00015"></a>00015 <span class="comment"> * Neither the name of virtuosic bytes nor the names of its contributors may </span>
+<a name="l00016"></a>00016 <span class="comment">   be used to endorse or promote products derived from this software without </span>
+<a name="l00017"></a>00017 <span class="comment">   specific prior written permission.</span>
+<a name="l00018"></a>00018 <span class="comment"></span>
+<a name="l00019"></a>00019 <span class="comment"> THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" </span>
+<a name="l00020"></a>00020 <span class="comment"> AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE </span>
+<a name="l00021"></a>00021 <span class="comment"> IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE </span>
+<a name="l00022"></a>00022 <span class="comment"> ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE </span>
+<a name="l00023"></a>00023 <span class="comment"> LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR </span>
+<a name="l00024"></a>00024 <span class="comment"> CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF </span>
+<a name="l00025"></a>00025 <span class="comment"> SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS </span>
+<a name="l00026"></a>00026 <span class="comment"> INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN </span>
+<a name="l00027"></a>00027 <span class="comment"> CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) </span>
+<a name="l00028"></a>00028 <span class="comment"> ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE </span>
+<a name="l00029"></a>00029 <span class="comment"> POSSIBILITY OF SUCH DAMAGE.                                                             </span>
+<a name="l00030"></a>00030 <span class="comment"></span>
+<a name="l00031"></a>00031 <span class="comment">##############################################################################*/</span>
+<a name="l00032"></a>00032 <span class="preprocessor">#ifndef GUARD_SQLITE_CONNECTION_HPP_INCLUDED</span>
+<a name="l00033"></a>00033 <span class="preprocessor"></span><span class="preprocessor">#define GUARD_SQLITE_CONNECTION_HPP_INCLUDED</span>
+<a name="l00034"></a>00034 <span class="preprocessor"></span><span class="preprocessor">#include &lt;string&gt;</span>
+<a name="l00035"></a>00035 <span class="preprocessor">#include &lt;boost/noncopyable.hpp&gt;</span>
+<a name="l00036"></a>00036 <span class="keyword">struct </span>sqlite3;
+<a name="l00037"></a>00037 
+<a name="l00038"></a>00038 <span class="keyword">namespace </span>sqlite{
+<a name="l00045"></a><a class="code" href="structsqlite_1_1connection.html">00045</a>     <span class="keyword">struct </span><a class="code" href="structsqlite_1_1connection.html">connection</a> : boost::noncopyable{
+<a name="l00052"></a>00052         <a class="code" href="structsqlite_1_1connection.html#cc76e93f9d24e0b270f39a9814c7766d">connection</a>(std::string <span class="keyword">const</span> &amp; db);
+<a name="l00053"></a>00053 
+<a name="l00057"></a>00057         <a class="code" href="structsqlite_1_1connection.html#e283598f09765b48dea026b93c43d4c4">~connection</a>();
 <a name="l00058"></a>00058 
-<a name="l00064"></a>00064         <span class="keywordtype">void</span> <a class="code" href="structsqlite_1_1connection.html#70c6b8f37146b2266cc289b0cfcfcd7a">detach</a>(std::string <span class="keyword">const</span> &amp; database_alias);
-<a name="l00065"></a>00065     <span class="keyword">private</span>:
-<a name="l00066"></a><a class="code" href="structsqlite_1_1connection.html#8daf12b49848f86f262e288a0a9eb3d4">00066</a>         <span class="keyword">friend</span> <span class="keyword">struct </span><a class="code" href="structsqlite_1_1private__accessor.html">private_accessor</a>;
-<a name="l00067"></a>00067     <span class="keyword">private</span>:
-<a name="l00068"></a>00068         <span class="keywordtype">void</span> <a class="code" href="structsqlite_1_1connection.html#f09578e15de52d1942f548cb6e5ab151">open</a>(std::string <span class="keyword">const</span> &amp; db);
-<a name="l00069"></a>00069         <span class="keywordtype">void</span> <a class="code" href="structsqlite_1_1connection.html#fda74995f569a16f2e421473ce957f0f">close</a>();
-<a name="l00070"></a>00070         <span class="keywordtype">void</span> <a class="code" href="structsqlite_1_1connection.html#28c376db706da7842ee3600c2634c027">access_check</a>();
-<a name="l00071"></a>00071     <span class="keyword">private</span>:
-<a name="l00072"></a><a class="code" href="structsqlite_1_1connection.html#f6f210ec001c6b9be2c28937f84e5b8e">00072</a>         sqlite3 * <a class="code" href="structsqlite_1_1connection.html#f6f210ec001c6b9be2c28937f84e5b8e">handle</a>;
-<a name="l00073"></a>00073     };
-<a name="l00074"></a>00074 }
-<a name="l00075"></a>00075 <span class="preprocessor">#endif //GUARD_SQLITE_CONNECTION_HPP_INCLUDED</span>
-<a name="l00076"></a>00076 <span class="preprocessor"></span>
-</pre></div><hr size="1"><address style="align: right;"><small>Generated on Thu Oct 12 16:40:14 2006 for VSQLite++ by&nbsp;
+<a name="l00065"></a>00065         <span class="keywordtype">void</span> <a class="code" href="structsqlite_1_1connection.html#134ee0ccce14979cc0cc732ca6e1888a">attach</a>(std::string <span class="keyword">const</span> &amp; db, std::string <span class="keyword">const</span> &amp; database_alias);
+<a name="l00066"></a>00066 
+<a name="l00072"></a>00072         <span class="keywordtype">void</span> <a class="code" href="structsqlite_1_1connection.html#70c6b8f37146b2266cc289b0cfcfcd7a">detach</a>(std::string <span class="keyword">const</span> &amp; database_alias);
+<a name="l00073"></a>00073     <span class="keyword">private</span>:
+<a name="l00074"></a><a class="code" href="structsqlite_1_1connection.html#8daf12b49848f86f262e288a0a9eb3d4">00074</a>         <span class="keyword">friend</span> <span class="keyword">struct </span><a class="code" href="structsqlite_1_1private__accessor.html">private_accessor</a>;
+<a name="l00075"></a>00075     <span class="keyword">private</span>:
+<a name="l00076"></a>00076         <span class="keywordtype">void</span> <a class="code" href="structsqlite_1_1connection.html#f09578e15de52d1942f548cb6e5ab151">open</a>(std::string <span class="keyword">const</span> &amp; db);
+<a name="l00077"></a>00077         <span class="keywordtype">void</span> <a class="code" href="structsqlite_1_1connection.html#fda74995f569a16f2e421473ce957f0f">close</a>();
+<a name="l00078"></a>00078         <span class="keywordtype">void</span> <a class="code" href="structsqlite_1_1connection.html#28c376db706da7842ee3600c2634c027">access_check</a>();
+<a name="l00079"></a>00079     <span class="keyword">private</span>:
+<a name="l00080"></a><a class="code" href="structsqlite_1_1connection.html#f6f210ec001c6b9be2c28937f84e5b8e">00080</a>         sqlite3 * <a class="code" href="structsqlite_1_1connection.html#f6f210ec001c6b9be2c28937f84e5b8e">handle</a>;
+<a name="l00081"></a>00081     };
+<a name="l00082"></a>00082 }
+<a name="l00083"></a>00083 <span class="preprocessor">#endif //GUARD_SQLITE_CONNECTION_HPP_INCLUDED</span>
+<a name="l00084"></a>00084 <span class="preprocessor"></span>
+</pre></div><hr size="1"><address style="align: right;"><small>Generated on Mon Oct 16 01:37:50 2006 for VSQLite++ by&nbsp;
 <a href="http://www.doxygen.org/index.html">
 <img src="doxygen.png" alt="doxygen" align="middle" border="0"></a> 1.4.6 </small></address>
 </body>
