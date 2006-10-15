@@ -1,0 +1,207 @@
+# vim:ts=4:sw=4:noexpandtab:filetype=python:
+# ***** BEGIN LICENSE BLOCK *****
+# Version: MPL 1.1/GPL 2.0/LGPL 2.1
+#
+# The contents of this file are subject to the Mozilla Public License Version
+# 1.1 (the "License"); you may not use this file except in compliance with
+# the License. You may obtain a copy of the License at
+# http://www.mozilla.org/MPL/
+#
+# Software distributed under the License is distributed on an "AS IS" basis,
+# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+# for the specific language governing rights and limitations under the
+# License.
+#
+# The Original Code is GOTT Build Scripts.
+#
+# The Initial Developer of the Original Code is
+# Aristid Breitkreuz (aribrei@arcor.de).
+# Portions created by the Initial Developer are Copyright (C) 2005-2006
+# the Initial Developer. All Rights Reserved.
+#
+# Contributor(s):
+#  Aristid Breitkreuz (aribrei@arcor.de)
+#  Ruediger Sonderfeld <kingruedi@c-plusplus.de>
+#  Ronny Pfannschmidt (Ronny.Pfannschmidt@gmx.de)
+#
+# Alternatively, the contents of this file may be used under the terms of
+# either the GNU General Public License Version 2 or later (the "GPL"), or
+# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+# in which case the provisions of the GPL or the LGPL are applicable instead
+# of those above. If you wish to allow use of your version of this file only
+# under the terms of either the GPL or the LGPL, and not to allow others to
+# use your version of this file under the terms of the MPL, indicate your
+# decision by deleting the provisions above and replace them with the notice
+# and other provisions required by the GPL or the LGPL. If you do not delete
+# the provisions above, a recipient may use your version of this file under
+# the terms of any one of the MPL, the GPL or the LGPL.
+#
+# ***** END LICENSE BLOCK *****
+
+def AddSysOpts(env):
+	dict = env.Dictionary()
+	for k, v in dict.iteritems():
+		if k.startswith('SYS_') and v == 1:
+			env.Append(CPPDEFINES = ['BUILD_' + k[4:]])
+
+def prepare(env,**kw):
+	last={}
+	for i in kw.keys():
+		last[i]=env[i][:]
+	env.Append(**kw)
+	return last
+
+def CheckLinkerAsNeeded(context):
+	context.Message('Checking if linker supports --as-needed flag... ')
+
+	last= prepare(context.env,
+			LINKFLAGS = ['-Wl,--as-needed'])
+
+	result = context.TryLink("int main() { }\n", '.cpp')
+	if not result:
+		context.env.Replace(**last)
+	context.Result(result)
+	return result
+
+def CheckLinkerExportDynamic(context):
+	context.Message('Checking if linker supports -E flag...')
+
+	last = prepare(context.env,
+			LINKFLAGS = ['-Wl,-E'])
+
+	result = context.TryLink("int main() { }\n", '.cpp')
+	if not result:
+		context.env.Replace(**last)
+	context.Result(result)
+	return result
+
+def CheckCompilerVisibility(context):
+	context.Message('Checking if compiler supports visibility attributes... ')
+	last = prepare(context.env,
+			SHCXXFLAGS = ['-fvisibility=hidden','-DHAS_VISIBILITY']) # will work fine for for gcc, and since the others dont support it doesnt matter
+
+	result = context.TryCompile("int global __attribute__((visibility(\"default\")));\n", '.cpp')
+	if not result:
+		context.env.Replace(**last)
+	context.Result(result)
+	return result
+
+def CheckTemplateRepo(context):
+	context.Message('Checking if compiler supports -frepo...')
+	last = prepare(context.env,
+			CXXFLAGS = ['-frepo'],
+			LINKFLAGS = ['-frepo'])
+
+	result = context.TryCompile("int var;", '.cpp')
+	if not result:
+		context.env.Replace(**last)
+	context.Result(result)
+	return result
+
+def CheckWarnings(context):
+	context.Message('Checking if compiler supports gcc-style warnings... ')
+	last = prepare(context.env,
+			CCFLAGS = ['-Wall','-W']) # stripped -Werror because of libsigc++'s hide
+
+	result = context.TryCompile("int global;\n", '.cpp')
+	if not result:
+		context.env.Replace(**last)
+	context.Result(result)
+	return result
+
+def CheckOptimization(context):
+	context.Message('Checking if compiler supports gcc-style optimization levels (' + context.env['OPTIMIZATION'] + ')... ')
+	
+	if context.env['OPTIMIZATION'] == 'full':
+		level = '-O3'
+	elif context.env['OPTIMIZATION'] == 'some':
+		level = '-O2'
+	
+	last = prepare(context.env,
+			CCFLAGS = [level])
+	
+	result = context.TryLink("#ifdef __OPTIMIZE__\nint main() {}\n#endif\n", '.cpp')
+	
+	if not result:
+		context.env.Replace(**last)
+	context.Result(result)
+	return result
+
+def CheckDebug(context):
+	context.Message('Checking if compiler supports gcc-style debug flags... ')
+	last = prepare(context.env,
+			CCFLAGS = ['-g'])
+	result = context.TryCompile("void func() {}\n", '.cpp')
+	if not result:
+		context.env.Replace(**last)
+	context.Result(result)
+	return result
+
+def CheckPkgConfigPkg(context, name):
+	context.Message('Checking for %s... ' % name)
+	result = context.TryAction('pkg-config --exists \'%s\'' % name)[0]
+	context.Result(result)
+	return result
+
+def CheckBoostDateTimeCanNanosec(context):
+	context.Message('Checking if Boost date_time supports nanoseconds... ')
+	result = context.TryCompile(
+		"#include <boost/date_time/posix_time/posix_time_types.hpp>\nint main() { boost::posix_time::nanoseconds n(1); }", '.cpp')
+	if result:
+		context.env.Append(CPPDEFINES = ['BOOST_DATE_TIME_HAS_NANOSEC'])
+	context.Result(result)
+	return result
+
+def CheckBoostLib(context,lib,fatal=False):
+	blib = "boost_" + lib + context.env['BOOST_LIBSUFFIX']
+	result = context.CheckLib(blib,language = 'c++')
+	if not result:
+		print 'Boost',lib,' library is not installed: ', blib
+	if not result and fatal:
+		Exit(1)
+	return result
+
+def CheckPkgCfgLib(context,lib,fatal=False):
+	if not conf.PkgConfigPkg(lib):
+		print "%s not found. If you have installed %s check pkg-config setup." % (lib, lib)
+		if fatal:
+			Exit(1)
+	conf.env.ParseConfig('pkg-config --cflags %s' % lib)
+	conf.env.ParseConfig('pkg-config --libs %s' % lib)
+
+
+
+
+CheckBoostLib.notest = True
+
+print 'Configuration...'
+Import('env')
+
+tests={}
+
+l=locals()
+
+for i in dir():# checking 
+	if i.startswith("Check"):
+		a=l[i]
+		if hasattr(a,"notest"): continue
+		tests[i[5:]]=a
+del l
+
+conf = Configure(env, custom_tests = tests)
+AddSysOpts(conf.env)
+
+#conf.LinkerAsNeeded()
+conf.LinkerExportDynamic()
+if conf.env['OPTIMIZATION'] != 'none':
+	conf.Optimization()
+conf.Warnings()
+if conf.env['HIDE_SYMBOLS'] and conf.env['DEBUG'] == 0:
+	conf.CompilerVisibility()
+if conf.env['DEBUG']:
+	conf.Debug()
+if not conf.CheckCXXHeader('boost/config.hpp', '<>'):
+	print 'Boost headers are not installed'
+	Exit(1)
+
+Return('conf')
