@@ -1,4 +1,0 @@
-base referer
-rect $structsqlite_1_1command.html 9,32 126,56
-rect $structsqlite_1_1execute.html 176,8 282,32
-rect $structsqlite_1_1query.html 182,56 276,80
