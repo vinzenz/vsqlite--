@@ -82,7 +82,7 @@ WARN_LOGFILE           =
 #---------------------------------------------------------------------------
 # configuration options related to the input files
 #---------------------------------------------------------------------------
-INPUT                  = ./vsqlite++/include 
+INPUT                  = ./include 
 FILE_PATTERNS          = *.hpp 
 RECURSIVE              = YES
 EXCLUDE                = 
