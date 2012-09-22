@@ -1,19 +1,8 @@
 VSQLite++ - A welldesigned and portable SQLite3 Wrapper for C++
 
-Overview:
-  1. Instructions for POSIX Systems
-  2. Instructions for Windows Systems with Visual C++
+The build system uses premake4. To generate libraries with g++ run:
+`premake4 gmake` in the build sub directory
 
-Requirements:
-- boost 1.33.x (headers only)
-- GCC/G++ 3.4.x and higher or Visual C++ 8/2005
+For other build targets like CodeLite, Visual Studio or XCode check the premake documentation
 
-1. Instructions for POSIX Systems
-
-- Edit 'options.py' if boost is not available through /usr/include
-- run ./build.sh
-
-Installation is not implemented at the moment. Building only. 
-Library output is copied to ./libs
-Include ./vsqlite++/include for build
 
