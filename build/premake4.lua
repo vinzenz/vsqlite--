@@ -25,6 +25,7 @@ solution "vsqlite++"
       targetname "vsqlite++"
       files { "../include/**.hpp", "../src/sqlite/**.cpp" }
       includedirs { "../include" }
+      links { "sqlite3" }
  
       configuration "Debug"
          defines { "DEBUG" }
@@ -40,7 +41,7 @@ solution "vsqlite++"
         language "C++"
         files { "../examples/**.cpp" }
         includedirs { "../include" }
-        links { "vsqlite++-shared", "sqlite3" }
+        links { "vsqlite++-shared" }
 
         --- Configuration settings
         configuration "Debug"
