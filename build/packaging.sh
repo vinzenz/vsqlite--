@@ -1,5 +1,13 @@
 #!/bin/sh
 
+VSQLITE_CURRENT=0
+VSQLITE_REVISION=3
+VSQLITE_AGE=0
+
+VSQLITE_LIBRARY=libvsqlite++.so
+VSQLITE_CURRENT_LIBRARY=$VSQLITE_LIBRARY.$VSQLITE_CURRENT
+VSQLITE_FULL_LIBRARY=$VSQLITE_CURRENT_LIBRARY.$VSQLITE_REVISION.$VSQLITE_AGE
+
 SOURCE="${BASH_SOURCE[0]}"
 DIR="$( dirname "$SOURCE" )"
 while [ -h "$SOURCE" ]
@@ -10,7 +18,7 @@ do
 done
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
-mv libvsqlite++.so libvsqlite++.so.`cat $DIR/../VERSION` 
-ln -s libvsqlite++.so.`cat $DIR/../VERSION` libvsqlite++.so.`head -c 1 $DIR/../VERSION` 
-ln -s libvsqlite++.so.`cat $DIR/../VERSION` libvsqlite++.so
+mv $VSQLITE_LIBRARY $VSQLITE_FULL_LIBRARY
+ln -s $VSQLITE_FULL_LIBRARY $VSQLITE_CURRENT_LIBRARY
+ln -s $VSQLITE_FULL_LIBRARY $VSQLITE_LIBRARY
 
