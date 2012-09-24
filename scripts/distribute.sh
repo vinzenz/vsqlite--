@@ -6,7 +6,11 @@ echo "Running configure..."
 ./configure --prefix=/usr > /dev/null
 echo "Done."
 echo "Making distribution packages..."
-make dist-gzip dist-bzip2 dist-xz dist-zip
+make dist-clean
+make dist-gzip 
+make dist-bzip2 
+make dist-xz 
+make dist-zip
 echo "Moving files one level below"
 mv vsqlite++*.tar.* ..
 mv vsqlite++*.zip ..
