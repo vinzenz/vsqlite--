@@ -1,3 +1,87 @@
+commit 069f9d1ca282fa7f96bbae26d9d9abec6e389151
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 21:15:21 2012 +0200
+
+    More make file fixes
+
+commit 86b22baab0f2e26345237614dc7af5736fd59d23
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 18:58:19 2012 +0200
+
+    libsqlitemm -> libsqlitepp
+
+commit 6644d58460ec41d3ba333966122f3e6e16799cfa
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 16:01:09 2012 +0200
+
+    sed -i 's/\r//' examples/sqlite_wrapper.cpp
+
+commit f62b788ec8d948c05c948ddfb090f18f9914b6e4
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:53:17 2012 +0200
+
+    Updated distribute
+
+commit f47e88497d7cc83ebf6848c3d9a3d12f397c3e7a
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:40:23 2012 +0200
+
+    Changing distribute
+
+commit a542858adb9d56bb521623164b304cfb611f27de
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:39:05 2012 +0200
+
+    Autogen
+
+commit 1c903166ec9535cc712f13d8277d35159b7f5f68
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:27:37 2012 +0200
+
+    Zip file mask fixed
+
+commit ec7f160b3b001b863ab46f7323de370d97474bbd
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:26:35 2012 +0200
+
+    Moving also zip files and being more specific
+
+commit 857c14e2151f9d11b616bc1ad336a7d13b3da702
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:25:10 2012 +0200
+
+    Adding distribute script
+
+commit 92f8d98c303027e5248496461b59d37bfd29af26
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:16:57 2012 +0200
+
+    Bump version 0.3.4
+
+commit ac7565922fe054cfee269700f41024161d36bf25
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:12:55 2012 +0200
+
+    Adding m4 dir
+
+commit 02d5a717a6965e38eb92f15bdb29056df26a31aa
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:05:43 2012 +0200
+
+    Library naming correction
+
+commit 925bf001a1b1db6803a9ecf23f52452cab71ad4b
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 13:48:07 2012 +0200
+
+    Automake...
+
+commit a314607b8895ce282242672e9377d3f22da82c02
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Sat Sep 22 18:01:58 2012 +0200
+
+    Line encoding
+
 commit 4c8e8b3faa6e494d78493231c390cb4ff6f2164c
 Author: Vinzenz Feenstra <evilissimo@gmail.com>
 Date:   Sat Sep 22 15:55:58 2012 +0200
