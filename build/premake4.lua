@@ -33,7 +33,10 @@ solution "vsqlite++"
  
       configuration "Release"
          defines { "NDEBUG" }
-         flags { "Optimize" }    
+         flags { "Optimize" }
+    
+      configuration {"linux", "gmake"}
+         linkoptions { "-Wl,--as-needed", "-Wl,-soname,libvsqlite++.so.0" }
 
     --- The unit test definition
     project "vsqlite_example"
