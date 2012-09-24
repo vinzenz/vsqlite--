@@ -8,6 +8,7 @@ echo "Done."
 echo "Making distribution packages..."
 make dist-gzip dist-bzip2 dist-xz dist-zip
 echo "Moving files one level below"
-mv *.tar.* ..
+mv vsqlite++*.tar.* ..
+mv vsqlite++*.zip.* ..
 echo "Running cleanup"
 git clean -d -f
