@@ -1,3 +1,39 @@
+commit b9a22937fdd47e65cd2bbcb71c270b499f4429ed
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Tue Sep 25 13:00:57 2012 +0200
+
+    tag/0.3.8
+
+commit dab93f24523708f882c496967af3fa7d6461a878
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Tue Sep 25 12:58:39 2012 +0200
+
+    Updated distribute
+
+commit 0b2abd5b1d6ca864cf5dc138dcc3f0f1024a4a8f
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 21:54:51 2012 +0200
+
+    Prepare configure.ac for 0.3.8
+
+commit 3df606b68f2d522ca10a56752a4d68ddc17332f8
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 21:46:55 2012 +0200
+
+    0.3.7
+
+commit 157aa94198b2a2ebbb64df9309cb4d926d4d0528
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 21:46:18 2012 +0200
+
+    License fix => BSD 3Clause not MIT
+
+commit 88e2042ec6b16ad95a0ae6ae0c856dd3b5e6abc0
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 21:17:33 2012 +0200
+
+    0.3.6 ChangeLog update
+
 commit 069f9d1ca282fa7f96bbae26d9d9abec6e389151
 Author: Vinzenz Feenstra <evilissimo@gmail.com>
 Date:   Mon Sep 24 21:15:21 2012 +0200
