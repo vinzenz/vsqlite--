@@ -1,1 +1,304 @@
-Changelog
+commit b9a22937fdd47e65cd2bbcb71c270b499f4429ed
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Tue Sep 25 13:00:57 2012 +0200
+
+    tag/0.3.8
+
+commit dab93f24523708f882c496967af3fa7d6461a878
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Tue Sep 25 12:58:39 2012 +0200
+
+    Updated distribute
+
+commit 0b2abd5b1d6ca864cf5dc138dcc3f0f1024a4a8f
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 21:54:51 2012 +0200
+
+    Prepare configure.ac for 0.3.8
+
+commit 3df606b68f2d522ca10a56752a4d68ddc17332f8
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 21:46:55 2012 +0200
+
+    0.3.7
+
+commit 157aa94198b2a2ebbb64df9309cb4d926d4d0528
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 21:46:18 2012 +0200
+
+    License fix => BSD 3Clause not MIT
+
+commit 88e2042ec6b16ad95a0ae6ae0c856dd3b5e6abc0
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 21:17:33 2012 +0200
+
+    0.3.6 ChangeLog update
+
+commit 069f9d1ca282fa7f96bbae26d9d9abec6e389151
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 21:15:21 2012 +0200
+
+    More make file fixes
+
+commit 86b22baab0f2e26345237614dc7af5736fd59d23
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 18:58:19 2012 +0200
+
+    libsqlitemm -> libsqlitepp
+
+commit 6644d58460ec41d3ba333966122f3e6e16799cfa
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 16:01:09 2012 +0200
+
+    sed -i 's/\r//' examples/sqlite_wrapper.cpp
+
+commit f62b788ec8d948c05c948ddfb090f18f9914b6e4
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:53:17 2012 +0200
+
+    Updated distribute
+
+commit f47e88497d7cc83ebf6848c3d9a3d12f397c3e7a
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:40:23 2012 +0200
+
+    Changing distribute
+
+commit a542858adb9d56bb521623164b304cfb611f27de
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:39:05 2012 +0200
+
+    Autogen
+
+commit 1c903166ec9535cc712f13d8277d35159b7f5f68
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:27:37 2012 +0200
+
+    Zip file mask fixed
+
+commit ec7f160b3b001b863ab46f7323de370d97474bbd
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:26:35 2012 +0200
+
+    Moving also zip files and being more specific
+
+commit 857c14e2151f9d11b616bc1ad336a7d13b3da702
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:25:10 2012 +0200
+
+    Adding distribute script
+
+commit 92f8d98c303027e5248496461b59d37bfd29af26
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:16:57 2012 +0200
+
+    Bump version 0.3.4
+
+commit ac7565922fe054cfee269700f41024161d36bf25
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:12:55 2012 +0200
+
+    Adding m4 dir
+
+commit 02d5a717a6965e38eb92f15bdb29056df26a31aa
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 15:05:43 2012 +0200
+
+    Library naming correction
+
+commit 925bf001a1b1db6803a9ecf23f52452cab71ad4b
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Mon Sep 24 13:48:07 2012 +0200
+
+    Automake...
+
+commit a314607b8895ce282242672e9377d3f22da82c02
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Sat Sep 22 18:01:58 2012 +0200
+
+    Line encoding
+
+commit 4c8e8b3faa6e494d78493231c390cb4ff6f2164c
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Sat Sep 22 15:55:58 2012 +0200
+
+    Fixing build - linking sqlite3 against library
+
+commit e4bb2502d8df36688f8596ba0db5bb35ad5ce923
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Sat Sep 22 14:18:14 2012 +0200
+
+    Bump v0.3.2 - updated docs
+
+commit 5d1d24cf6e04992128da11cacdbad773d25a6a57
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Sat Sep 22 14:12:23 2012 +0200
+
+    Bump version because of restructuring
+
+commit dba1619d3a9919cef36533a7f4511553ee8b9825
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Fri Sep 21 17:22:37 2012 +0200
+
+    * Packaging improvements
+
+commit ea4facb73bc4764a9f30743744a7a286f9784a51
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Tue Aug 21 00:46:57 2012 +0200
+
+    Updated doxyfile
+
+commit 6921b325dd9a1342f4a81331bb399e5a395ac6b9
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Tue Aug 21 00:41:15 2012 +0200
+
+    New build script
+
+commit 28e191387b9f3850e20f1883473d79626c166845
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Tue Aug 21 00:24:07 2012 +0200
+
+    First step of restructuring
+
+commit f6767fb7bd622271aa245793785661dab576a34c
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Tue Aug 21 00:18:11 2012 +0200
+
+    Removed old build system, libsqlite3 code
+
+commit 3efe6eee0d91a7a51f1a91f146a67b2f666dddc7
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Wed Aug 15 16:10:41 2012 +0200
+
+    Updated missing copyright
+
+commit 31c8d4e4248a6a26e92f3aff82aa44d6ec0116df
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Wed Aug 15 16:08:55 2012 +0200
+
+    Updated author information
+
+commit 6da79f41d3d83adb7a9b1228f09fc12add527791
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Wed Aug 15 16:00:31 2012 +0200
+
+    Moving INSTALL and LICENSE too
+
+commit 0c9c4bf93c6cf1ddb0aa328d5bc86058150daa4b
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Wed Aug 15 15:59:56 2012 +0200
+
+    Moved readme to basefolder
+
+commit 9a364238a2b957609e148957792c9c0fb194a952
+Author: evilissimo <evilissimo@062d0e6d-a41f-0410-a212-cd34bd342b03>
+Date:   Mon Oct 16 00:12:47 2006 +0000
+
+    * Removed docs from svn
+    
+    git-svn-id: https://sqlitepp.svn.sourceforge.net/svnroot/sqlitepp@12 062d0e6d-a41f-0410-a212-cd34bd342b03
+
+commit b4e8fca747fef5f6c0f208e916eb5c4dcf44ca6e
+Author: evilissimo <evilissimo@062d0e6d-a41f-0410-a212-cd34bd342b03>
+Date:   Mon Oct 16 00:10:49 2006 +0000
+
+    * Fixed vsqlite++.vcproj
+    
+    git-svn-id: https://sqlitepp.svn.sourceforge.net/svnroot/sqlitepp@11 062d0e6d-a41f-0410-a212-cd34bd342b03
+
+commit 47cfc0a55afc946dcd5a5a655fe0b2c76aacb781
+Author: evilissimo <evilissimo@062d0e6d-a41f-0410-a212-cd34bd342b03>
+Date:   Sun Oct 15 23:40:13 2006 +0000
+
+    * Added documentation
+    
+    
+    git-svn-id: https://sqlitepp.svn.sourceforge.net/svnroot/sqlitepp@10 062d0e6d-a41f-0410-a212-cd34bd342b03
+
+commit 0250a07e934dad8d273b4985787e50e7109fac0a
+Author: evilissimo <evilissimo@062d0e6d-a41f-0410-a212-cd34bd342b03>
+Date:   Sun Oct 15 23:09:04 2006 +0000
+
+    * Improved cleanup.sh
+    
+    
+    git-svn-id: https://sqlitepp.svn.sourceforge.net/svnroot/sqlitepp@9 062d0e6d-a41f-0410-a212-cd34bd342b03
+
+commit 53ad3d1164cc16d51945655f9e1eafba52ceab86
+Author: evilissimo <evilissimo@062d0e6d-a41f-0410-a212-cd34bd342b03>
+Date:   Sun Oct 15 23:01:30 2006 +0000
+
+    * Added build.sh
+    * Added cleanup.sh
+    * Added buildconf files
+    * Fixed options.py
+    
+    
+    git-svn-id: https://sqlitepp.svn.sourceforge.net/svnroot/sqlitepp@8 062d0e6d-a41f-0410-a212-cd34bd342b03
+
+commit 7b09a5dc414884e311181fb891346bc1062464e0
+Author: evilissimo <evilissimo@062d0e6d-a41f-0410-a212-cd34bd342b03>
+Date:   Sun Oct 15 22:49:05 2006 +0000
+
+    * Added some comments to options.py
+    * Edited Changelog
+    * Wrote a bit in README
+    * Wrote a bit in INSTALL
+    * Changed SConstruct
+    
+    
+    git-svn-id: https://sqlitepp.svn.sourceforge.net/svnroot/sqlitepp@7 062d0e6d-a41f-0410-a212-cd34bd342b03
+
+commit 4c04517150f7e65916e64554b1e1ba06b5b15524
+Author: evilissimo <evilissimo@062d0e6d-a41f-0410-a212-cd34bd342b03>
+Date:   Sun Oct 15 22:19:26 2006 +0000
+
+    * Added options.py
+    * Added SConscript
+    * Added SConstruct
+    * Started modifying MSVC++ Projectfiles
+    
+    
+    git-svn-id: https://sqlitepp.svn.sourceforge.net/svnroot/sqlitepp@6 062d0e6d-a41f-0410-a212-cd34bd342b03
+
+commit 8eb683590444191ad13f824bb8db43a981452294
+Author: evilissimo <evilissimo@062d0e6d-a41f-0410-a212-cd34bd342b03>
+Date:   Sun Oct 15 21:54:22 2006 +0000
+
+    * Renamed lib dir to libs
+    
+    git-svn-id: https://sqlitepp.svn.sourceforge.net/svnroot/sqlitepp@5 062d0e6d-a41f-0410-a212-cd34bd342b03
+
+commit f55d379bcdcec37dba94898de0835445448161ca
+Author: evilissimo <evilissimo@062d0e6d-a41f-0410-a212-cd34bd342b03>
+Date:   Sun Oct 15 21:53:49 2006 +0000
+
+    * Added lib dir
+    
+    git-svn-id: https://sqlitepp.svn.sourceforge.net/svnroot/sqlitepp@4 062d0e6d-a41f-0410-a212-cd34bd342b03
+
+commit afdcee16c09077327c61e91673e439e284ead35a
+Author: evilissimo <evilissimo@062d0e6d-a41f-0410-a212-cd34bd342b03>
+Date:   Sun Oct 15 21:53:06 2006 +0000
+
+    removed binary
+    
+    git-svn-id: https://sqlitepp.svn.sourceforge.net/svnroot/sqlitepp@3 062d0e6d-a41f-0410-a212-cd34bd342b03
+
+commit 6b1f8eaeb0fdecdcbc053934d40ff298b95c0273
+Author: evilissimo <evilissimo@062d0e6d-a41f-0410-a212-cd34bd342b03>
+Date:   Sun Oct 15 21:48:52 2006 +0000
+
+    * Added scons
+    * Renamed sqlite_wrapper directory
+    
+    
+    git-svn-id: https://sqlitepp.svn.sourceforge.net/svnroot/sqlitepp@2 062d0e6d-a41f-0410-a212-cd34bd342b03
+
+commit 30b102050f8053cc49f8db61a9cd89f25ef58e9e
+Author: evilissimo <evilissimo@062d0e6d-a41f-0410-a212-cd34bd342b03>
+Date:   Thu Oct 12 22:58:30 2006 +0000
+
+    Initial import
+    
+    git-svn-id: https://sqlitepp.svn.sourceforge.net/svnroot/sqlitepp@1 062d0e6d-a41f-0410-a212-cd34bd342b03
