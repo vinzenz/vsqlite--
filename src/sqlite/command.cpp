@@ -75,7 +75,7 @@ namespace sqlite{
     }
 
     bool command::emit(){
-        retrn step();
+        return step();
     }
 
     bool command::step(){
