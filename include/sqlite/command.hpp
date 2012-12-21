@@ -77,12 +77,12 @@ namespace sqlite{
           * If you have used placeholders you must have replaced all 
           * placeholders
           */
-        void emit();        
+        bool emit();        
 
         /** \brief works exactly like the method \a command::emit 
           *
           */
-        void operator()();
+        bool operator()();
 
         /** \brief binds NULL to the given 1 based index
           *

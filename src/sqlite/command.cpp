@@ -74,8 +74,8 @@ namespace sqlite{
             throw database_exception(sqlite3_errmsg(get_handle()));
     }
 
-    void command::emit(){
-        step();
+    bool command::emit(){
+        retrn step();
     }
 
     bool command::step(){
@@ -93,8 +93,8 @@ namespace sqlite{
         return false;
     }
 
-    void command::operator()(){
-        step();
+    bool command::operator()(){
+        return step();
     }
 
     void command::bind(int idx){
