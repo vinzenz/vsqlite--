@@ -1,7 +1,7 @@
 /*##############################################################################
  VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
 
- Copyright (c) 2006-2012 Vinzenz Feenstra vinzenz.feenstra@gmail.com
+ Copyright (c) 2012 Vinzenz Feenstra vinzenz.feenstra@gmail.com
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without modification,
@@ -29,40 +29,39 @@
  POSSIBILITY OF SUCH DAMAGE.
 
 ##############################################################################*/
-#include <sqlite/private/result_construct_params_private.hpp>
-#include <sqlite/query.hpp>
-#include <boost/bind.hpp>
-#include <sqlite3.h>
+#ifndef GUARD_SQLITE_EXT_VARIANT_HPP_INCLUDED
+#define GUARD_SQLITE_EXT_VARIANT_HPP_INCLUDED
+
+#include <boost/variant.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/cstdint.hpp>
+#include <vector>
+#include <string>
 
 namespace sqlite{
-    query::query(connection & con, std::string const & sql)
-    : command(con,sql){
 
-    }
+    enum type {
+        unknown,
+        null,
+        integer,
+        real,
+        text,
+        blob,
+    };
 
-    query::~query(){
-    }
+    struct unknown_t{};
+    struct null_t{};
+    typedef std::vector<boost::uint8_t> blob_t;
+    typedef boost::shared_ptr<blob_t> blob_ref_t;
 
-    boost::shared_ptr<result> query::emit_result(){
-        step();
-        return get_result();
-    }
-
-    boost::shared_ptr<result> query::get_result(){
-        access_check();
-        result_construct_params_private * p = new result_construct_params_private();
-        p->access_check = boost::bind(&query::access_check,this);
-        p->step         = boost::bind(&query::step,this);
-        p->db           = sqlite3_db_handle(stmt);
-        p->row_count    = sqlite3_changes(p->db);
-        p->statement    = stmt;
-        return boost::shared_ptr<result>(new result(result::construct_params(p)));
-    }
-    void query::access_check(){
-        command::access_check();
-    }
-    bool query::step(){
-        return command::step();
-    }
+    typedef boost::variant<
+            unknown_t,
+            int,
+            boost::int64_t,
+            long double,
+            std::string,
+            null_t,
+            blob_ref_t > variant_t;
 }
 
+#endif //GUARD_SQLITE_EXT_VARIANT_HPP_INCLUDED
