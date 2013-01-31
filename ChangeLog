@@ -1,3 +1,109 @@
+commit d16d225aa06c2600be7f8a0403099e5f0b779c76
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Thu Jan 31 09:03:55 2013 +0100
+
+    * Building
+    
+    - Compilation warning for variant.hpp removed
+    - Attempt to obey FHS in configure.ac started
+    - Building now also the example (but not installing it)
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit ad327d8b84bc05699ba4ca4dfe704d4f8b6927c1
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Thu Jan 31 07:58:58 2013 +0100
+
+    * Version bump 0.3.12
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit 6adfd45108e6f6d2a80a6abe4753bcc1568aa7d0
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Thu Jan 31 07:57:54 2013 +0100
+
+    * Improvement of the build system
+    
+    make install now installs the headers
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit b1d582de4734fd3d73819d3413892bffd0327872
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Fri Dec 21 16:15:18 2012 +0100
+
+    0.3.11
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit 0d6ff8125d0f0015a6961b188ee413609f42a89f
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Fri Dec 21 16:14:39 2012 +0100
+
+    Build error fix
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit 14673c537603318de7ef2eb8a730405c64bf64d8
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Fri Dec 21 12:45:38 2012 +0100
+
+    v0.3.10
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit bce01dcbbeb530bfa33a1779bfce0c043ab1ceb6
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Fri Dec 21 12:42:19 2012 +0100
+
+    Exposing step bool result to operator() and emit()
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit 36c6404a5cf56f33cfafa715bcb8a83633a6deb1
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Fri Dec 21 12:38:18 2012 +0100
+
+    Adding variant support to result set
+    
+    mysql-workbench currently uses the library patched.
+    This commit is bringing the features used by mysql-workbench
+    to vsqlite++.
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit 62c5b54d704b9b65a25848f6c25ecad4500d8852
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Fri Dec 21 10:53:54 2012 +0100
+
+    Version 0.3.10 from now
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit 3bab77350ad217217eb1e667e70d511d4dfe7165
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Tue Sep 25 16:43:11 2012 +0200
+
+    Examples should be shipped too
+
+commit 0685494f222cf54c58e8b8e9ba0b52c34c5bd16c
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Tue Sep 25 16:30:06 2012 +0200
+
+    LICENSE -> COPYING, Changelog -> ChangeLog
+
+commit 14fb85580d346ca67b73bfd2adc5f8f215192ad5
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Tue Sep 25 16:05:20 2012 +0200
+
+    0.3.9 prep
+
+commit bab391eac649736d302e03b1c6ce3a0ceeb555f2
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Tue Sep 25 16:03:49 2012 +0200
+
+    0.3.8 ChangeLog
+
 commit b9a22937fdd47e65cd2bbcb71c270b499f4429ed
 Author: Vinzenz Feenstra <evilissimo@gmail.com>
 Date:   Tue Sep 25 13:00:57 2012 +0200
