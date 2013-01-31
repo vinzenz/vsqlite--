@@ -1,0 +1,11 @@
+digraph "include" {
+  bgcolor=transparent;
+  compound=true
+  node [ fontsize="10", fontname="Helvetica"];
+  edge [ labelfontsize="10", labelfontname="Helvetica"];
+  subgraph clusterdir_dd45babc94b38070618ed7962d25af43 {
+    graph [ bgcolor="#eeeeff", pencolor="black", label="" URL="dir_dd45babc94b38070618ed7962d25af43.html"];
+    dir_dd45babc94b38070618ed7962d25af43 [shape=plaintext label="include"];
+    dir_7bd6ec182e11c9e058d1320cd05b00c4 [shape=box label="sqlite" color="red" fillcolor="white" style="filled" URL="dir_7bd6ec182e11c9e058d1320cd05b00c4.html"];
+  }
+}

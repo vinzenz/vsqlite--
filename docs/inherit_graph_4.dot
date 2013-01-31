@@ -1,0 +1,8 @@
+digraph "Graphical Class Hierarchy"
+{
+  bgcolor="transparent";
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="sqlite::null_type",height=0.2,width=0.4,color="black",URL="$structsqlite_1_1null__type.html",tooltip="null_type is an empty type used to represent NULL values"];
+}
