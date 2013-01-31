@@ -46,7 +46,7 @@ namespace sqlite{
         integer,
         real,
         text,
-        blob,
+        blob
     };
 
     struct unknown_t{};

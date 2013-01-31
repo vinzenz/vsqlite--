@@ -1,11 +1,11 @@
 LIBVSQLITE_VERSION=`cat VERSION`
 AUTOMAKE_OPTIONS = subdir-objects foreign
 ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS} -I m4
-AM_CXXFLAGS = -Wall -O3
+AM_CXXFLAGS = -W -Wall -pedantic -O3 -W -std=c++03
 
 lib_LTLIBRARIES = libvsqlitepp.la
 
-libvsqlitepp_la_CPPFLAGS = -I include
+libvsqlitepp_la_CXXFLAGS = -I include $(AM_CXXFLAGS)
 libvsqlitepp_la_LDFLAGS = -lsqlite3 -Wl,--as-needed -Wl,-soname -Wl,libvsqlitepp.so.3 -version-info 3:0:0
 libvsqlitepp_la_SOURCES = \
 	src/sqlite/command.cpp \
@@ -15,6 +15,13 @@ libvsqlitepp_la_SOURCES = \
 	src/sqlite/result.cpp \
 	src/sqlite/transaction.cpp \
 	src/sqlite/view.cpp \
+	$(NULL)
+
+noinst_PROGRAMS=vsqlitepp_example
+vsqlitepp_example_CXXFLAGS=-I include $(AM_CXXFLAGS)
+vsqlitepp_example_LDADD = libvsqlitepp.la
+vsqlitepp_example_SOURCES = \
+	examples/sqlite_wrapper.cpp \
 	$(NULL)
 
 SUBDIRS=include
