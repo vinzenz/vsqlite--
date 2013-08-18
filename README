@@ -3,7 +3,7 @@ VSQLite++ - A welldesigned and portable SQLite3 Wrapper for C++
 
 Author: Vinzenz Feenstra
 
-For license details please see LICENSE
+License:BSD-3
 
 # Supported Compilers
 - GCC and G++ 4.x (maybe 3.4.x too, but it wasn't tested until now)
@@ -11,7 +11,7 @@ For license details please see LICENSE
 
 # Tested Operating Systems
 - Ubuntu Dapper Drake 32-Bit
-- Fedora 17
+- Fedora 17, 18,19
 - Windows XP SP2 
 
 # Dependencies
