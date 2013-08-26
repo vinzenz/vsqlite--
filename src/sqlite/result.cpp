@@ -35,6 +35,7 @@
 #include <sqlite/query.hpp>
 #include <sqlite3.h>
 #include <boost/make_shared.hpp>
+#include <limits>
 
 namespace sqlite{
     result::result(construct_params p)
