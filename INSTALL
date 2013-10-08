@@ -51,6 +51,12 @@ of `autoconf'.
    The simplest way to compile this package is:
 
   1. `cd' to the directory containing the package's source code and type
+     `libtoolize --force'
+     `aclocal'
+     `autoheader'
+     `automake --force-missing --add-missing'
+     `autoconf' autoconf and the four preceding commands will create a
+                configure script for you
      `./configure' to configure the package for your system.
 
      Running `configure' might take a while.  While running, it prints
