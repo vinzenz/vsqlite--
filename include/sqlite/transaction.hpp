@@ -73,6 +73,7 @@ namespace sqlite{
     private:
         void exec(std::string const &);
         connection & m_con;
+        bool m_isActive; ///< if \c true there is a transaction currently opened
     };
 }
 

@@ -40,24 +40,27 @@ namespace sqlite{
     }
 
     transaction::~transaction(){
-        commit();
-        end();
+        if (m_isActive) commit();
     }
 
     void transaction::begin(){
         exec("BEGIN TRANSACTION");
+        m_isActive = true;
     }
 
     void transaction::end(){
         exec("END TRANSACTION");
+        m_isActive = false;
     }
 
     void transaction::commit(){
         exec("COMMIT TRANSACTION");
+        m_isActive = false;
     }
 
     void transaction::rollback(){
         exec("ROLLBACK TRANSACTION");
+	m_isActive = false;
     }
 
     void transaction::exec(std::string const & cmd){
