@@ -17,6 +17,7 @@ License: BSD-3
 
 # Dependencies
 - Boost Libraries [ http://www.boost.org ] >= 1.33
+- libsqlite3
 
 
 Additional notices:
