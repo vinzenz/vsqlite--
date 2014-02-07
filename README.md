@@ -12,10 +12,10 @@ License: BSD-3
 - MSVC 2005-2013
 - Clang 3.x
 
-# Tested Operating Systems
-- Ubuntu
-- Fedora
-- Windows XP-8, Windows Server 2003-2012R2
+# Operating Systems
+- Linux
+- Windows
+- Mac OS X
 
 # Dependencies
 - Boost Libraries [ http://www.boost.org ] >= 1.33
