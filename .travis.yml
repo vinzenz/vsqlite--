@@ -1,4 +1,5 @@
 language: cpp
+install: sudo apt-get install libboost-dev libsqlite3-dev
 compiler:
   - gcc
   - clang
