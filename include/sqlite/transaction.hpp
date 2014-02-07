@@ -37,7 +37,7 @@ namespace sqlite{
     
     /** \brief Defines the kind of transaction to begin.
      * 
-     * \see http://www.sqlite.org/lang_transaction.html  for documentation
+     * \see http://www.sqlite.org/lang_transaction.html for documentation
      * about transaction kind.
      * 
      * When no transaction type is defined (\c undefined) the default behaviour
@@ -63,6 +63,7 @@ namespace sqlite{
         /** \brief constructor 
           * \param con a reference to the connection object where the 
           * transaction should be started/ended/committed or rolled back in 
+          * \param type define the transaction type
           */
         transaction(connection & con, transaction_type type = transaction_type::undefined);
 
