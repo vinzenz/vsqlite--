@@ -35,6 +35,26 @@
 namespace sqlite{
     struct connection;
     
+    /** \brief Defines the kind of transaction to begin.
+     * 
+     * \see http://www.sqlite.org/lang_transaction.html  for documentation
+     * about transaction kind.
+     * 
+     * When no transaction type is defined (\c undefined) the default behaviour
+     * is to create a deferred transaction, but the \c undefined constant is
+     * because maybe in future the default behaviour may change.
+     * 
+     * Note that for more type safety this needs Strongly Typed enums C++11
+     * feature:
+     * http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2347.pdf
+     */
+    enum class transaction_type {
+        undefined,
+        deferred,
+        immediate,
+        exclusive
+    };
+    
     /** \brief transaction is a helper class to start transactions within SQLite
       *
       */
@@ -44,7 +64,7 @@ namespace sqlite{
           * \param con a reference to the connection object where the 
           * transaction should be started/ended/committed or rolled back in 
           */
-        transaction(connection & con);
+        transaction(connection & con, transaction_type type = transaction_type::undefined);
 
         /** \brief destructor
           *
@@ -54,7 +74,7 @@ namespace sqlite{
         /** \brief Starts a transaction
           *
           */
-        void begin();
+        void begin(transaction_type type = transaction_type::undefined);
 
         /** \brief Ends an transaction
           *
