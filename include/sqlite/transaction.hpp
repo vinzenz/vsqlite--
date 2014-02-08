@@ -73,7 +73,7 @@ namespace sqlite{
         ~transaction();
 
         /** \brief Starts a transaction
-          *
+          * \param type define the transaction type
           */
         void begin(transaction_type type = transaction_type::undefined);
 
