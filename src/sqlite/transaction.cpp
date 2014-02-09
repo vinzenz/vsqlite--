@@ -69,7 +69,7 @@ namespace sqlite{
 
     void transaction::rollback(){
         exec("ROLLBACK TRANSACTION");
-	m_isActive = false;
+        m_isActive = false;
     }
 
     void transaction::exec(std::string const & cmd){

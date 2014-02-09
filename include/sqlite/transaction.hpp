@@ -91,6 +91,12 @@ namespace sqlite{
           *
           */
         void rollback();
+
+        /** \brief Allow to check if transaction handled by this object is
+          * currently active
+          * \return \c true if transaction is still active, \c false otherwise
+          */
+        bool isActive() const { return m_isActive; }
     private:
         void exec(std::string const &);
         connection & m_con;
