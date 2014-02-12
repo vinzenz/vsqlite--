@@ -61,8 +61,8 @@ namespace sqlite{
     struct transaction{
     public:
         /** \brief constructor 
-          * \param con a reference to the connection object where the 
-          * transaction should be started/ended/committed or rolled back in 
+          * \param con a reference to the connection object where the
+          * transaction should be started/ended/committed or rolled back
           * \param type define the transaction type
           */
         transaction(connection & con, transaction_type type = transaction_type::undefined);
