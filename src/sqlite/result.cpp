@@ -46,7 +46,7 @@ namespace sqlite{
 #if defined(BOOST_NO_RVALUE_REFERENCES)
     : m_params(p) {
 #else
-    : m_params(std::move(p))
+    : m_params(std::move(p)) {
 #endif
         m_params->access_check();
         m_columns = sqlite3_column_count(m_params->statement);
