@@ -37,9 +37,17 @@
 #include <boost/make_shared.hpp>
 #include <limits>
 
+#if !defined(BOOST_NO_RVALUE_REFERENCES)
+#include <utility>
+#endif
+
 namespace sqlite{
     result::result(construct_params p)
-    : m_params(p){
+#if defined(BOOST_NO_RVALUE_REFERENCES)
+    : m_params(p) {
+#else
+    : m_params(std::move(p))
+#endif
         m_params->access_check();
         m_columns = sqlite3_column_count(m_params->statement);
         m_row_count = m_params->row_count;
