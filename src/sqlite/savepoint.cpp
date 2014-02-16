@@ -1,7 +1,7 @@
 /*##############################################################################
  VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
 
- Copyright (c) 2006-2012 Vinzenz Feenstra vinzenz.feenstra@gmail.com
+ Copyright (c) 2014 mickey mickey.mouse-1985@libero.it
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without modification,
