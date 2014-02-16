@@ -32,32 +32,44 @@
 #include <sqlite/connection.hpp>
 #include <sqlite/execute.hpp>
 #include <sqlite/transaction.hpp>
+#include <string>
 
 namespace sqlite{
-    transaction::transaction(connection & con)
-        : m_con(con){        
-        begin();
+    transaction::transaction(connection & con, transaction_type type)
+        : m_con(con){
+        begin(type);
     }
 
     transaction::~transaction(){
-        commit();
-        end();
+        if (m_isActive) commit();
     }
 
-    void transaction::begin(){
-        exec("BEGIN TRANSACTION");
+    void transaction::begin(transaction_type type){
+        std::string sql("BEGIN ");
+        switch (type) {
+          case transaction_type::deferred:  sql += "DEFERRED " ; break;
+          case transaction_type::immediate: sql += "IMMEDIATE "; break;
+          case transaction_type::exclusive: sql += "EXCLUSIVE "; break;
+          case transaction_type::undefined: ; /* noop */
+        }
+        sql += "TRANSACTION";
+        exec(sql);
+        m_isActive = true;
     }
 
     void transaction::end(){
         exec("END TRANSACTION");
+        m_isActive = false;
     }
 
     void transaction::commit(){
         exec("COMMIT TRANSACTION");
+        m_isActive = false;
     }
 
     void transaction::rollback(){
         exec("ROLLBACK TRANSACTION");
+        m_isActive = false;
     }
 
     void transaction::exec(std::string const & cmd){

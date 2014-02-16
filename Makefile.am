@@ -1,7 +1,7 @@
 LIBVSQLITE_VERSION=`cat VERSION`
 AUTOMAKE_OPTIONS = subdir-objects foreign
 ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS} -I m4
-AM_CXXFLAGS = -W -Wall -pedantic -O3 -W -std=c++98
+AM_CXXFLAGS = -W -Wall -pedantic -O3 -W -std=c++11
 
 lib_LTLIBRARIES = libvsqlitepp.la
 
@@ -10,6 +10,7 @@ libvsqlitepp_la_LDFLAGS = -lsqlite3 -Wl,--as-needed -Wl,-soname -Wl,libvsqlitepp
 libvsqlitepp_la_SOURCES = \
 	src/sqlite/command.cpp \
 	src/sqlite/connection.cpp \
+	src/sqlite/savepoint.cpp \
 	src/sqlite/execute.cpp \
 	src/sqlite/query.cpp \
 	src/sqlite/result.cpp \

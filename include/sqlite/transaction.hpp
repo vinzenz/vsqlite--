@@ -35,16 +35,37 @@
 namespace sqlite{
     struct connection;
     
+    /** \brief Defines the kind of transaction to begin.
+     * 
+     * \see http://www.sqlite.org/lang_transaction.html for documentation
+     * about transaction kind.
+     * 
+     * When no transaction type is defined (\c undefined) the default behaviour
+     * is to create a deferred transaction, but the \c undefined constant is
+     * because maybe in future the default behaviour may change.
+     * 
+     * Note that for more type safety this needs Strongly Typed enums C++11
+     * feature:
+     * http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2347.pdf
+     */
+    enum class transaction_type {
+        undefined,
+        deferred,
+        immediate,
+        exclusive
+    };
+    
     /** \brief transaction is a helper class to start transactions within SQLite
       *
       */
     struct transaction{
     public:
         /** \brief constructor 
-          * \param con a reference to the connection object where the 
-          * transaction should be started/ended/committed or rolled back in 
+          * \param con a reference to the connection object where the
+          * transaction should be started/ended/committed or rolled back
+          * \param type define the transaction type
           */
-        transaction(connection & con);
+        transaction(connection & con, transaction_type type = transaction_type::undefined);
 
         /** \brief destructor
           *
@@ -52,9 +73,9 @@ namespace sqlite{
         ~transaction();
 
         /** \brief Starts a transaction
-          *
+          * \param type define the transaction type
           */
-        void begin();
+        void begin(transaction_type type = transaction_type::undefined);
 
         /** \brief Ends an transaction
           *
@@ -70,9 +91,16 @@ namespace sqlite{
           *
           */
         void rollback();
+
+        /** \brief Allow to check if transaction handled by this object is
+          * currently active
+          * \return \c true if transaction is still active, \c false otherwise
+          */
+        bool isActive() const { return m_isActive; }
     private:
         void exec(std::string const &);
         connection & m_con;
+        bool m_isActive; ///< if \c true there is a transaction currently opened
     };
 }
 
