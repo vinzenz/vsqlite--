@@ -117,7 +117,11 @@ namespace sqlite{
                 v = get_string(idx);
                 break;
         }
+#if defined(BOOST_NO_RVALUE_REFERENCES)
         return v;
+#else
+        return std::move(v);
+#endif
     }
 
     int result::get_int(int idx){
