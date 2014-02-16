@@ -2,6 +2,5 @@ language: cpp
 install: sudo apt-get install libboost-dev libsqlite3-dev
 compiler:
   - gcc
-  - clang
 # Change this to your needs
 script: ./autogen.sh && ./configure && make
