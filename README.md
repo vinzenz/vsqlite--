@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/vinzenz/vsqlite--.png?branch=master)](https://travis-ci.org/vinzenz/vsqlite--)
+[![Coverity Scan Build Status](https://scan.coverity.com/projects/1976/badge.svg)](https://scan.coverity.com/projects/1976)
 
 VSQLite++ - A welldesigned and portable SQLite3 Wrapper for C++
 (C) 2006-2014 by virtuosic bytes  - vinzenz.feenstra@gmail.com
