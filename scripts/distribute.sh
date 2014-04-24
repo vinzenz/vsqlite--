@@ -17,3 +17,10 @@ make dist-bzip2
 make dist-xz
 make dist-zip
 
+DIST_TARBALLS="$DIST_FULL.tar.xz $DIST_FULL.tar.gz $DIST_FULL.zip $DIST_FULL.tar.bz2"
+
+md5sum $DIST_TARBALLS > $DIST_FULL.md5sum.txt
+sha1sum $DIST_TARBALLS > $DIST_FULL.sha1sum.txt
+sha256sum $DIST_TARBALLS > $DIST_FULL.sha256sum.txt
+sha512sum $DIST_TARBALLS > $DIST_FULL.sha512sum.txt
+

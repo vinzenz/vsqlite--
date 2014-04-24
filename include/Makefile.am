@@ -7,6 +7,7 @@ nobase_include_HEADERS = \
     sqlite/execute.hpp \
     sqlite/result.hpp \
     sqlite/view.hpp \
+    sqlite/savepoint.hpp \
 	sqlite/ext/variant.hpp \
 	$(NULL)
 
