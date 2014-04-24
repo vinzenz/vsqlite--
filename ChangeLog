@@ -1,3 +1,278 @@
+commit 86344362015539e7500e5d3a2bd8d75cf19df496
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Thu Apr 24 14:08:15 2014 +0200
+
+    Fixing coverity issue CID:43719 Uninitialized scalar field
+    
+    This field was a left-over and is unused.
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit 6041bcbf797b7e6527566997df5298874106eff2
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Wed Apr 23 09:55:54 2014 +0200
+
+    Coverity model added
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit e1a6bee8165d6e268264bbff9d32019c88b128f2
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Wed Apr 23 09:35:26 2014 +0200
+
+    Added coverity scan to travis
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit e7a60cb27e96255bd656c7fb975d1bf2e1e1e03d
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Wed Apr 23 09:32:02 2014 +0200
+
+    Add coverity status
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit f8e00a38622c82d591a372e522f082d5dac620a8
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Sun Feb 16 23:01:57 2014 +0100
+
+    Updated copyright & removed trailing spaces
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit 9cdaf4a640699d9ae7cd864c631e0ab68fe3967a
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Sun Feb 16 22:47:32 2014 +0100
+
+    boost 1.46 on travis builds seems to be broken with clang++ 3.3 -> Disabled tests
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit a5a6a7c644b7f0d4bde409d7b3988eafd17c4e19
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Sun Feb 16 22:41:00 2014 +0100
+
+    Trying to workaround the build error on clang
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit 51cff6a4e15b2bad8adec7878a40fe86d93722f2
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Sun Feb 16 21:52:15 2014 +0100
+
+    Missing {
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit 47cfdd0e7e690bd623c345796c3568c546293705
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Sun Feb 16 21:50:05 2014 +0100
+
+    Trying to workaround the build error on clang
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit a6b95daebb6d123e8612f151dbd16dc4d8f77167
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Sun Feb 16 21:33:48 2014 +0100
+
+    Moving to C++0x to keep at least some support for older compilers
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit 6660679d3232d9a5de71aa03aa7b377de4459780
+Merge: 1de25fc db4c120
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Sun Feb 16 21:29:47 2014 +0100
+
+    Merge pull request #5 from mmickey/master
+    
+    Functionality inprovement of transaction calss, also new savepoint class added
+
+commit db4c120258451ccca2d8104c25cbaf96f9070a4b
+Author: mickey mouse <mickey.mouse-1985@libero.it>
+Date:   Thu Feb 13 00:22:42 2014 +0100
+
+    Enabled c++11 flag for strongly typed enums support
+
+commit 2abf2c833aea965495c020eac9a762c9f69fec88
+Author: mmickey <mmickey@users.noreply.github.com>
+Date:   Wed Feb 12 23:59:48 2014 +0100
+
+    Update transaction.hpp
+    
+    fixed documentation issue
+
+commit 3cba7d7123f9e623417e62329f515aedbd715f50
+Author: mmickey <mmickey@users.noreply.github.com>
+Date:   Wed Feb 12 23:56:31 2014 +0100
+
+    Update savepoint.hpp
+    
+    Changed license, fixed documentation
+
+commit 56fbd9732a29145a74311d1b1249e2a80a9ed692
+Author: mickey mouse <mickey.mouse-1985@libero.it>
+Date:   Sun Feb 9 23:38:14 2014 +0100
+
+    Added savepoint class and an accessor method to transaction class
+
+commit b84bfdb20e77388f06d175f5d19e0d3ee5865a32
+Author: mickey mouse <mickey.mouse-1985@libero.it>
+Date:   Sat Feb 8 14:48:35 2014 +0100
+
+    More documentation
+
+commit da898cae69c296c7aad4f1f16da7004d5e67b741
+Author: mickey mouse <mickey.mouse-1985@libero.it>
+Date:   Sat Feb 8 00:26:50 2014 +0100
+
+    Added missing documentation
+
+commit 6fbb41be68a4fa8af2f39cdbe1bc2bd747ae82b2
+Author: mickey mouse <mickey.mouse-1985@libero.it>
+Date:   Fri Feb 7 16:42:33 2014 +0100
+
+    Added possibility to define the transaction type on construction/begin.
+
+commit 1f82e3cc6e6f7f8822b89ab170afabe84d83feca
+Author: mickey mouse <mickey.mouse-1985@libero.it>
+Date:   Fri Feb 7 15:56:42 2014 +0100
+
+    Bugfix in transaction class
+    
+    From documentation: "END TRANSACTION is an alias for COMMIT." (http://www.sqlite.org/lang_transaction.html) Removed commit()+end() commands on destructor. Also added a flag in order to avoid commit when no transactions are open.
+
+commit 1de25fc868f26ed514679e457431c09b491ec177
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Fri Feb 7 15:33:56 2014 +0100
+
+    Updated README
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit a490c973acb79a3cb1246448e36cb2ae3df3c1d8
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Fri Feb 7 15:32:04 2014 +0100
+
+    Renamed README
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit eda9915f1150690dc70b1a10ad6bd8cabf93995b
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Fri Feb 7 15:30:44 2014 +0100
+
+    Build Status
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit 3c53bac5bb563feaa97b935ccdd7f20b974708d3
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Fri Feb 7 15:25:43 2014 +0100
+
+    Updated README
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit e184a14d47a8a75167e409ccc6f53423637f80c5
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Fri Feb 7 15:24:55 2014 +0100
+
+    Updated README
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit b737a0f81afb6c02a571f6e52214bc9cd3fc4579
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Fri Feb 7 15:11:35 2014 +0100
+
+    travis-ci: install boost and sqlite3 development files
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit 586752a4521b376a56dd6c86d47a1ca306ca599d
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Fri Feb 7 15:04:02 2014 +0100
+
+    We need autogen.sh
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit 453cc82fc512d4852488d2c3f52ec888a383f06f
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Fri Feb 7 15:00:20 2014 +0100
+
+    Adding Travis CI
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit a24503acee03fdd85b2767a3beb47fa0005d2041
+Merge: 7b69fa7 d615daa
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Tue Oct 8 02:41:03 2013 -0700
+
+    Merge pull request #4 from phpdan/patch-1
+    
+    Update INSTALL
+    
+    Adds information in how to create a configure script.
+    Note: Alternative is ./autogen.sh
+
+commit d615daa1d8b3ad88f35c2a49776dd4aa11f8e3cd
+Author: phpdan <phpdan@gmail.com>
+Date:   Tue Oct 8 03:15:01 2013 -0400
+
+    Update INSTALL
+    
+    Does not include a configure script, so added instructions on how to create one.
+
+commit 7b69fa7e4594d78f37bd703189f9686741470da7
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Tue Aug 27 15:22:04 2013 +0200
+
+    Applied dos2unix on all files
+    
+    Solves #3
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit 759efc9bfd14002223f9df8d9ee9a0953a22e3bb
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Mon Aug 26 15:40:10 2013 +0200
+
+    Adding include <limits> for using numeric_limits
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit f894f88c7095ff4a004f16042c22fd6f9e0e6469
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Sun Aug 25 15:14:58 2013 +0200
+
+    Build system: Use -std=c++98 instead of -std=c++03
+    
+    Should fix the build issue on OpenSuse SLES
+    fixes #2
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
+commit e724f31c0eba95b76b60ce9d4f682e9eee96be0a
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Date:   Sun Aug 18 16:49:41 2013 +0200
+
+    Update README
+    
+    License details clarified.
+    Fedora 18 and 19 added.
+
+commit 3fa8d32c315da7260fb8be2812db74c2e9e98f7b
+Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+Date:   Thu Jan 31 09:05:47 2013 +0100
+
+    Updated changelog for 0.3.12
+    
+    Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
+
 commit d16d225aa06c2600be7f8a0403099e5f0b779c76
 Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
 Date:   Thu Jan 31 09:03:55 2013 +0100
