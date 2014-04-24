@@ -1,4 +1,4 @@
-AC_INIT([libvsqlite++],[0.3.12], [evilissimo@gmail.com], [vsqlite++], [http://github.com/vinzenz/vsqlite--])
+AC_INIT([libvsqlite++],[0.3.13], [evilissimo@gmail.com], [vsqlite++], [http://github.com/vinzenz/vsqlite--])
 
 AM_INIT_AUTOMAKE
 AC_CONFIG_MACRO_DIR([m4])
