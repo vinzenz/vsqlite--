@@ -36,7 +36,7 @@
 
 namespace sqlite{
     query::query(connection & con, std::string const & sql)
-    : command(con,sql){
+    : command(con,sql) {
 
     }
 

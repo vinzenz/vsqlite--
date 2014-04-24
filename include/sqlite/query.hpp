@@ -63,7 +63,6 @@ namespace sqlite{
           */
         result_type get_result();
     private:
-        int last_arg_idx;
         friend struct result;
         void access_check();
         bool step();
