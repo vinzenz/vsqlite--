@@ -50,14 +50,16 @@ namespace sqlite{
     }
 
     void connection::open(const std::string &db){
-        if(sqlite3_open(db.c_str(),&handle) != SQLITE_OK)
-            throw database_exception("Could not open database");
+        int err = sqlite3_open(db.c_str(),&handle);
+        if(err != SQLITE_OK)
+            throw database_exception_code("Could not open database", err);
     }
 
     void connection::close(){
         access_check();
-        if(sqlite3_close(handle) != SQLITE_OK)
-            throw database_exception(sqlite3_errmsg(handle));
+        int err = sqlite3_close(handle);
+        if(err != SQLITE_OK)
+            throw database_exception_code(sqlite3_errmsg(handle), err);
         handle = 0;
     }
 

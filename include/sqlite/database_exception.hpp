@@ -36,10 +36,24 @@
 #include <string>
 
 namespace sqlite{
-    struct database_exception
-        : public std::runtime_error {
-            database_exception(std::string const & msg)
-                : std::runtime_error(msg.c_str()){}
+    struct database_exception : public std::runtime_error {
+        database_exception(std::string const & msg)
+        : std::runtime_error(msg.c_str())
+        {}
+    };
+
+    struct database_exception_code : database_exception {
+        database_exception_code(std::string const & error_message,
+                                int sqlite_error_code)
+        : database_exception(error_message)
+        , sqlite_error_code_(sqlite_error_code)
+        {}
+
+        int error_code() const {
+            return sqlite_error_code_;
+        }
+    protected:
+        int const sqlite_error_code_;
     };
 
     struct buffer_too_small_exception : public std::runtime_error{
@@ -49,9 +63,23 @@ namespace sqlite{
 
     struct database_misuse_exception : public std::logic_error{
         database_misuse_exception(std::string const & msg)
-            : std::logic_error(msg){}
+        : std::logic_error(msg)
+        {}
     };
 
+    struct database_misuse_exception_code : database_misuse_exception {
+        database_misuse_exception_code(std::string const & msg,
+                                       int sqlite_error_code)
+        : database_misuse_exception(msg)
+        , sqlite_error_code_(sqlite_error_code)
+        {}
+
+        int error_code() const {
+            return sqlite_error_code_;
+        }
+    protected:
+        int const sqlite_error_code_;
+    };
 
 }
 
