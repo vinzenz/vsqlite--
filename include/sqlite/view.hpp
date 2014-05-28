@@ -31,6 +31,9 @@
 ##############################################################################*/
 #ifndef GUARD_SQLITE_VIEW_HPP_INCLUDED
 #define GUARD_SQLITE_VIEW_HPP_INCLUDED
+
+#include <string>
+
 namespace sqlite{
     struct connection;
     /** \brief view is used to create views. In SQLite a view can only be

@@ -33,6 +33,8 @@
 #ifndef GUARD_SQLITE_TRANSACTION_HPP_INCLUDED
 #define GUARD_SQLITE_TRANSACTION_HPP_INCLUDED
 
+#include <string>
+
 namespace sqlite{
     struct connection;
 
