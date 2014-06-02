@@ -35,6 +35,7 @@
 #include <boost/noncopyable.hpp>
 #include <sqlite/ext/variant.hpp>
 #include <sqlite/deprecated.hpp>
+#include <stdexcept>
 
 namespace sqlite{
     struct query;
