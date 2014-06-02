@@ -1,5 +1,5 @@
 /*##############################################################################
-VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
+ VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
 
  Copyright (c) 2006-2014 Vinzenz Feenstra vinzenz.feenstra@gmail.com
  All rights reserved.
@@ -29,25 +29,16 @@ VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
  POSSIBILITY OF SUCH DAMAGE.
 
 ##############################################################################*/
-#ifndef GUARD_SQLITE_RESULT_CONSTRUCT_PARAMS_PRIVATE_HPP_INCLUDED
-#define GUARD_SQLITE_RESULT_CONSTRUCT_PARAMS_PRIVATE_HPP_INCLUDED
+#ifndef GUARD_SQLITE_DEPRECATED_HPP_INCLUDED
+#define GUARD_SQLITE_DEPRECATED_HPP_INCLUDED
 
-#include <boost/function/function0.hpp>
+#if defined(__GNUC__)
+#   define VSQLITE_DEPRECATED __attribute__((deprecated))
+#elif defined(_MSC_VER)
+#   define VSQLITE_DEPRECATED __declspec(deprecated)
+#else
+#   error "You need to implement VSQLITE_DEPRECATED for this compiler"
+#endif
 
-struct sqlite3;
-struct sqlite3_stmt;
+#endif //GUARD_SQLITE_DEPRECATED_HPP_INCLUDED
 
-namespace sqlite{
-    struct query;
-    struct result_construct_params_private{
-        sqlite3 * db;
-        sqlite3_stmt * statement;
-        int row_count;
-        boost::function0<void> access_check;
-        boost::function0<bool> step;
-        bool ended;
-    };
-}
-
-
-#endif //GUARD_SQLITE_RESULT_CONSTRUCT_PARAMS_PRIVATE_HPP_INCLUDED

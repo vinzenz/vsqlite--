@@ -34,10 +34,14 @@
 
 #include <boost/noncopyable.hpp>
 #include <sqlite/ext/variant.hpp>
+#include <sqlite/deprecated.hpp>
 
 namespace sqlite{
     struct query;
     struct result_construct_params_private;
+    namespace detail {
+        bool end(result_construct_params_private const &);
+    }
 
     /** \brief result can only be created by a query object.
       * An object of this class is not copyable.
@@ -60,10 +64,23 @@ namespace sqlite{
           */
         bool next_row();
 
+        /** \brief Returns true when the last row has been reached.
+         *  \return returns true when the last row has been already reached.
+         */
+        inline bool end() const {
+            if(!m_params) throw std::runtime_error("Invalid memory access");
+            return detail::end(*m_params);
+        }
+
         /** \brief Returns the number of rows in the result
           * \return an integer
+          *
+          * \note: DEPRECATED: This function does not work as documented. Do
+          *        not use it to retrieve the amount of rows in the result. The
+          *        value returned actually only indicates the number of rows
+          *        changed in the database (via INSERT/UPDATE).
           */
-        int get_row_count();
+        VSQLITE_DEPRECATED int get_row_count();
 
         /** \brief Returns the number of columns
           * \return an integer

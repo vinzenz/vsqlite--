@@ -38,6 +38,12 @@
 #include <limits>
 
 namespace sqlite{
+    namespace detail {
+        bool end(result_construct_params_private const & params) {
+            return params.ended;
+        }
+    }
+
     result::result(construct_params p)
     : m_params(p) {
         m_params->access_check();
@@ -49,7 +55,8 @@ namespace sqlite{
     }
 
     bool result::next_row(){
-        return m_params->step();
+        m_params->ended = !m_params->step();
+        return !end();
     }
 
     std::string result::get_column_decltype(int idx) {
