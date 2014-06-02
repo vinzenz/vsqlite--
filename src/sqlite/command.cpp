@@ -130,7 +130,8 @@ namespace sqlite{
 
     void command::bind(int idx, std::string const & v){
         access_check();
-        int err = sqlite3_bind_text(stmt,idx,v.c_str(),int(v.size()),SQLITE_TRANSIENT);
+        static char const dummy = 0;
+        int err = sqlite3_bind_text(stmt,idx,v.empty() ? &dummy : v.c_str(),int(v.size()),SQLITE_TRANSIENT);
         if(err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err);
     }
@@ -144,7 +145,8 @@ namespace sqlite{
 
     void command::bind(int idx, std::vector<unsigned char> const & v)
     {
-        bind(idx,&v.at(0),v.size());
+        static const unsigned char dummy = 0;
+        bind(idx, v.empty() ? &dummy : &v.at(0),v.size());
     }
 
     void command::access_check(){
