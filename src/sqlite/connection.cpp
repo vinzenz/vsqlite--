@@ -39,6 +39,7 @@ namespace sqlite{
     connection::connection(std::string const & db)
         : handle(0){
             open(db);
+            sqlite3_extended_result_codes(handle, 1);
     }
 
     connection::~connection(){
