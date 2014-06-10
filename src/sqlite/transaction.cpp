@@ -42,7 +42,9 @@ namespace sqlite{
     }
 
     transaction::~transaction(){
-        if (m_isActive) commit();
+        if (m_isActive) {
+            rollback();
+        }
     }
 
     void transaction::begin(transaction_type type){
