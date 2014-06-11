@@ -42,6 +42,7 @@ namespace sqlite{
     struct result_construct_params_private;
     namespace detail {
         bool end(result_construct_params_private const &);
+        void reset(result_construct_params_private &);
     }
 
     /** \brief result can only be created by a query object.
@@ -71,6 +72,13 @@ namespace sqlite{
         inline bool end() const {
             if(!m_params) throw std::runtime_error("Invalid memory access");
             return detail::end(*m_params);
+        }
+
+        /** \brief Resets the result cursor to reiterate over the results
+         */
+        void reset() {
+            if(!m_params) throw std::runtime_error("Invalid memory access");
+            detail::reset(*m_params);
         }
 
         /** \brief Returns the number of rows in the result

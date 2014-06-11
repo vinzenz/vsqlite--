@@ -41,7 +41,7 @@ int main()
     {
         sqlite::connection con("test.db");
 
-        sqlite::execute(con,"Create Table test(id INTEGER PRIMARY KEY, name TEXT);",true);
+        sqlite::execute(con,"Create Table IF NOT EXISTS test(id INTEGER PRIMARY KEY, name TEXT);",true);
 
         sqlite::execute ins(con,"INSERT INTO TEST VALUES(?,?);");
 
@@ -57,11 +57,15 @@ int main()
 
         sqlite::query q(con,"SELECT * from test;");
 
-        boost::shared_ptr<sqlite::result> res = q.emit_result();
-        do{
+        boost::shared_ptr<sqlite::result> res = q.get_result();
+        while(res->next_row()) {
             std::cout << res->get_int(0) << "|" << res->get_string(1) << std::endl;
         }
-        while(res->next_row());
+
+        res->reset();
+        while(res->next_row()) {
+            std::cout << res->get_int(0) << "|" << res->get_string(1) << std::endl;
+        }
 
         sqlite::execute(con,"DROP TABLE test;",true);
 

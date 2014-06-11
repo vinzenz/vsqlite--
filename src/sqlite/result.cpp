@@ -42,6 +42,10 @@ namespace sqlite{
         bool end(result_construct_params_private const & params) {
             return params.ended;
         }
+
+        void reset(result_construct_params_private & params) {
+            params.ended = false;
+        }
     }
 
     result::result(construct_params p)
@@ -55,8 +59,11 @@ namespace sqlite{
     }
 
     bool result::next_row(){
-        m_params->ended = !m_params->step();
-        return !end();
+        if(!m_params->ended) {
+            m_params->ended = !m_params->step();
+            return !end();
+        }
+        return false;
     }
 
     std::string result::get_column_decltype(int idx) {
