@@ -8,6 +8,8 @@ Author: Vinzenz Feenstra
 
 License: BSD-3
 
+# Website: http://vsqlite.virtuosic-bytes.com
+
 # Supported Compilers
 - g++ 4.x
 - MSVC 2005-2013
