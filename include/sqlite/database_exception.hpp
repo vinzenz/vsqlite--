@@ -81,6 +81,19 @@ namespace sqlite{
         int const sqlite_error_code_;
     };
 
+    struct database_system_error : database_exception {
+        database_system_error(std::string const & msg,
+                              int error_code)
+        : database_exception(msg)
+        , error_code_(error_code)
+        {}
+
+        int error_code() const {
+            return error_code_;
+        }
+    protected:
+        int error_code_;
+    };
 }
 
 #endif //GUARD_SQLITE_DATABASE_EXCEPTION_HPP_INCLUDED

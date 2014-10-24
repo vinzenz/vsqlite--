@@ -36,6 +36,12 @@
 struct sqlite3;
 
 namespace sqlite{
+    enum class open_mode {
+        open_existing,  ///!> Opens an existing database or fails
+        open_or_create, ///!> Opens an existing database or creates it
+        always_create,  ///!> Deletes database if exists and recreates it
+    };
+
     /** \brief connection is used to open, close, attach and detach a database.
       * Further it has to be passed to all classes since it represents the
       * connection to the database and contains the internal needed handle, so
@@ -50,6 +56,21 @@ namespace sqlite{
           *           If the file does not exist a new database will be created
           */
         connection(std::string const & db);
+
+        /** \brief constructor opens the database
+          * \param db filename of the database file
+          * \param open_mode How to behave when opening the database
+          *
+          * \remarks
+          * If open_mode::always_create is specified and the file
+          * exists but cannot be removed, this will throw a
+          * database_system_error exception with the system error code causing
+          * the failure.
+          *
+          * If the database does not exist and open_mode::open_existing was
+          * specified, a database_exception will be thrown.
+          */
+        connection(std::string const & db, sqlite::open_mode open_mode);
 
         /** \brief destructor closes the database automatically
           *
@@ -74,6 +95,7 @@ namespace sqlite{
         friend struct private_accessor;
     private:
         void open(std::string const & db);
+        void open(std::string const & db, sqlite::open_mode open_mode);
         void close();
         void access_check();
     private:

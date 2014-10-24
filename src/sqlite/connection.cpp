@@ -34,12 +34,19 @@
 #include <sqlite/execute.hpp>
 #include <sqlite/connection.hpp>
 #include <sqlite3.h>
+#include <boost/filesystem.hpp>
 
 namespace sqlite{
     connection::connection(std::string const & db)
         : handle(0){
             open(db);
             sqlite3_extended_result_codes(handle, 1);
+    }
+
+    connection::connection(std::string const & db, sqlite::open_mode open_mode)
+    : handle(0) {
+        open(db, open_mode);
+        sqlite3_extended_result_codes(handle, 1);
     }
 
     connection::~connection(){
@@ -54,6 +61,36 @@ namespace sqlite{
         int err = sqlite3_open(db.c_str(),&handle);
         if(err != SQLITE_OK)
             throw database_exception_code("Could not open database", err);
+    }
+
+    void connection::open(std::string const & db, sqlite::open_mode open_mode){
+        boost::system::error_code ec;
+        bool exists = boost::filesystem::exists(db, ec);
+        exists = exists && !ec;
+        switch(open_mode) {
+            case sqlite::open_mode::open_existing:
+                if(!exists) {
+                    throw database_exception(
+                        "Database '" + db + "' does not exist"
+                    );
+                }
+            case sqlite::open_mode::always_create:
+                if(exists) {
+                    boost::filesystem::remove(db, ec);
+                    if(ec) {
+                        throw database_system_error(
+                            "Failed to remove existing database '" + db + "'",
+                            ec.value()
+                        );
+                    }
+                }
+            case sqlite::open_mode::open_or_create:
+                // Default behaviour
+                break;
+            default:
+                break;
+        };
+        open(db);
     }
 
     void connection::close(){
