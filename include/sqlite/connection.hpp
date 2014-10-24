@@ -39,7 +39,7 @@ namespace sqlite{
     enum class open_mode {
         open_existing,  ///!> Opens an existing database or fails
         open_or_create, ///!> Opens an existing database or creates it
-        always_create,  ///!> Deletes database if exists and recreates it
+        always_create   ///!> Deletes database if exists and recreates it
     };
 
     /** \brief connection is used to open, close, attach and detach a database.
