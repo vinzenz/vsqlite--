@@ -1,5 +1,5 @@
 language: cpp
-install: sudo apt-get install libboost-dev libsqlite3-dev
+install: sudo apt-get install libboost-dev libsqlite3-dev libboost-filesystem libboost-system
 compiler:
   - gcc
 # Change this to your needs
