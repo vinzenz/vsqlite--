@@ -118,4 +118,10 @@ namespace sqlite{
         execute(*this,fmt.str(),true);
     }
 
+    sqlite3_int64 connection::get_last_insert_rowid(){
+	if(!handle)
+	    throw database_exception("Database is not open.");
+	    
+	return sqlite3_last_insert_rowid(handle);
+    }
 }
