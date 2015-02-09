@@ -1,7 +1,8 @@
 /*##############################################################################
  VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
 
- Copyright (c) 2006-2014 Vinzenz Feenstra vinzenz.feenstra@gmail.com
+ Copyright (c) 2006-2015 Vinzenz Feenstra vinzenz.feenstra@gmail.com
+                         and contributors
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without modification,
@@ -63,17 +64,37 @@ namespace sqlite{
             throw database_exception_code("Could not open database", err);
     }
 
+  void connection::open(const std::string &db, bool readonly){
+    int err = sqlite3_open_v2(db.c_str(),&handle,
+			      readonly?SQLITE_OPEN_READONLY:SQLITE_OPEN_READWRITE,
+			      NULL);
+        if(err != SQLITE_OK)
+            throw database_exception_code(readonly
+					  ?"Could not open read-only database"
+					  :"Could not open database", err);
+    }
+
     void connection::open(std::string const & db, sqlite::open_mode open_mode){
         boost::system::error_code ec;
         bool exists = boost::filesystem::exists(db, ec);
         exists = exists && !ec;
         switch(open_mode) {
+  	    case sqlite::open_mode::open_readonly:
+	      if (!exists) {
+                    throw database_exception(
+                        "Read-only database '" + db + "' does not exist"
+                    );
+	      }
+	      open(db, true);	// read-only
+	      return;		// we already opened it!
+	      
             case sqlite::open_mode::open_existing:
                 if(!exists) {
                     throw database_exception(
                         "Database '" + db + "' does not exist"
                     );
                 }
+		// failthru
             case sqlite::open_mode::always_create:
                 if(exists) {
                     boost::filesystem::remove(db, ec);

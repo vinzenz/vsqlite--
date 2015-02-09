@@ -38,6 +38,7 @@ struct sqlite3;
 
 namespace sqlite{
     enum class open_mode {
+        open_readonly,  ///!> Opens an existing database for reads only or fails
         open_existing,  ///!> Opens an existing database or fails
         open_or_create, ///!> Opens an existing database or creates it
         always_create   ///!> Deletes database if exists and recreates it
@@ -102,6 +103,7 @@ namespace sqlite{
         friend struct private_accessor;
     private:
         void open(std::string const & db);
+        void open(std::string const & db, bool readonly);
         void open(std::string const & db, sqlite::open_mode open_mode);
         void close();
         void access_check();
