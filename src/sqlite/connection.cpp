@@ -66,12 +66,12 @@ namespace sqlite{
 
   void connection::open(const std::string &db, bool readonly){
     int err = sqlite3_open_v2(db.c_str(),&handle,
-			      readonly?SQLITE_OPEN_READONLY:SQLITE_OPEN_READWRITE,
-			      NULL);
+                  readonly?SQLITE_OPEN_READONLY:SQLITE_OPEN_READWRITE,
+                  NULL);
         if(err != SQLITE_OK)
             throw database_exception_code(readonly
-					  ?"Could not open read-only database"
-					  :"Could not open database", err);
+                      ?"Could not open read-only database"
+                      :"Could not open database", err);
     }
 
     void connection::open(std::string const & db, sqlite::open_mode open_mode){
@@ -79,22 +79,21 @@ namespace sqlite{
         bool exists = boost::filesystem::exists(db, ec);
         exists = exists && !ec;
         switch(open_mode) {
-  	    case sqlite::open_mode::open_readonly:
-	      if (!exists) {
-                    throw database_exception(
-                        "Read-only database '" + db + "' does not exist"
-                    );
-	      }
-	      open(db, true);	// read-only
-	      return;		// we already opened it!
-	      
+          case sqlite::open_mode::open_readonly:
+             if (!exists) {
+                throw database_exception(
+                    "Read-only database '" + db + "' does not exist"
+                );
+            }
+            open(db, true);    // read-only
+            return;        // we already opened it!
             case sqlite::open_mode::open_existing:
                 if(!exists) {
                     throw database_exception(
                         "Database '" + db + "' does not exist"
                     );
                 }
-		// failthru
+                break;
             case sqlite::open_mode::always_create:
                 if(exists) {
                     boost::filesystem::remove(db, ec);
@@ -105,6 +104,7 @@ namespace sqlite{
                         );
                     }
                 }
+                // fall-through
             case sqlite::open_mode::open_or_create:
                 // Default behaviour
                 break;
