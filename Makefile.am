@@ -8,6 +8,7 @@ lib_LTLIBRARIES = libvsqlitepp.la
 libvsqlitepp_la_CXXFLAGS = -I include $(AM_CXXFLAGS)
 libvsqlitepp_la_LDFLAGS = -Wl,--no-as-needed -lsqlite3 -lboost_system -lboost_filesystem -Wl,-soname -Wl,libvsqlitepp.so.3 -version-info 3:0:0 
 libvsqlitepp_la_SOURCES = \
+	src/sqlite/backup.cpp \
 	src/sqlite/command.cpp \
 	src/sqlite/connection.cpp \
 	src/sqlite/savepoint.cpp \
