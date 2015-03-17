@@ -1,0 +1,28 @@
+# GNU Autotools
+Makefile
+Makefile.in
+/aclocal.m4
+/autom4te.cache/
+/config.*
+/configure
+/compile
+/depcomp
+/install-sh
+/libtool
+/ltmain.sh
+/m4/
+/missing
+/stamp-h?
+.deps/
+.dirstamp
+.libs/
+*.l[ao]
+*.a
+*.o
+*~
+
+# Doxygen output
+/html/
+
+# The example
+/vsqlitepp_example
