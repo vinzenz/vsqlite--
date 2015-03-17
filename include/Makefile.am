@@ -1,4 +1,5 @@
 nobase_include_HEADERS = \
+    sqlite/backup.hpp \
     sqlite/command.hpp \
     sqlite/connection.hpp \
     sqlite/database_exception.hpp \

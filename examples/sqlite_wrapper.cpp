@@ -29,6 +29,7 @@
  POSSIBILITY OF SUCH DAMAGE.
 
 ##############################################################################*/
+#include <sqlite/backup.hpp>
 #include <sqlite/connection.hpp>
 #include <sqlite/execute.hpp>
 #include <sqlite/query.hpp>
@@ -40,6 +41,8 @@ int main()
     try
     {
         sqlite::connection con("test.db");
+
+        sqlite::connection con_memory(":memory:");
 
         sqlite::execute(con,"Create Table IF NOT EXISTS test(id INTEGER PRIMARY KEY, name TEXT);",true);
 
@@ -65,6 +68,17 @@ int main()
         res->reset();
         while(res->next_row()) {
             std::cout << res->get_int(0) << "|" << res->get_string(1) << std::endl;
+        }
+
+        sqlite::backup backup_op(con_memory, con);
+        backup_op.step();
+        backup_op.finish();
+
+        sqlite::query q_memory(con_memory, "SELECT * FROM test;");
+
+        boost::shared_ptr<sqlite::result> res2 = q_memory.get_result();
+        while(res2->next_row()) {
+            std::cout << res2->get_int(0) << "|" << res2->get_string(1) << std::endl;
         }
 
         sqlite::execute(con,"DROP TABLE test;",true);
