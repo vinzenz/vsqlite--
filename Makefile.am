@@ -5,7 +5,7 @@ AM_CXXFLAGS = -W -Wall -pedantic -W -std=c++0x
 
 lib_LTLIBRARIES = libvsqlitepp.la
 
-libvsqlitepp_la_CXXFLAGS = -I include $(AM_CXXFLAGS)
+libvsqlitepp_la_CXXFLAGS = -I $(srcdir)/include $(AM_CXXFLAGS)
 libvsqlitepp_la_LDFLAGS = -Wl,--no-as-needed -lsqlite3 -lboost_system -lboost_filesystem -Wl,-soname -Wl,libvsqlitepp.so.3 -version-info 3:0:0 
 libvsqlitepp_la_SOURCES = \
 	src/sqlite/backup.cpp \
@@ -20,7 +20,7 @@ libvsqlitepp_la_SOURCES = \
 	$(NULL)
 
 noinst_PROGRAMS=vsqlitepp_example
-vsqlitepp_example_CXXFLAGS=-I include $(AM_CXXFLAGS)
+vsqlitepp_example_CXXFLAGS=-I $(srcdir)/include $(AM_CXXFLAGS)
 vsqlitepp_example_LDADD = libvsqlitepp.la
 vsqlitepp_example_SOURCES = \
 	examples/sqlite_wrapper.cpp \
