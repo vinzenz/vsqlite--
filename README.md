@@ -10,6 +10,8 @@ License: BSD-3
 
 # Website: http://vsqlite.virtuosic-bytes.com
 
+[![Join the chat at https://gitter.im/vinzenz/vsqlite--](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/vinzenz/vsqlite--?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 # Supported Compilers
 - g++ 4.x
 - MSVC 2005-2013
