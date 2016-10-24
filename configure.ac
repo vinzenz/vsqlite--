@@ -7,7 +7,7 @@ AC_PROG_LIBTOOL
 LT_INIT
 dnl -lboost_system -lboost_filesystem
 
-BOOST_REQUIRE([1.31.0])
+BOOST_REQUIRE([1.33.0])
 BOOST_FILESYSTEM
 
 dnl -------------------------------------------
