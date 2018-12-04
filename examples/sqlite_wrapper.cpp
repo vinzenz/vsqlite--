@@ -61,14 +61,14 @@ int main()
         sqlite::query q(con,"SELECT * from test;");
 
         boost::shared_ptr<sqlite::result> res = q.get_result();
-        while(res->next_row()) {
+        do {
             std::cout << res->get_int(0) << "|" << res->get_string(1) << std::endl;
-        }
+        } while(res->next_row());
 
         res->reset();
-        while(res->next_row()) {
+        do {
             std::cout << res->get_int(0) << "|" << res->get_string(1) << std::endl;
-        }
+        } while(res->next_row());
 
         sqlite::backup backup_op(con_memory, con);
         backup_op.step();
@@ -77,9 +77,9 @@ int main()
         sqlite::query q_memory(con_memory, "SELECT * FROM test;");
 
         boost::shared_ptr<sqlite::result> res2 = q_memory.get_result();
-        while(res2->next_row()) {
+        do {
             std::cout << res2->get_int(0) << "|" << res2->get_string(1) << std::endl;
-        }
+        } while(res2->next_row());
 
         sqlite::execute(con,"DROP TABLE test;",true);
 
