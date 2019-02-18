@@ -104,9 +104,9 @@ inline namespace v2 {
          * currently active
          * \return \c true if transaction is still active, \c false otherwise
          */
-        bool isActive() const {
-            return m_isActive;
-        }
+        bool isActive() const { return m_isActive; }
+
+        bool isEnding() const { return m_isEnding; }
 
         /** \brief Capture a consistent snapshot for the current transaction.
          * \param schema Database schema name (defaults to "main").
@@ -119,7 +119,8 @@ inline namespace v2 {
     private:
         void exec(std::string const &);
         connection &m_con;
-        bool m_isActive; ///< if \c true there is a transaction currently opened
+        bool m_isActive{false}; ///< if \c true there is a transaction currently opened
+        bool m_isEnding{false}; ///< true while COMMIT/ROLLBACK/END is running
     };
 } // namespace v2
 } // namespace sqlite

@@ -39,14 +39,35 @@
 
 namespace sqlite {
 inline namespace v2 {
+    namespace {
+        struct ending_guard {
+            explicit ending_guard(bool &flag) : flag_(flag) {
+                flag_ = true;
+            }
+            ~ending_guard() {
+                flag_ = false;
+            }
+
+        private:
+            bool &flag_;
+        };
+    } // namespace
+
     transaction::transaction(connection &con, transaction_type type) :
-        m_con(con), m_isActive(false) {
+        m_con(con) {
         begin(type);
     }
 
     transaction::~transaction() {
+        if (m_isEnding) {
+            return;
+        }
         if (m_isActive) {
-            rollback();
+            try {
+                rollback();
+            } catch (...) {
+                // Destructors can't surface the error; best effort only.
+            }
         }
     }
 
@@ -70,16 +91,19 @@ inline namespace v2 {
     }
 
     void transaction::end() {
+        ending_guard guard(m_isEnding);
         exec("END TRANSACTION");
         m_isActive = false;
     }
 
     void transaction::commit() {
+        ending_guard guard(m_isEnding);
         exec("COMMIT TRANSACTION");
         m_isActive = false;
     }
 
     void transaction::rollback() {
+        ending_guard guard(m_isEnding);
         exec("ROLLBACK TRANSACTION");
         m_isActive = false;
     }
