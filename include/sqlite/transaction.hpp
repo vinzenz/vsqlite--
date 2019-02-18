@@ -100,10 +100,17 @@ namespace sqlite{
           * \return \c true if transaction is still active, \c false otherwise
           */
         bool isActive() const { return m_isActive; }
+        /** \brief Allow to check if transaction handled by this object is
+          * currently in the middle of a COMMIT/Rollback operation.  It is used
+          * for the handling of exceptions during commit/rollback operations.
+          * \return \c true if transaction is committing/rolling back, \c false otherwise
+          */
+        bool isEnding() const { return m_isEnding; }
     private:
         void exec(std::string const &);
         connection & m_con;
         bool m_isActive; ///< if \c true there is a transaction currently opened
+        bool m_isEnding; ///< if \c true there is a transaction is currently ending
     };
 }
 
