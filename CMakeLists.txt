@@ -17,34 +17,37 @@ find_package(Boost COMPONENTS system filesystem REQUIRED)
 
 find_package(SQLite3 REQUIRED)
 
-set(MY_CXX_WARNING_FLAGS "-Werror -Wall -pedantic -W")
-
-# Initialize CXXFLAGS.
-set(CMAKE_CXX_FLAGS                "-Wall -std=c++11 ${MY_CXX_WARNING_FLAGS}")
-set(CMAKE_CXX_FLAGS_DEBUG          "-O0 -g")
-set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE        "-O3 -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
-
 # Compiler-specific C++11 activation.
-if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     execute_process(
         COMMAND ${CMAKE_CXX_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
     if (NOT (GCC_VERSION VERSION_GREATER 4.7 OR GCC_VERSION VERSION_EQUAL 4.7))
         message(FATAL_ERROR "${PROJECT_NAME} requires g++ 4.7 or greater.")
     endif ()
-elseif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" AND APPLE)
+    set(COMPILER_IS_GNU_COMPATIBLE TRUE)
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+    set(COMPILER_IS_GNU_COMPATIBLE TRUE)
+elseif (MSVC AND MSVC_VERSION GREATER 1800)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest")
 else ()
     message(FATAL_ERROR "Your C++ compiler does not support C++11.")
+endif ()
+
+if (COMPILER_IS_GNU_COMPATIBLE)
+  # Initialize CXXFLAGS.
+  set(CMAKE_CXX_FLAGS                "-Wall -std=c++11 -Werror -Wall -pedantic -W")
+  set(CMAKE_CXX_FLAGS_DEBUG          "-O0 -g")
+  set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
+  set(CMAKE_CXX_FLAGS_RELEASE        "-O3 -DNDEBUG")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
 endif ()
 
 include_directories(.
   ${PROJECT_SOURCE_DIR}/include
 )
 
-
-SET(VSQLITE_SRC
+set(VSQLITE_SRC
   src/sqlite/backup.cpp
   src/sqlite/command.cpp
   src/sqlite/connection.cpp
@@ -77,7 +80,7 @@ set(VSQLITE_LINK_LIBS ${SQLITE3_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_S
 
 target_link_libraries(vsqlitepp ${VSQLITE_LINK_LIBS})
 
-if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     set_target_properties(vsqlitepp PROPERTIES LINK_FLAGS "-Wl,--no-as-needed")
 endif ()
 
@@ -94,7 +97,6 @@ install(TARGETS vsqlitepp
     ARCHIVE DESTINATION lib${LIB_SUFFIX})
 endif()
 
-
 add_executable(vsqlitepp_example
   examples/sqlite_wrapper.cpp)
 
@@ -103,7 +105,6 @@ target_link_libraries(vsqlitepp_example
         ${VSQLITE_LINK_LIBS}
 )
 
-
 install(FILES NEWS INSTALL COPYING README.md VERSION TODO ChangeLog AUTHORS 
         DESTINATION "share/doc/libvsqlite3")
 
@@ -111,6 +112,4 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/"
         DESTINATION "include" 
         COMPONENT dev 
         FILES_MATCHING PATTERN "*.hpp"
-        PATTERN "private" EXCLUDE
-        )
-
+        PATTERN "private" EXCLUDE)
