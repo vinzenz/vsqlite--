@@ -71,7 +71,7 @@ namespace sqlite{
         if(stmt)
             finalize();
         const char * tail = 0;
-        int err = sqlite3_prepare(get_handle(),m_sql.c_str(),-1,&stmt,&tail);
+        int err = sqlite3_prepare_v2(get_handle(),m_sql.c_str(),-1,&stmt,&tail);
         if(err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err);
     }
