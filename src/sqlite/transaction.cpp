@@ -42,8 +42,18 @@ namespace sqlite{
     }
 
     transaction::~transaction(){
+        // when the transaction is stuck ending, the commit/rollback failed
+        // and we don't want to take further action, we must assume there is
+        // nothing we can do.
+        if (m_isEnding) {
+            return;
+        }
         if (m_isActive) {
-            rollback();
+            try {
+                rollback();
+            } catch (...) {
+                // We can't recover in the destructor, hope for the best and continue.
+            }
         }
     }
 
@@ -61,17 +71,23 @@ namespace sqlite{
     }
 
     void transaction::end(){
+        m_isEnding = true;
         exec("END TRANSACTION");
+        m_isEnding = false;
         m_isActive = false;
     }
 
     void transaction::commit(){
+        m_isEnding = true;
         exec("COMMIT TRANSACTION");
+        m_isEnding = false;
         m_isActive = false;
     }
 
     void transaction::rollback(){
+        m_isEnding = true;
         exec("ROLLBACK TRANSACTION");
+        m_isEnding = false;
         m_isActive = false;
     }
 
