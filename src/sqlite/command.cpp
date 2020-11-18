@@ -61,8 +61,9 @@ namespace sqlite{
     }
 
     void command::clear(){
-        sqlite3_reset(stmt);
+        // Reset the bindings as well as the statement on clear.
         last_arg_idx = 0;
+        sqlite3_clear_bindings(stmt);
         sqlite3_reset(stmt);
     }
 

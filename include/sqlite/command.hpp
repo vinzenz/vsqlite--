@@ -69,7 +69,7 @@ namespace sqlite{
           */
         virtual ~command();
 
-        /** \brief clear is used if you'd like to reuse a command object
+        /** \brief clear resets the command and clear all bindings
           */
         void clear();
 
