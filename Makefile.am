@@ -6,7 +6,7 @@ AM_CXXFLAGS = -W -Wall -pedantic -W -std=c++0x $(BOOST_CPPFLAGS)
 lib_LTLIBRARIES = libvsqlitepp.la
 
 libvsqlitepp_la_CXXFLAGS = -I $(srcdir)/include $(AM_CXXFLAGS) $(BOOST_CPPFLAGS)
-libvsqlitepp_la_LDFLAGS = -Wl,--no-as-needed -lsqlite3 $(BOOST_FILESYTEM_LDFLAGS) $(BOOST_FILESYSTEM_LIBS) -Wl,-soname -Wl,libvsqlitepp.so.3 -version-info 3:0:0
+libvsqlitepp_la_LDFLAGS = -Wl,--no-as-needed -lsqlite3 $(BOOST_SYSTEM_LDFLAGS) $(BOOST_SYSTEM_LIBS) $(BOOST_FILESYTEM_LDFLAGS) $(BOOST_FILESYSTEM_LIBS) -Wl,-soname -Wl,libvsqlitepp.so.3 -version-info 3:0:0
 libvsqlitepp_la_SOURCES = \
 	src/sqlite/backup.cpp \
 	src/sqlite/command.cpp \
