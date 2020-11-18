@@ -1,0 +1,5 @@
+# uscan(1) configuration file.
+version=3
+
+opts="uversionmangle=s/-/./" \
+ https://github.com/vinzenz/vsqlite--/tags .*/archive/v?(\d[-\d\.]+)\.tar\.gz

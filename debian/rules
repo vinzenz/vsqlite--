@@ -1,0 +1,62 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+PKD  = $(abspath $(dir $(MAKEFILE_LIST)))
+PKG  = $(word 2,$(shell dpkg-parsechangelog -l$(PKD)/changelog | grep ^Source))
+
+# ABI major version
+somajor=$(shell perl -ne 'print $$1 if m{libvsqlitepp.so.(\d+)};' Makefile.am)
+# The base library name
+plib=$(PKG)$(somajor)v5
+pdev=$(PKG)-dev
+pdoc=$(PKG)-doc
+
+# Ensure the build aborts when there are still references to undefined
+# symbols: LDFLAGS += -Wl,-z,defs
+
+export DEB_LDFLAGS_MAINT_APPEND=-Wl,-z,defs
+export DEB_BUILD_MAINT_OPTIONS=hardening=+all
+
+%:
+	dh $@ --parallel --with autoreconf
+
+override_dh_clean:
+	$(RM) -r html
+	dh_clean
+
+override_dh_auto_test:
+	dh_auto_test
+	# Run mini-test
+	./vsqlitepp_example
+
+override_dh_auto_install:
+	dh_auto_install --destdir=$(CURDIR)/debian/tmp
+
+override_dh_install-arch:
+	$(info I: library-name=$(plib))
+	$(if $(wildcard debian/$(plib)),,$(error invalid package/library name..))
+	dh_install -p$(plib) --autodest \
+            usr/lib/*/lib*.so.*
+	dh_install -p$(pdev) --autodest \
+            usr/include/*/*             \
+            usr/lib/*/lib*.so
+
+html:
+	doxygen
+	$(RM) -v html/*.md5 html/*.map
+	# De-duplication in "html" folder:
+	rdfind -outputname /dev/null -makesymlinks true html
+	symlinks -rsc html
+
+override_dh_installdocs: html
+	dh_installdocs -p$(pdev) --link-doc=$(plib)
+	dh_installdocs
+
+override_dh_makeshlibs:
+	dh_makeshlibs -v -V
+
+override_dh_gencontrol:
+	dh_gencontrol -v -- -Vplib=$(plib)

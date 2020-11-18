@@ -1,0 +1,3 @@
+# symbols are not very useful for CPP, see
+# http://wiki.debian.org/UsingSymbolsFiles#See_also
+no-symbols-control-file usr/lib/*/lib*

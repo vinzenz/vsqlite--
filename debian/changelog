@@ -1,0 +1,47 @@
+libvsqlitepp (0.3.13-4) unstable; urgency=medium
+
+  * Modernisd Vcs URLs.
+  * Standards-Version: 3.9.8.
+  * Removed traces of -dbg package.
+  * rules: override_dh_install --> override_dh_install-arch (Closes: #809119)
+
+ -- Dmitry Smirnov <onlyjob@debian.org>  Sun, 13 Nov 2016 21:41:14 +1100
+
+libvsqlitepp (0.3.13-3.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Rename library package for g++5 ABI transition. (Closes: #791182)
+
+ -- Martin Pitt <mpitt@debian.org>  Wed, 05 Aug 2015 11:30:02 +0200
+
+libvsqlitepp (0.3.13-3) unstable; urgency=medium
+
+  * Dropped obsolete "libboost1.53-dev" from Build-Depends (Closes: #749862).
+
+ -- Dmitry Smirnov <onlyjob@debian.org>  Fri, 30 May 2014 21:57:54 +1000
+
+libvsqlitepp (0.3.13-2) unstable; urgency=low
+
+  * Dropped custom build flags "-Wl,-O1" to fix FTBFS in "mysql-workbench"
+    (Closes: #747795).
+  * Build with "+all" hardening.
+  * Added "debian/gbp.conf".
+
+ -- Dmitry Smirnov <onlyjob@debian.org>  Fri, 30 May 2014 04:16:05 +1000
+
+libvsqlitepp (0.3.13-1) unstable; urgency=low
+
+  * New upstream release [April 2014].
+  * Standards to 3.9.5.
+  * Build-Depends:
+    + graphviz
+  * Added lintian-override for "no-symbols-control-file".
+  * Minor rules clean-up and improvements; better de-duplication.
+
+ -- Dmitry Smirnov <onlyjob@debian.org>  Mon, 28 Apr 2014 10:14:00 +1000
+
+libvsqlitepp (0.3.12-1) unstable; urgency=low
+
+  * Initial release (Closes: #712849).
+
+ -- Dmitry Smirnov <onlyjob@debian.org>  Thu, 20 Jun 2013 18:29:52 +1000

@@ -1,0 +1,43 @@
+Source: libvsqlitepp
+Section: libs
+Priority: optional
+Maintainer: Dmitry Smirnov <onlyjob@debian.org>
+Build-Depends: debhelper (>= 9), dh-autoreconf, perl:native, rdfind, symlinks
+              ,doxygen
+              ,graphviz
+              ,libboost-system-dev
+              ,libboost-filesystem-dev
+              ,libsqlite3-dev
+Homepage: https://github.com/vinzenz/vsqlite--
+Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/libvsqlitepp.git
+Vcs-Git: https://anonscm.debian.org/git/collab-maint/libvsqlitepp.git
+Standards-Version: 3.9.8
+
+Package: libvsqlitepp3v5
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Conflicts: libvsqlitepp3
+Replaces: libvsqlitepp3
+Description: SQLite3 Wrapper for C++
+ VSQLite++ is a welldesigned and portable SQLite3 Wrapper for C++.
+
+Package: libvsqlitepp-dev
+Section: libdevel
+Architecture: any
+Depends: ${misc:Depends}, ${plib} (= ${binary:Version})
+Description: SQLite3 Wrapper for C++ -- development files
+ VSQLite++ is a welldesigned and portable SQLite3 Wrapper for C++.
+ .
+ This package provides development files.
+
+Package: libvsqlitepp-doc
+Section: doc
+Architecture: all
+Multi-Arch: foreign
+Depends: ${misc:Depends}, libjs-jquery
+Description: SQLite3 Wrapper for C++ -- API documentation
+ VSQLite++ is a welldesigned and portable SQLite3 Wrapper for C++.
+ .
+ This package provides API documentation.

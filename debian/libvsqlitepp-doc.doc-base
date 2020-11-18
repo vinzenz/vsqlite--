@@ -1,0 +1,9 @@
+Document: libvsqlitepp-doc
+Title: VSQLite++ API Documentation
+Author: Vinzenz Feenstra <evilissimo@gmail.com>
+Abstract: This document contains VSQLite++ API documentation
+Section: Programming/C++
+
+Format: HTML
+Index: /usr/share/doc/libvsqlitepp-doc/html/index.html
+Files: /usr/share/doc/libvsqlitepp-doc/html/*.html
