@@ -26,3 +26,14 @@ Makefile.in
 
 # The example
 /vsqlitepp_example
+
+# Build files
+/build-aux/compile
+/build-aux/config.guess
+/build-aux/config.sub
+/build-aux/install-sh
+/build-aux/missing
+/build-aux/depcomp
+
+# The test database made during build.
+test.db
