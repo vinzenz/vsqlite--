@@ -32,3 +32,15 @@ Additional notices:
 - Please let me know if you want to suggest features
 - Contributions are welcome
 - Proposals for Design Improvement are welcome
+
+# Building a new debian package #
+Run the following to create a new debian package for a new version:
+```
+apt install build-essential devscripts fakeroot libboost-system-dev libboost-filesystem-dev
+dch --newversion <version>-<build_number>ps0 <message> && dch -r --distribution buster ""
+apt build-dep libvsqlitepp3v5 -y
+dpkg-buildpackage -rfakeroot-tcp -aarmhf -b -uc -us
+```
+
+After running the above commands, the debian package will be created in the
+parent direction of this repo.
