@@ -1,3 +1,9 @@
+libvsqlitepp (0.3.13-4ps0) buster; urgency=medium
+
+  * Build of latest with rollback and error reporting enhancements
+
+ -- Nathan Ruiz <nathan.ruiz@cornerstonesolutions.com.au>  Thu, 19 Nov 2020 12:07:49 +0000
+
 libvsqlitepp (0.3.13-4) unstable; urgency=medium
 
   * Modernisd Vcs URLs.
