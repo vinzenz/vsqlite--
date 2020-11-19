@@ -34,6 +34,12 @@ Makefile.in
 /build-aux/install-sh
 /build-aux/missing
 /build-aux/depcomp
+/build-aux/ltmain.sh
+
+/debian/.debhelper/*
+/debian/autoreconf.after
+/debian/autoreconf.before
+/debian/*.log
 
 # The test database made during build.
 test.db
