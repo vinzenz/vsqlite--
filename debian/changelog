@@ -1,3 +1,9 @@
+libvsqlitepp (0.3.13-4ps1) trixie; urgency=medium
+
+  * Trixie build
+
+ -- DA7450 <david@DA7450.corp.cornerstonesolutions.com.au>  Wed, 01 Oct 2025 11:52:07 +1000
+
 libvsqlitepp (0.3.13-4ps0) buster; urgency=medium
 
   * Build of latest with rollback and error reporting enhancements

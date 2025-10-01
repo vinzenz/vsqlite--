@@ -28,9 +28,14 @@ override_dh_clean:
 	dh_clean
 
 override_dh_auto_test:
+	# added check to avoid checks when cross compiling
+ifeq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
 	dh_auto_test
 	# Run mini-test
 	./vsqlitepp_example
+else
+	@echo "Skipping tests during cross-compilation"
+endif
 
 override_dh_auto_install:
 	dh_auto_install --destdir=$(CURDIR)/debian/tmp

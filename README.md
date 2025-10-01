@@ -34,10 +34,19 @@ Additional notices:
 - Proposals for Design Improvement are welcome
 
 # Building a new debian package #
-Run the following to create a new debian package for a new version:
+Run the following to cross compile and create a new debian package for a new version:
 ```
-apt install build-essential devscripts fakeroot libboost-system-dev libboost-filesystem-dev
-dch --newversion <version>-<build_number>ps0 <message> && dch -r --distribution buster ""
+apt install build-essential g++-arm-linux-gnueabihf binutils-arm-linux-gnueabihf devscripts fakeroot libboost-system-dev:armhf libboost-filesystem-dev:armhf
+export DEB_HOST_ARCH=armhf
+export DEB_BUILD_ARCH=amd64  # or whatever your host is
+export CC=arm-linux-gnueabihf-gcc
+export CXX=arm-linux-gnueabihf-g++
+export AR=arm-linux-gnueabihf-ar
+export AS=arm-linux-gnueabihf-as
+export LD=arm-linux-gnueabihf-ld
+export STRIP=arm-linux-gnueabihf-strip
+export OBJCOPY=arm-linux-gnueabihf-objcopy
+dch --newversion <version>-<build_number>ps0 <message> && dch -r --distribution trixie ""
 apt build-dep libvsqlitepp3v5 -y
 dpkg-buildpackage -rfakeroot-tcp -aarmhf -b -uc -us
 ```
