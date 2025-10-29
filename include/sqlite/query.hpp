@@ -39,6 +39,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
+#include <type_traits>
 #include <memory>
 #include <sqlite/command.hpp>
 #include <sqlite/result.hpp>
@@ -55,18 +56,18 @@ namespace sqlite {
 inline namespace v2 {
 
     /** \brief query should be used to execute SQL queries
-      * An object of this class is not copyable
-      */
+     * An object of this class is not copyable
+     */
     struct query : command {
         /** \brief constructor
-          * \param con reference to the connection which should be used
-          * \param sql is the SQL query statement
-          */
-        query(connection & con, std::string const & sql);
+         * \param con reference to the connection which should be used
+         * \param sql is the SQL query statement
+         */
+        query(connection &con, std::string const &sql);
 
         /** \brief destructor
-          *
-          */
+         *
+         */
         virtual ~query();
 
         class result_range {
@@ -80,59 +81,56 @@ inline namespace v2 {
             class row_view {
             public:
                 row_view() = default;
-                row_view(result * res, std::shared_ptr<column_cache> cache)
-                    : res_(res)
-                    , cache_(std::move(cache)) {}
+                row_view(result *res, std::shared_ptr<column_cache> cache) :
+                    res_(res), cache_(std::move(cache)) {}
 
-                bool valid() const noexcept { return res_ != nullptr; }
+                bool valid() const noexcept {
+                    return res_ != nullptr;
+                }
 
-                result & raw() const {
-                    if(!res_) {
+                result &raw() const {
+                    if (!res_) {
                         throw std::runtime_error("row_view is not bound to a row");
                     }
                     return *res_;
                 }
 
-                template <typename T>
-                T get(std::string_view name) const {
+                template <typename T> T get(std::string_view name) const {
                     return raw().get<T>(column(name));
                 }
 
-                template <typename T>
-                T get(int idx) const {
+                template <typename T> T get(int idx) const {
                     return raw().get<T>(idx);
                 }
 
-                template <typename T>
-                T operator[](std::string_view name) const {
+                template <typename T> T operator[](std::string_view name) const {
                     return get<T>(name);
                 }
 
             private:
                 int column(std::string_view name) const;
 
-                result * res_ = nullptr;
+                result *res_ = nullptr;
                 std::shared_ptr<column_cache> cache_;
             };
 
             class iterator {
             public:
                 using iterator_category = std::input_iterator_tag;
-                using value_type = row_view;
-                using difference_type = std::ptrdiff_t;
-                using pointer = row_view *;
-                using reference = row_view &;
+                using value_type        = row_view;
+                using difference_type   = std::ptrdiff_t;
+                using pointer           = row_view *;
+                using reference         = row_view &;
 
                 iterator();
-                iterator(result_type res,
-                         std::shared_ptr<column_cache> cache,
-                         bool end);
+                iterator(result_type res, std::shared_ptr<column_cache> cache, bool end);
                 reference operator*() const;
                 pointer operator->() const;
-                iterator & operator++();
+                iterator &operator++();
                 iterator operator++(int);
-                bool operator==(iterator const & other) const;
-                bool operator!=(iterator const & other) const;
+                bool operator==(iterator const &other) const;
+                bool operator!=(iterator const &other) const;
+
             private:
                 void advance();
                 void prime_cache();
@@ -155,17 +153,30 @@ inline namespace v2 {
         };
 
         /** \brief executes the sql command (deprecated, prefer each())
-          * \return result_type which is std::shared_ptr<result>
-          */
+         * \return result_type which is std::shared_ptr<result>
+         */
         VSQLITE_DEPRECATED result_type emit_result();
 
         /** \brief returns the results (needs a previous emit() call)
-          * \return result_type which is std::shared_ptr<result>
-          */
+         * \return result_type which is std::shared_ptr<result>
+         */
         result_type get_result();
 
         /** \brief Returns a range view for range-based for loops. */
         result_range each();
+
+        /** \brief Binds any supplied parameters and returns a range view.
+         *
+         * Mirrors the variadic <code>command::operator()</code>: arguments are bound via the
+         * streaming operator and the query remains otherwise untouched, so callers can mix manual
+         * <code>%</code> binding with this overload.
+         */
+        template <typename... Args, typename = std::enable_if_t<(sizeof...(Args) > 0)>>
+        result_range each(Args &&...args) {
+            ((void)(*this % std::forward<Args>(args)), ...);
+            return each();
+        }
+
     private:
         friend struct result;
         void access_check();
@@ -174,4 +185,4 @@ inline namespace v2 {
 } // namespace v2
 } // namespace sqlite
 
-#endif //GUARD_SQLITE_QUERY_HPP_INCLUDED
+#endif // GUARD_SQLITE_QUERY_HPP_INCLUDED
