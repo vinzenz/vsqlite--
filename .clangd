@@ -1,0 +1,7 @@
+CompileFlags:
+  Add: [-std=c++20]
+
+Diagnostics:
+  ClangTidy:
+    Add: modernize-*,performance-*
+    Remove: hicpp-*
