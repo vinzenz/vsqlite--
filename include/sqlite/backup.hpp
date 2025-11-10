@@ -3,6 +3,15 @@
 
 #include <sqlite/connection.hpp>
 
+/**
+ * @file sqlite/backup.hpp
+ * @brief Declares the `sqlite::backup` helper that drives SQLite's incremental backup API.
+ *
+ * The wrapper exposes a minimal RAII interface for copying database pages between two
+ * `sqlite::connection` instances, allowing applications to checkpoint or snapshot data
+ * without dropping down to the raw `sqlite3_backup` C primitives.
+ */
+
 struct sqlite3_backup;
 
 namespace sqlite {

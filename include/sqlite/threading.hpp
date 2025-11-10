@@ -32,16 +32,27 @@
 #ifndef GUARD_SQLITE_THREADING_HPP_INCLUDED
 #define GUARD_SQLITE_THREADING_HPP_INCLUDED
 
+/**
+ * @file sqlite/threading.hpp
+ * @brief Helpers for configuring SQLite's global threading mode.
+ *
+ * SQLite needs to be configured exactly once before any connections are opened; these functions
+ * provide a type-safe way to do so from C++.
+ */
 namespace sqlite {
 inline namespace v2 {
 
+    /// Mirrors the `sqlite3_config(SQLITE_CONFIG_*)` threading options.
     enum class threading_mode {
-        single_thread,
-        multi_thread,
-        serialized
+        single_thread, ///< No internal mutexing; callers must serialize all access.
+        multi_thread,  ///< Connections are thread-safe, but individual database handles are not.
+        serialized     ///< Full mutexing that allows sharing a connection across threads.
     };
 
+    /// Calls `sqlite3_config` to switch SQLite into the requested threading mode.
     bool configure_threading(threading_mode mode);
+
+    /// Returns the currently configured `threading_mode`.
     threading_mode current_threading_mode();
 
 } // namespace v2

@@ -38,6 +38,13 @@
 
 struct sqlite3_snapshot;
 
+/**
+ * @file sqlite/snapshot.hpp
+ * @brief Wraps SQLite's snapshot and WAL-mode management APIs.
+ *
+ * Snapshots allow read transactions to observe a consistent view of a WAL database, while the
+ * helper functions here make it easier to toggle between journal modes.
+ */
 namespace sqlite {
 inline namespace v2 {
     struct connection;

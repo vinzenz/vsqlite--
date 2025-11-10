@@ -36,6 +36,13 @@
 #include <sqlite/command.hpp>
 #include <sqlite/result.hpp>
 
+/**
+ * @file sqlite/query.hpp
+ * @brief Prepared-statement helper for SELECTs that produces `sqlite::result` cursors.
+ *
+ * The `sqlite::query` class inherits `sqlite::command` so you can bind parameters with the same
+ * interface and then pull rows incrementally via `emit_result()` / `get_result()`.
+ */
 namespace sqlite {
 inline namespace v2 {
 

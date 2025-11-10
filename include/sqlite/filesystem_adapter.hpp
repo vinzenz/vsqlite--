@@ -35,14 +35,23 @@
 #include <filesystem>
 #include <memory>
 
+/**
+ * @file sqlite/filesystem_adapter.hpp
+ * @brief Pluggable abstraction for the filesystem operations used by `sqlite::connection`.
+ *
+ * Consumers can override the default adapter to redirect file lookups/removals to virtual file
+ * systems or to inject additional validation when opening databases.
+ */
 namespace sqlite {
 inline namespace v2 {
 
+    /// Result of probing a filesystem path that bundles status metadata and the failure code.
     struct filesystem_entry {
         std::filesystem::file_status status;
         std::error_code error;
     };
 
+    /// Interface for querying and mutating filesystem paths before SQLite touches them.
     struct filesystem_adapter {
         virtual ~filesystem_adapter() = default;
 
@@ -50,6 +59,7 @@ inline namespace v2 {
         virtual bool remove(std::filesystem::path const & target, std::error_code & ec) const = 0;
     };
 
+    /// Default adapter that simply forwards to `std::filesystem`.
     class default_filesystem_adapter : public filesystem_adapter {
     public:
         filesystem_entry status(std::filesystem::path const & target) const override {

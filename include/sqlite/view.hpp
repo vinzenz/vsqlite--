@@ -34,6 +34,13 @@
 
 #include <string>
 
+/**
+ * @file sqlite/view.hpp
+ * @brief Helpers for creating and dropping SQL views on a connection.
+ *
+ * The `sqlite::view` helper keeps view creation centralized and offers overloads for temporary
+ * views as well as database-qualified names.
+ */
 namespace sqlite {
 inline namespace v2 {
     struct connection;

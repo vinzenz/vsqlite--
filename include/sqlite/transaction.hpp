@@ -36,6 +36,13 @@
 #include <string>
 #include <string_view>
 
+/**
+ * @file sqlite/transaction.hpp
+ * @brief RAII helper for BEGIN/COMMIT/ROLLBACK sequences and WAL snapshots.
+ *
+ * The `sqlite::transaction` type guarantees that transactions are closed on scope exit and
+ * provides helpers for selecting the transaction kind or wiring in snapshot semantics.
+ */
 namespace sqlite {
 inline namespace v2 {
     struct connection;

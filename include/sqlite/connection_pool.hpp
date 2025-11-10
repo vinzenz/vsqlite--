@@ -41,13 +41,22 @@
 
 #include <sqlite/connection.hpp>
 
+/**
+ * @file sqlite/connection_pool.hpp
+ * @brief Cooperative pool that multiplexes a bounded number of `sqlite::connection` instances.
+ *
+ * The pool hands out scoped leases that automatically return the connection to the pool when
+ * destroyed, allowing applications to share a small set of connections across many callers.
+ */
 namespace sqlite {
 inline namespace v2 {
 
+    /// Thread-safe pool for leasing reusable SQLite connections.
     class connection_pool {
     public:
         using connection_factory = std::function<std::shared_ptr<connection>()>;
 
+        /// Scoped handle returned by @ref connection_pool::acquire that returns the connection on destruction.
         class lease {
         public:
             lease() = default;
@@ -68,15 +77,30 @@ inline namespace v2 {
             std::shared_ptr<connection> connection_;
         };
 
+        /**
+         * @brief Constructs a pool with a maximum @p capacity and a @p factory used to create new connections.
+         */
         connection_pool(std::size_t capacity, connection_factory factory);
 
+        /**
+         * @brief Helper that captures the parameters for creating connections inside a pool factory.
+         */
         static connection_factory make_factory(std::string db,
                                                open_mode mode = open_mode::open_or_create,
                                                filesystem_adapter_ptr fs = {});
 
+        /**
+         * @brief Blocks until a connection is available and returns a scoped lease.
+         */
         lease acquire();
+
+        /// Maximum number of concurrent connections the pool will create.
         std::size_t capacity() const;
-        std::size_t idle_count() const;
+
+        /// Number of idle connections currently waiting in the pool.
+       std::size_t idle_count() const;
+
+        /// Number of connections that have been created so far.
         std::size_t created_count() const;
 
     private:

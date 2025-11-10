@@ -37,10 +37,18 @@
 #include <string_view>
 #include <vector>
 
+/**
+ * @file sqlite/serialization.hpp
+ * @brief Wraps the optional `sqlite3_serialize` / `sqlite3_deserialize` APIs.
+ *
+ * These helpers snapshot an entire schema into memory or hydrate a connection from an in-memory
+ * image, which is useful for testing and for shipping pre-populated databases.
+ */
 namespace sqlite {
 inline namespace v2 {
     struct connection;
 
+    /// Indicates whether the current build of SQLite exposes the serialize/deserialise feature.
     constexpr bool serialization_supported() noexcept {
 #if defined(SQLITE_ENABLE_DESERIALIZE)
         return true;
@@ -49,10 +57,26 @@ inline namespace v2 {
 #endif
     }
 
+    /**
+     * @brief Copies the complete database image for @p schema into a byte vector.
+     *
+     * @param con Open connection whose schema should be serialized.
+     * @param schema Logical database name (e.g. `"main"` or `"temp"`).
+     * @param flags Optional SQLite serialization flags.
+     * @throws database_exception when serialization is unavailable or fails.
+     */
     std::vector<unsigned char> serialize(connection & con,
                                          std::string_view schema = "main",
                                          unsigned int flags = 0);
 
+    /**
+     * @brief Replaces the contents of @p schema with the supplied serialized image.
+     *
+     * @param con Connection that should host the deserialized database.
+     * @param image Serialized bytes previously produced by @ref serialize or another SQLite source.
+     * @param schema Logical database name.
+     * @param read_only When true the connection treats the schema as immutable.
+     */
     void deserialize(connection & con,
                      std::span<const unsigned char> image,
                      std::string_view schema = "main",

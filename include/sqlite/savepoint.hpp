@@ -34,6 +34,13 @@
 #include <string>
 #include <string_view>
 
+/**
+ * @file sqlite/savepoint.hpp
+ * @brief RAII helper for SAVEPOINT/RELEASE/ROLLBACK statements and snapshot utilities.
+ *
+ * The `sqlite::savepoint` class manages named savepoints on a connection and optionally works
+ * with `sqlite::snapshot` objects to checkpoint or restore PRAGMA wal checkpoints.
+ */
 namespace sqlite {
 inline namespace v2 {
     struct connection;

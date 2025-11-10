@@ -54,9 +54,17 @@
 
 #include <sqlite3.h>
 
+/**
+ * @file sqlite/function.hpp
+ * @brief Utilities for binding C++ callables as SQLite scalar, aggregate, or window functions.
+ *
+ * This header provides the heavy lifting to translate between `sqlite3_value*` arguments and
+ * strongly typed C++ invocables, handling optional/nullable parameters and propagating errors.
+ */
 namespace sqlite {
 inline namespace v2 {
 
+    /// Options passed alongside a callable when registering it with `sqlite3_create_function_v2`.
     struct function_options {
         int arity = -1;
         int text_representation = SQLITE_UTF8;

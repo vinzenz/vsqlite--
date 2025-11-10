@@ -43,15 +43,24 @@
 struct sqlite3;
 struct sqlite3_stmt;
 
+/**
+ * @file sqlite/statement_cache.hpp
+ * @brief LRU cache for prepared statements shared across `sqlite::connection`.
+ *
+ * Keeping commonly used statements around avoids parse/prepare overhead and honors SQLite's
+ * recommendation to reuse `sqlite3_stmt*` objects whenever possible.
+ */
 namespace sqlite {
 inline namespace v2 {
     struct connection;
 
+    /// Configuration knobs for the built-in LRU statement cache.
     struct statement_cache_config {
-        std::size_t capacity = 32;
-        bool enabled = true;
+        std::size_t capacity = 32; ///< Maximum cached statements.
+        bool enabled = true;       ///< Disable caching without destroying existing entries.
     };
 
+    /// Tracks prepared statements by SQL text and hands them out on demand.
     class statement_cache {
     public:
         explicit statement_cache(statement_cache_config cfg = {});

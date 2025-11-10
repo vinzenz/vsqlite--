@@ -48,6 +48,13 @@ modification, are permitted provided that the following conditions are met:
 #include <sqlite/detail/type_helpers.hpp>
 #include <sqlite/ext/variant.hpp>
 
+/**
+ * @file sqlite/result.hpp
+ * @brief Row-oriented cursor and typed accessors returned by `sqlite::query`.
+ *
+ * The header defines the `sqlite::result` type along with helpers such as `result_type`, the
+ * templated `get<T>` conversion logic, and tuple extraction utilities.
+ */
 namespace sqlite {
 inline namespace v2 {
 struct query;
@@ -57,9 +64,13 @@ bool end(result_construct_params_private const &);
 void reset(result_construct_params_private &);
 } // namespace detail
 
-/** \brief result can only be created by a query object.
- * An object of this class is not copyable.
+/**
+ * @brief Forward-only cursor over the rows produced by a prepared statement.
  *
+ * Instances are created and owned by @ref query and encapsulate the currently
+ * bound statement plus its execution state. The cursor is non-copyable, but it
+ * keeps the underlying resources alive through shared ownership until both the
+ * query and the result go out of scope.
  */
 struct result {
 private:
@@ -70,19 +81,22 @@ private:
   result &operator=(result const &) = delete;
 
 public:
-  /** \brief destructor
-   *
-   */
+  /// Destroys the cursor but leaves the underlying statement intact if it is still shared.
   ~result();
 
-  /** \brief Increases the row index
-   * \return returns false if there is no more row, otherwise it returns
-   *         true
+  /**
+   * @brief Advances to the next row.
+   *
+   * @returns true when a fresh row is available, false when the result set is exhausted.
+   * @throws std::runtime_error if the underlying statement was already destroyed.
    */
   bool next_row();
 
-  /** \brief Returns true when the last row has been reached.
-   *  \return returns true when the last row has been already reached.
+  /**
+   * @brief Checks whether @ref next_row already consumed the last row.
+   *
+   * @returns true when the cursor is positioned after the final row.
+   * @throws std::runtime_error if the result is no longer valid.
    */
   inline bool end() const {
     if (!m_params)
@@ -90,7 +104,11 @@ public:
     return detail::end(*m_params);
   }
 
-  /** \brief Resets the result cursor to reiterate over the results
+  /**
+   * @brief Resets the cursor to the beginning without re-binding parameters.
+   *
+   * Use this when you need to re-iterate the same result set after calling @ref next_row.
+   * @throws std::runtime_error if the result is no longer valid.
    */
   void reset() {
     if (!m_params)
@@ -98,95 +116,155 @@ public:
     detail::reset(*m_params);
   }
 
-  /** \brief Returns the number of rows in the result
-   * \return an integer
-   *
-   * \note: DEPRECATED: This function does not work as documented. Do
-   *        not use it to retrieve the amount of rows in the result. The
-   *        value returned actually only indicates the number of rows
-   *        changed in the database (via INSERT/UPDATE).
+  /**
+   * @deprecated This reflects sqlite3_changes() and therefore the count of rows written,
+   *             not the total rows returned by a SELECT.
    */
   VSQLITE_DEPRECATED int get_row_count();
 
-  /** \brief Returns the number of columns
-   * \return an integer
+  /**
+   * @brief Returns the number of columns exposed by the current statement.
+   *
+   * @returns Number of columns (>= 0). This value never changes while the result lives.
    */
   int get_column_count();
 
-  /** \brief Returns the type of the column
-   * \param idx column index of the current row in the results
-   * \return the column type
+  /**
+   * @brief Reports the SQLite storage class for the value at index @p idx.
+   *
+   * @param idx Zero-based column index.
+   * @returns A value from the @ref type enumeration.
+   * @throws std::out_of_range when @p idx is outside `[0, get_column_count())`.
    */
   type get_column_type(int idx);
 
-  /** \brief Returns the type of the column
-   * \param idx column index of the current row in the results
-   * \return a string
+  /**
+   * @brief Returns the declared type of the column at index @p idx.
+   *
+   * The result mirrors `sqlite3_column_decltype` and therefore reflects the schema's
+   * declared affinity (e.g. `"INTEGER"` or `"TEXT"`).
    */
   std::string get_column_decltype(int idx);
 
-  /** \brief Retrieves a the current typ into variant_t
-   * \param idx column index of the current row in the results
-   * \return a value of variant_t
+  /**
+   * @brief Materializes the current value as @ref variant_t.
+   *
+   * @param index Zero-based column index.
+   * @returns A populated variant storing one of the supported SQLite types.
    */
   variant_t get_variant(int index);
 
-  /** \brief Returns the data at the given index as 32-Bit Integer
-   * \return a 32-Bit Integer
+  /**
+   * @brief Interprets the column at @p idx as a 32-bit integer.
+   *
+   * @param idx Zero-based column index.
+   * @returns The integer value; NULL columns translate to 0 to match SQLite's C API behaviour.
    */
   int get_int(int idx);
 
-  /** \brief Returns the data at the given index as 64-Bit Integer
-   * \param idx column index of the current row in the results
-   * \return a 64-Bit Integer
+  /**
+   * @brief Interprets the column at @p idx as a 64-bit integer.
+   *
+   * @param idx Zero-based column index.
+   * @returns The integer value; suitable for INTEGER PRIMARY KEY columns and epoch timestamps.
    */
   std::int64_t get_int64(int idx);
 
-  /** \brief Returns the data at the given index as String
-   * \param idx column index of the current row in the results
-   * \return a std::string object
+  /**
+   * @brief Copies the text at @p idx into an owning std::string.
+   *
+   * @param idx Zero-based column index.
+   * @returns `"NULL"` when the database value is NULL.
    */
   std::string get_string(int idx);
+
+  /**
+   * @brief Presents the UTF-8 text at @p idx as a non-owning std::string_view.
+   *
+   * The view stays valid until @ref next_row or @ref reset is called.
+   */
   std::string_view get_string_view(int idx);
 
-  /** \brief Returns the data at the given index as double
-   * \param idx column index of the current row in the results
-   * \return a double
+  /**
+   * @brief Interprets the column at @p idx as a double precision floating value.
+   *
+   * NULL columns are reported as `0.0`.
    */
   double get_double(int idx);
 
-  /** \brief Returns the size of the data at the given index in bytes
-   * \param idx column index of the current row in the results
-   * \return a size_t value which represents the number of bytes needed
-   * for the binary data at idx
+  /**
+   * @brief Reports the number of bytes stored in column @p idx.
+   *
+   * @param idx Zero-based column index.
+   * @returns Length in bytes, or 0 when the column is NULL.
+   * Only meaningful for BLOB/TEXT columns; other types return the storage size SQLite reports.
    */
   size_t get_binary_size(int idx);
 
-  /** \brief Used to retrieve a binary value
-   * \param idx column index of the current row in the results
-   * \param buf pointer to the buffer which should be filled
-   * \param buf_size size in bytes of the buffer
+  /**
+   * @brief Copies a blob column into the caller-provided buffer.
+   *
+   * @param idx Zero-based column index.
+   * @param buf Destination memory.
+   * @param buf_size Capacity of @p buf in bytes.
+   * @throws buffer_too_small_exception when @p buf_size is smaller than the blob.
    */
   void get_binary(int idx, void *buf, size_t buf_size);
 
-  /** \brief Used to retrieve a binary value
-   * \param idx column index of the current row in the results
-   * \param vec a std::vector<unsigned char> which will be filled
-   *              the method will increase the allocated buffer if needed
+  /**
+   * @brief Retrieves a blob column into a std::vector<unsigned char>.
+   *
+   * @param idx Zero-based column index.
+   * @param vec Destination buffer that will be resized to match the blob length.
    */
   void get_binary(int idx, std::vector<unsigned char> &vec);
+
+  /**
+   * @brief Returns a span that references the blob contents without copying.
+   *
+   * The span becomes invalid as soon as the cursor advances or resets.
+   */
   std::span<const unsigned char> get_binary_span(int idx);
 
-  /** \brief Returns the column name at the given index
-   * \param idx column index of the current row in the results
-   * \return a std::string object containing the name of the column
+  /**
+   * @brief Returns the UTF-8 column name declared in the statement.
+   *
+   * @param idx Zero-based column index.
    */
   std::string get_column_name(int idx);
 
+  /**
+   * @brief Tests whether the value at column @p idx is SQL NULL.
+   *
+   * @param idx Zero-based column index.
+   */
   bool is_null(int idx);
 
+  /**
+   * @brief Extracts the column at @p idx into an arbitrary C++ type.
+   *
+   * Supported conversions include:
+   * - arithmetic types (integral, floating point, enums, bool)
+   * - std::string and std::string_view
+   * - std::chrono::duration / time_point stored as microseconds
+   * - std::optional<T> for nullable fields
+   * - byte arrays (`std::vector<unsigned char>`, `std::span<const unsigned char>`, `std::span<const std::byte>`)
+   *
+   * @param idx Zero-based column index.
+   * @tparam T Desired destination type.
+   * @throws database_exception or std::out_of_range when @p idx is invalid.
+   * @throws buffer_too_small_exception if the requested type requires more space than available.
+   */
   template <typename T> T get(int idx);
 
+  /**
+   * @brief Collects a contiguous slice of columns into a std::tuple.
+   *
+   * @param start_column First column to include; defaults to 0.
+   * @tparam Ts Types to extract, matched positionally from @p start_column.
+   * @returns Tuple whose arity matches the template parameters.
+   * @throws database_exception when the tuple would exceed the column count.
+   */
   template <typename... Ts> std::tuple<Ts...> get_tuple(int start_column = 0);
 
 private:
@@ -198,6 +276,7 @@ private:
   int m_row_count;
 };
 
+/// Shared-pointer alias used by legacy APIs that transfer result ownership.
 typedef std::shared_ptr<result> result_type;
 
 namespace detail {

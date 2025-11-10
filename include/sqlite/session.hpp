@@ -38,15 +38,28 @@
 #include <string_view>
 #include <vector>
 
+/**
+ * @file sqlite/session.hpp
+ * @brief Thin RAII layer over the SQLite sessions/changeset extension.
+ *
+ * Sessions capture row-level changes in memory so they can later be applied or merged across
+ * connections, which is useful for sync workflows and replicating WAL streams.
+ */
 namespace sqlite {
 inline namespace v2 {
     struct connection;
 
+    /// Configuration flags supplied when opening a new change session.
     struct session_options {
         bool indirect = false;   /// Track changes as indirect (ignored by session filtering)
     };
 
-    /** \brief RAII wrapper around sqlite3_session. */
+    /**
+     * @brief RAII wrapper around `sqlite3_session`.
+     *
+     * Call `attach()` or `attach_all()` to declare which tables to monitor, then retrieve
+     * accumulated changes via `changeset()` / `patchset()`.
+     */
     struct session {
         session(connection & con, std::string_view schema = "main", session_options options = {});
         ~session();
@@ -61,7 +74,9 @@ inline namespace v2 {
         void attach_all();
         void enable(bool value);
         void set_indirect(bool value);
+        /// Serializes the recorded changes in the standard changeset format.
         std::vector<unsigned char> changeset();
+        /// Serializes the recorded changes in the smaller patchset format.
         std::vector<unsigned char> patchset();
 
         void * native_handle() const noexcept;
@@ -80,7 +95,9 @@ inline namespace v2 {
 #endif
     }
 
+    /// Applies a changeset produced by @ref session::changeset onto @p con.
     void apply_changeset(connection & con, std::span<const unsigned char> data);
+    /// Applies a patchset produced by @ref session::patchset onto @p con.
     void apply_patchset(connection & con, std::span<const unsigned char> data);
 } // namespace v2
 } // namespace sqlite

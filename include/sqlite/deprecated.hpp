@@ -32,6 +32,12 @@
 #ifndef GUARD_SQLITE_DEPRECATED_HPP_INCLUDED
 #define GUARD_SQLITE_DEPRECATED_HPP_INCLUDED
 
+/**
+ * @file sqlite/deprecated.hpp
+ * @brief Defines the `VSQLITE_DEPRECATED` attribute for compilers supported by VSQLite++.
+ *
+ * Include this header whenever you need to mark an API for removal across GCC/Clang/MSVC.
+ */
 #if defined(__GNUC__)
 #   define VSQLITE_DEPRECATED __attribute__((deprecated))
 #elif defined(_MSC_VER)
@@ -41,4 +47,3 @@
 #endif
 
 #endif //GUARD_SQLITE_DEPRECATED_HPP_INCLUDED
-

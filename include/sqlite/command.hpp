@@ -44,6 +44,13 @@
 
 struct sqlite3_stmt;
 
+/**
+ * @file sqlite/command.hpp
+ * @brief Parameter binding helpers and the `sqlite::command` base class for executing statements.
+ *
+ * Commands own a prepared statement, expose strongly typed `bind` overloads, and provide the
+ * streaming-style `%` syntax that higher-level convenience APIs (e.g. `query`) are built upon.
+ */
 namespace sqlite {
 inline namespace v2 {
     /** \brief \a null_type is an empty type used to represent NULL

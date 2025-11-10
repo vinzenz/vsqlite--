@@ -34,6 +34,13 @@
 
 #include <sqlite/command.hpp>
 
+/**
+ * @file sqlite/execute.hpp
+ * @brief Simple helper derived from `sqlite::command` for fire-and-forget statements.
+ *
+ * Creating an `sqlite::execute` object optionally runs the SQL immediately and keeps the prepared
+ * statement alive for repeated calls to `emit()` or `operator()`.
+ */
 namespace sqlite {
 inline namespace v2 {
 

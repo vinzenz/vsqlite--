@@ -36,15 +36,23 @@
 #include <string>
 #include <sqlite/filesystem_adapter.hpp>
 #include <sqlite/statement_cache.hpp>
+
+/**
+ * @file sqlite/connection.hpp
+ * @brief Owning RAII wrapper for `sqlite3*` handles plus attachment helpers and statement caching.
+ *
+ * The `sqlite::connection` type encapsulates opening/closing databases, attaches additional files,
+ * surfaces `sqlite3_last_insert_rowid`, and exposes the statement cache used by higher-level APIs.
+ */
 struct sqlite3;
 
 namespace sqlite {
 inline namespace v2 {
     enum class open_mode {
-        open_readonly,  ///!> Opens an existing database for reads only or fails
-        open_existing,  ///!> Opens an existing database or fails
-        open_or_create, ///!> Opens an existing database or creates it
-        always_create   ///!> Deletes database if exists and recreates it
+        open_readonly,  ///< Opens an existing database for reads only or fails
+        open_existing,  ///< Opens an existing database; fails when it is missing
+        open_or_create, ///< Opens an existing database or creates it on demand
+        always_create   ///< Deletes any existing database file and recreates it
     };
 
     /** \brief connection is used to open, close, attach and detach a database.
