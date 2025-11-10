@@ -131,3 +131,11 @@ Patchsets/changesets arrive as `std::vector<unsigned char>` buffers and helpers 
 ## Serialization Helpers
 
 Need to persist an in-memory database or hydrate a fixture from bytes? With `#include <sqlite/serialization.hpp>` you can call `sqlite::serialize(conn)` to obtain a `std::vector<unsigned char>` snapshot and `sqlite::deserialize(conn, image)` to restore it later (requires `SQLITE_ENABLE_DESERIALIZE`). This keeps golden images in memory-friendly buffers and lets tests fast-forward between prebuilt schemas without temporary files.
+
+## JSON & FTS Utilities
+
+`#include <sqlite/json_fts.hpp>` ships opt-in helpers for two popular SQLite extensions:
+
+- `sqlite::json::path()` builds JSON paths fluently and `json::contains_expression()`/`json::extract_expression()` format ready-to-use SQL fragments.
+- `sqlite::json::register_contains_function()` registers a deterministic `json_contains_value(doc, path, value)` UDF (implemented in terms of JSON1) so application code can reuse the same predicate everywhere.
+- `sqlite::fts::match_expression()` stitches together safe `MATCH` clauses, while `sqlite::fts::register_rank_function()` exposes a ready-to-use ranking helper for FTS5 tables (skips automatically when FTS5 is unavailable).

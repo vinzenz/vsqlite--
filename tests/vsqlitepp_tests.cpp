@@ -10,6 +10,7 @@
 #include <sqlite/serialization.hpp>
 #include <sqlite/session.hpp>
 #include <sqlite/snapshot.hpp>
+#include <sqlite/json_fts.hpp>
 #include <sqlite/query.hpp>
 #include <sqlite/savepoint.hpp>
 #include <sqlite/threading.hpp>
@@ -347,6 +348,47 @@ TEST(SerializationTest, RoundTripsInMemoryDatabase) {
     auto res = q.get_result();
     ASSERT_TRUE(res->next_row());
     EXPECT_EQ(res->get_int(0), 2);
+}
+
+TEST(JsonFtsHelpersTest, JsonContainsHelper) {
+    sqlite::connection conn(":memory:");
+    if(!sqlite::json::available(conn)) {
+        GTEST_SKIP() << "JSON1 extension is not available in this build.";
+    }
+    sqlite::json::register_contains_function(conn);
+    sqlite::execute(conn, "CREATE TABLE payload(data TEXT);", true);
+    sqlite::execute(conn, "INSERT INTO payload VALUES ('{\"name\":\"alpha\",\"tags\":[\"c++\",\"db\"]}');", true);
+
+    sqlite::query q(conn, "SELECT json_contains_value(data, '$.name', 'alpha') FROM payload;");
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get_int(0), 1);
+
+    auto path = sqlite::json::path().key("tags").index(1);
+    auto expr = sqlite::json::contains_expression("data", path, "'db'");
+    std::string expr_sql = "SELECT " + expr + " FROM payload;";
+    sqlite::query q2(conn, expr_sql);
+    auto res2 = q2.get_result();
+    ASSERT_TRUE(res2->next_row());
+    EXPECT_EQ(res2->get_int(0), 1);
+}
+
+TEST(JsonFtsHelpersTest, FtsRankFunction) {
+    sqlite::connection conn(":memory:");
+    if(!sqlite::fts::available(conn)) {
+        GTEST_SKIP() << "FTS5 extension is not available in this build.";
+    }
+    sqlite::execute(conn, "CREATE VIRTUAL TABLE docs USING fts5(title, body);", true);
+    sqlite::execute(conn, "INSERT INTO docs VALUES ('SQLite wrappers', 'Modern C++ wrappers for SQLite3');", true);
+    sqlite::execute(conn, "INSERT INTO docs VALUES ('Gardening tips', 'Compost and mulch basics');", true);
+    sqlite::fts::register_rank_function(conn);
+
+    auto where = sqlite::fts::match_expression("docs", "'SQLite'");
+    auto sql = "SELECT rowid, fts_rank(docs) AS score FROM docs WHERE " + where + " ORDER BY score DESC;";
+    sqlite::query q(conn, sql);
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get_int64(0), 1);
 }
 
 TEST(FunctionTest, RegistersScalarFunction) {

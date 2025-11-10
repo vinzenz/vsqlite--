@@ -50,6 +50,7 @@ target_sources(vsqlitepp
   src/sqlite/snapshot.cpp
   src/sqlite/session.cpp
   src/sqlite/serialization.cpp
+  src/sqlite/json_fts.cpp
 )
 
 target_include_directories(vsqlitepp
