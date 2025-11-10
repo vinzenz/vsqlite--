@@ -163,7 +163,8 @@ inline namespace v2 {
 
     connection::connection(std::string const & db, filesystem_adapter_ptr fs)
         : handle(0)
-        , filesystem(std::move(fs) ? std::move(fs) : std::make_shared<default_filesystem_adapter>()) {
+        , filesystem(std::move(fs) ? std::move(fs) : std::make_shared<default_filesystem_adapter>())
+        , cache_() {
             open(db);
     }
 
@@ -172,7 +173,8 @@ inline namespace v2 {
 
     connection::connection(std::string const & db, sqlite::open_mode open_mode, filesystem_adapter_ptr fs)
         : handle(0)
-        , filesystem(std::move(fs) ? std::move(fs) : std::make_shared<default_filesystem_adapter>()) {
+        , filesystem(std::move(fs) ? std::move(fs) : std::make_shared<default_filesystem_adapter>())
+        , cache_() {
         open(db, open_mode);
     }
 
@@ -277,6 +279,7 @@ inline namespace v2 {
 
     void connection::close(){
         access_check();
+        cache_.clear(handle);
         int err = sqlite3_close(handle);
         if(err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(handle), err);
@@ -311,6 +314,33 @@ inline namespace v2 {
             throw database_exception("Database is not open.");
         return static_cast<std::int64_t>(
                 sqlite3_last_insert_rowid(handle));
+    }
+
+    void connection::configure_statement_cache(statement_cache_config const & cfg) {
+        cache_.clear(handle);
+        cache_ = statement_cache(cfg);
+    }
+
+    statement_cache_config connection::statement_cache_settings() const {
+        return cache_.config();
+    }
+
+    sqlite3_stmt * connection::acquire_cached_statement(std::string const & sql) {
+        if(!handle) return nullptr;
+        return cache_.acquire(handle, sql);
+    }
+
+    void connection::release_cached_statement(std::string const & sql, sqlite3_stmt * stmt) {
+        if(!stmt) return;
+        if(!handle) {
+            sqlite3_finalize(stmt);
+            return;
+        }
+        cache_.release(sql, stmt);
+    }
+
+    void connection::clear_statement_cache() {
+        cache_.clear(handle);
     }
 } // namespace v2
 } // namespace sqlite

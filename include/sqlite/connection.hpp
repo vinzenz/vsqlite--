@@ -35,6 +35,7 @@
 #include <memory>
 #include <string>
 #include <sqlite/filesystem_adapter.hpp>
+#include <sqlite/statement_cache.hpp>
 struct sqlite3;
 
 namespace sqlite {
@@ -105,6 +106,10 @@ inline namespace v2 {
          */
         std::int64_t get_last_insert_rowid();
 
+        void configure_statement_cache(statement_cache_config const & cfg);
+        statement_cache_config statement_cache_settings() const;
+        void clear_statement_cache();
+
     private:
         friend struct private_accessor;
     private:
@@ -114,9 +119,12 @@ inline namespace v2 {
         void close();
         void access_check();
         void open_with_flags(std::string const & db, int flags);
+        sqlite3_stmt * acquire_cached_statement(std::string const & sql);
+        void release_cached_statement(std::string const & sql, sqlite3_stmt * stmt);
     private:
         sqlite3 * handle;
         filesystem_adapter_ptr filesystem;
+        statement_cache cache_;
     };
 } // namespace v2
 } // namespace sqlite

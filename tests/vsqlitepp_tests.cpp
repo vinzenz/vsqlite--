@@ -11,6 +11,9 @@
 #include <sqlite/session.hpp>
 #include <sqlite/snapshot.hpp>
 #include <sqlite/json_fts.hpp>
+#include <sqlite/private/private_accessor.hpp>
+
+#include <sqlite3.h>
 #include <sqlite/query.hpp>
 #include <sqlite/savepoint.hpp>
 #include <sqlite/threading.hpp>
@@ -682,6 +685,25 @@ TEST(CommandQueryTest, TypeSafeBindingAndTupleGet) {
     EXPECT_EQ(*std::get<2>(row), "typed");
     EXPECT_FALSE(std::get<3>(row).has_value());
     EXPECT_EQ(std::get<1>(row).time_since_epoch(), now.time_since_epoch());
+}
+
+TEST(StatementCacheTest, RetainsStatementsBetweenUses) {
+    sqlite::connection conn(":memory:");
+    conn.configure_statement_cache({.capacity = 4, .enabled = true});
+    {
+        sqlite::command cmd(conn, "SELECT 1;");
+        cmd.emit();
+    }
+    auto handle = sqlite::private_accessor::get_handle(conn);
+    sqlite3_stmt * cached = sqlite3_next_stmt(handle, nullptr);
+    ASSERT_NE(cached, nullptr);
+
+    {
+        sqlite::command cmd(conn, "SELECT 1;");
+        cmd.emit();
+    }
+    sqlite3_stmt * cached_again = sqlite3_next_stmt(handle, nullptr);
+    EXPECT_EQ(cached_again, cached);
 }
 
 TEST(TransactionTest, TransactionAndSavepoint) {

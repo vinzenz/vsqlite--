@@ -165,3 +165,14 @@ Need to persist an in-memory database or hydrate a fixture from bytes? With `#in
 - `sqlite::json::path()` builds JSON paths fluently and `json::contains_expression()`/`json::extract_expression()` format ready-to-use SQL fragments.
 - `sqlite::json::register_contains_function()` registers a deterministic `json_contains_value(doc, path, value)` UDF (implemented in terms of JSON1) so application code can reuse the same predicate everywhere.
 - `sqlite::fts::match_expression()` stitches together safe `MATCH` clauses, while `sqlite::fts::register_rank_function()` exposes a ready-to-use ranking helper for FTS5 tables (skips automatically when FTS5 is unavailable).
+
+## Statement Cache
+
+High-traffic workloads often bounce through the same SQL repeatedly. Enable the built-in LRU cache to reuse prepared statements automatically:
+
+```cpp
+conn.configure_statement_cache({.capacity = 64, .enabled = true});
+// subsequent sqlite::command/sqlite::query objects will reuse cached sqlite3_stmt*
+```
+
+Cached statements reset/clear bindings on checkout, and the cache is cleared whenever the connection closes or you reconfigure it.

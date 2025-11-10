@@ -51,6 +51,7 @@ target_sources(vsqlitepp
   src/sqlite/session.cpp
   src/sqlite/serialization.cpp
   src/sqlite/json_fts.cpp
+  src/sqlite/statement_cache.cpp
 )
 
 target_include_directories(vsqlitepp

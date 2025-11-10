@@ -29,6 +29,8 @@
  POSSIBILITY OF SUCH DAMAGE.
 ##############################################################################*/
 
+#include <array>
+#include <cctype>
 #include <sqlite/database_exception.hpp>
 #include <sqlite/command.hpp>
 #include <sqlite/private/private_accessor.hpp>
@@ -38,6 +40,46 @@ namespace sqlite {
 inline namespace v2 {
 
     null_type nil = null_type();
+
+    namespace {
+        std::string_view trim_left(std::string const & sql) {
+            auto view = std::string_view(sql);
+            auto pos = view.find_first_not_of(" \t\r\n");
+            if(pos == std::string_view::npos) {
+                return {};
+            }
+            view.remove_prefix(pos);
+            return view;
+        }
+
+        std::string first_token_upper(std::string const & sql) {
+            auto view = trim_left(sql);
+            std::string token;
+            for(char ch : view) {
+                if(std::isspace(static_cast<unsigned char>(ch)) || ch == ';' || ch == '(') {
+                    break;
+                }
+                token.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(ch))));
+            }
+            return token;
+        }
+
+        bool is_schema_changing_statement(std::string const & sql) {
+            static constexpr std::array<const char *, 5> keywords = {
+                "ATTACH", "DETACH", "CREATE", "DROP", "ALTER"
+            };
+            auto token = first_token_upper(sql);
+            if(token.empty()) {
+                return false;
+            }
+            for(auto keyword : keywords) {
+                if(token == keyword) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
 
     command::command(connection & con, std::string const & sql)
     : m_con(con),m_sql(sql),stmt(0),last_arg_idx(0){
@@ -55,9 +97,15 @@ inline namespace v2 {
 
     void command::finalize(){
         access_check();
-        int err = sqlite3_finalize(stmt);
-        if(err != SQLITE_OK)
-            throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
+        if(!stmt){
+            return;
+        }
+        if(is_schema_changing_statement(m_sql)){
+            sqlite3_finalize(stmt);
+        }
+        else{
+            private_accessor::release_cached_statement(m_con, m_sql, stmt);
+        }
         stmt = 0;
     }
 
@@ -69,8 +117,18 @@ inline namespace v2 {
 
     void command::prepare(){
         private_accessor::acccess_check(m_con);
+        bool schema_change = is_schema_changing_statement(m_sql);
+        if(schema_change) {
+            private_accessor::clear_statement_cache(m_con);
+        }
         if(stmt)
             finalize();
+        if(!schema_change) {
+            stmt = private_accessor::acquire_cached_statement(m_con, m_sql);
+            if(stmt) {
+                return;
+            }
+        }
         const char * tail = 0;
         int err = sqlite3_prepare(get_handle(),m_sql.c_str(),-1,&stmt,&tail);
         if(err != SQLITE_OK)

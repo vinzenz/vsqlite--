@@ -1,7 +1,8 @@
 /*##############################################################################
-VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
+ VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
 
- Copyright (c) 2006-2014 Vinzenz Feenstra vinzenz.feenstra@gmail.com
+ Copyright (c) 2006-2024 Vinzenz Feenstra
+                         and contributors
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without modification,
@@ -29,34 +30,50 @@ VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
  POSSIBILITY OF SUCH DAMAGE.
 
 ##############################################################################*/
-#ifndef GUARD_SQLITE_PRIVATE_PRIVATE_ACCESSOR_HPP_INCLUDED
-#define GUARD_SQLITE_PRIVATE_PRIVATE_ACCESSOR_HPP_INCLUDED
+#ifndef GUARD_SQLITE_STATEMENT_CACHE_HPP_INCLUDED
+#define GUARD_SQLITE_STATEMENT_CACHE_HPP_INCLUDED
 
-#include <sqlite/connection.hpp>
+#include <cstddef>
+#include <list>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+
+struct sqlite3;
+struct sqlite3_stmt;
 
 namespace sqlite {
 inline namespace v2 {
-    /** \brief A internal used class, shall not be used from users
-      *
-      */
-    struct private_accessor{
-        static struct sqlite3 * get_handle(connection & m_con){
-            return m_con.handle;
-        }
-        static void acccess_check(connection & m_con){
-            m_con.access_check();
-        }
-        static sqlite3_stmt * acquire_cached_statement(connection & con, std::string const & sql) {
-            return con.acquire_cached_statement(sql);
-        }
-        static void release_cached_statement(connection & con, std::string const & sql, sqlite3_stmt * stmt) {
-            con.release_cached_statement(sql, stmt);
-        }
-        static void clear_statement_cache(connection & con) {
-            con.clear_statement_cache();
-        }
+    struct connection;
+
+    struct statement_cache_config {
+        std::size_t capacity = 32;
+        bool enabled = true;
+    };
+
+    class statement_cache {
+    public:
+        explicit statement_cache(statement_cache_config cfg = {});
+
+        sqlite3_stmt * acquire(sqlite3 * db, std::string_view sql);
+        void release(std::string_view sql, sqlite3_stmt * stmt);
+        void clear(sqlite3 * db);
+        statement_cache_config config() const noexcept { return config_; }
+    private:
+        struct entry {
+            std::string sql;
+            sqlite3_stmt * stmt = nullptr;
+        };
+
+        using lru_list = std::list<entry>;
+        using iterator = lru_list::iterator;
+
+        statement_cache_config config_;
+        lru_list lru_;
+        std::unordered_map<std::string, iterator> map_;
     };
 } // namespace v2
 } // namespace sqlite
 
-#endif// GUARD_SQLITE_PRIVATE_PRIVATE_ACCESSOR_HPP_INCLUDED
+#endif //GUARD_SQLITE_STATEMENT_CACHE_HPP_INCLUDED
