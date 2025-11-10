@@ -171,9 +171,12 @@ inline namespace v2 {
           * \param p should be a Zero Terminated C-style string (char * or
           * char const*), or a std::string object,
           */
-        command & operator % (std::string const & p);
-        command & operator % (std::string_view p);
-        command & operator % (char const * p);
+        template <typename Text>
+            requires std::convertible_to<Text, std::string_view>
+        command & operator % (Text && p) {
+            bind(++last_arg_idx, std::string_view(std::forward<Text>(p)));
+            return *this;
+        }
 
         /** \brief replacement for void command::bind(int idx,std::vector<unsigned char> const&);
           * Indexes are given automatically first call uses 1 as index, second 2

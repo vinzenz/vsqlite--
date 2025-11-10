@@ -215,21 +215,6 @@ inline namespace v2 {
         return *this;
     }
 
-    command & command::operator % (std::string const & v){
-        bind(++last_arg_idx,v);
-        return *this;
-    }
-
-    command & command::operator % (std::string_view v){
-        bind(++last_arg_idx, v);
-        return *this;
-    }
-
-    command & command::operator % (char const * v){
-        bind(++last_arg_idx, std::string_view(v ? v : ""));
-        return *this;
-    }
-
     command & command::operator % (std::vector<unsigned char> const & v)
     {
         bind(++last_arg_idx,v);
