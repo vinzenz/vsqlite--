@@ -173,6 +173,7 @@ inline namespace v2 {
           */
         command & operator % (std::string const & p);
         command & operator % (std::string_view p);
+        command & operator % (char const * p);
 
         /** \brief replacement for void command::bind(int idx,std::vector<unsigned char> const&);
           * Indexes are given automatically first call uses 1 as index, second 2
