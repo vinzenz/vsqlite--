@@ -10,6 +10,7 @@
 #include <sqlite/transaction.hpp>
 #include <sqlite/view.hpp>
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -280,15 +281,17 @@ TEST(CommandQueryTest, BindsAndRetrievesData) {
     sqlite::command insert(conn, "INSERT INTO sample(ival, lval, note, amount, data, nullable) "
                                  "VALUES (?, ?, ?, ?, ?, ?);");
     std::vector<unsigned char> blob{0, 1, 2, 3, 4};
+    std::array<unsigned char, 3> blob_view_data{9, 8, 7};
     insert.bind(1, 42);
     insert.bind(2, static_cast<std::int64_t>(1) << 40);
-    insert.bind(3, std::string("hello"));
+    insert.bind(3, std::string_view("hello"));
     insert.bind(4, 3.14);
-    insert.bind(5, blob);
+    insert.bind(5, std::span<const unsigned char>(blob));
     insert.bind(6);
     insert.emit();
     insert.clear();
-    insert % 7 % static_cast<std::int64_t>(9007199254740993LL) % std::string("world") % 2.71 % blob % std::string("value");
+    std::string_view world_view("world_view");
+    insert % 7 % static_cast<std::int64_t>(9007199254740993LL) % world_view % 2.71 % std::span<const unsigned char>(blob_view_data) % std::string("value");
     insert();
 
     sqlite::query q(conn, "SELECT id, ival, lval, note, amount, data, nullable FROM sample ORDER BY id;");
@@ -301,8 +304,13 @@ TEST(CommandQueryTest, BindsAndRetrievesData) {
     EXPECT_EQ(result->get_int64(2), static_cast<std::int64_t>(1) << 40);
     EXPECT_EQ(result->get_string(3), "hello");
     EXPECT_DOUBLE_EQ(result->get_double(4), 3.14);
+    auto note_view = result->get_string_view(3);
+    EXPECT_EQ(note_view, "hello");
     auto stored_blob = load_blob(*result, 5);
     EXPECT_EQ(stored_blob, blob);
+    auto blob_span = result->get_binary_span(5);
+    EXPECT_EQ(blob_span.size(), blob.size());
+    EXPECT_TRUE(std::equal(blob_span.begin(), blob_span.end(), blob.begin()));
     EXPECT_EQ(result->get_variant(5).index(), 6); // blob variant
     EXPECT_EQ(result->get_binary_size(5), blob.size());
     EXPECT_EQ(result->get_variant(6).index(), 5); // null
@@ -325,6 +333,11 @@ TEST(CommandQueryTest, BindsAndRetrievesData) {
     EXPECT_EQ(std::get<std::int64_t>(v), 9007199254740993LL);
     auto text_variant = result->get_variant(3);
     EXPECT_TRUE(std::holds_alternative<std::string>(text_variant));
+    auto string_view_second = result->get_string_view(3);
+    EXPECT_EQ(string_view_second, world_view);
+    auto blob_span_second = result->get_binary_span(5);
+    EXPECT_EQ(blob_span_second.size(), blob_view_data.size());
+    EXPECT_TRUE(std::equal(blob_span_second.begin(), blob_span_second.end(), blob_view_data.begin()));
     EXPECT_EQ(result->get_variant(4).index(), 3); // long double
     auto blob_variant = result->get_variant(5);
     EXPECT_TRUE(std::holds_alternative<sqlite::blob_ref_t>(blob_variant));

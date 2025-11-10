@@ -34,6 +34,8 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
+#include <string_view>
 #include <sqlite/ext/variant.hpp>
 #include <sqlite/deprecated.hpp>
 #include <stdexcept>
@@ -133,6 +135,7 @@ namespace sqlite{
           * \return a std::string object
           */
         std::string get_string(int idx);
+        std::string_view get_string_view(int idx);
 
         /** \brief Returns the data at the given index as double
           * \param idx column index of the current row in the results
@@ -160,6 +163,7 @@ namespace sqlite{
           *              the method will increase the allocated buffer if needed
           */
         void get_binary(int idx, std::vector<unsigned char> & vec);
+        std::span<const unsigned char> get_binary_span(int idx);
 
         /** \brief Returns the column name at the given index
           * \param idx column index of the current row in the results

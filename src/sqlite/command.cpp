@@ -128,10 +128,35 @@ namespace sqlite{
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
+    namespace {
+        const char *text_or_dummy(std::string_view view, char const *& dummy_holder){
+            static char const kDummy = 0;
+            if(view.empty()){
+                dummy_holder = &kDummy;
+                return dummy_holder;
+            }
+            return view.data();
+        }
+
+        const unsigned char *blob_or_dummy(std::span<const unsigned char> view, unsigned char const *& dummy_holder){
+            static const unsigned char kDummy = 0;
+            if(view.empty()){
+                dummy_holder = &kDummy;
+                return dummy_holder;
+            }
+            return view.data();
+        }
+    }
+
     void command::bind(int idx, std::string const & v){
+        bind(idx, std::string_view(v));
+    }
+
+    void command::bind(int idx, std::string_view v){
         access_check();
-        static char const dummy = 0;
-        int err = sqlite3_bind_text(stmt,idx,v.empty() ? &dummy : v.c_str(),int(v.size()),SQLITE_TRANSIENT);
+        char const * dummy = nullptr;
+        auto ptr = text_or_dummy(v, dummy);
+        int err = sqlite3_bind_text(stmt, idx, ptr, static_cast<int>(v.size()), SQLITE_TRANSIENT);
         if(err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
@@ -145,8 +170,22 @@ namespace sqlite{
 
     void command::bind(int idx, std::vector<unsigned char> const & v)
     {
-        static const unsigned char dummy = 0;
-        bind(idx, v.empty() ? &dummy : &v.at(0),v.size());
+        bind(idx, std::span<const unsigned char>(v.data(), v.size()));
+    }
+
+    void command::bind(int idx, std::span<const unsigned char> v){
+        access_check();
+        unsigned char const * dummy = nullptr;
+        auto ptr = blob_or_dummy(v, dummy);
+        int err = sqlite3_bind_blob(stmt, idx, ptr, static_cast<int>(v.size()), SQLITE_TRANSIENT);
+        if(err != SQLITE_OK)
+            throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
+    }
+
+    void command::bind(int idx, std::span<const std::byte> v){
+        auto data = std::as_bytes(v);
+        auto ptr = std::span<const unsigned char>(reinterpret_cast<unsigned char const *>(data.data()), data.size());
+        bind(idx, ptr);
     }
 
     void command::access_check(){
@@ -180,9 +219,24 @@ namespace sqlite{
         return *this;
     }
 
+    command & command::operator % (std::string_view v){
+        bind(++last_arg_idx, v);
+        return *this;
+    }
+
     command & command::operator % (std::vector<unsigned char> const & v)
     {
         bind(++last_arg_idx,v);
+        return *this;
+    }
+
+    command & command::operator % (std::span<const unsigned char> v){
+        bind(++last_arg_idx, v);
+        return *this;
+    }
+
+    command & command::operator % (std::span<const std::byte> v){
+        bind(++last_arg_idx, v);
         return *this;
     }
 

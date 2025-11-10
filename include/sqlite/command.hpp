@@ -32,9 +32,12 @@
 #ifndef GUARD_SQLITE_COMMAND_HPP_INCLUDED
 #define GUARD_SQLITE_COMMAND_HPP_INCLUDED
 
+#include <cstddef>
 #include <cstdint>
-#include <sqlite/connection.hpp>
+#include <span>
+#include <string_view>
 #include <vector>
+#include <sqlite/connection.hpp>
 
 struct sqlite3_stmt;
 
@@ -113,6 +116,7 @@ namespace sqlite{
           * \param v text/string value which should replace the placeholder
           */
         void bind(int idx, std::string const & v);
+        void bind(int idx, std::string_view v);
 
         /** \brief binds the binary/blob buf to the given 1 based index
           * \param idx 1 based index of the placeholder within the sql statement
@@ -127,6 +131,8 @@ namespace sqlite{
           *        v is a std::vector<unsigned char> const &
           */
         void bind(int idx, std::vector<unsigned char> const & v);
+        void bind(int idx, std::span<const unsigned char> v);
+        void bind(int idx, std::span<const std::byte> v);
 
         /** \brief replacement for void command::bind(int idx);
           * To use this operator% you have to use the global object
@@ -165,6 +171,7 @@ namespace sqlite{
           * char const*), or a std::string object,
           */
         command & operator % (std::string const & p);
+        command & operator % (std::string_view p);
 
         /** \brief replacement for void command::bind(int idx,std::vector<unsigned char> const&);
           * Indexes are given automatically first call uses 1 as index, second 2
@@ -173,6 +180,8 @@ namespace sqlite{
           * (For blob/binary data)
           */
         command & operator % (std::vector<unsigned char> const & p);
+        command & operator % (std::span<const unsigned char> p);
+        command & operator % (std::span<const std::byte> p);
 
     protected:
         void access_check();

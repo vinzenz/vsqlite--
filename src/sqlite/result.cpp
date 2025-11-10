@@ -36,6 +36,8 @@
 #include <sqlite3.h>
 #include <cstring>
 #include <memory>
+#include <span>
+#include <string_view>
 #include <limits>
 
 namespace sqlite{
@@ -142,13 +144,17 @@ namespace sqlite{
     }
 
     std::string result::get_string(int idx){
+        auto view = get_string_view(idx);
+        return std::string(view.begin(), view.end());
+    }
+
+    std::string_view result::get_string_view(int idx){
         access_check(idx);
         if(sqlite3_column_type(m_params->statement,idx) == SQLITE_NULL)
-            return std::string("NULL");
-        char const * v = reinterpret_cast<char const*>
-                         (sqlite3_column_text(m_params->statement,idx));
+            return std::string_view("NULL", 4);
+        char const * v = reinterpret_cast<char const*>(sqlite3_column_text(m_params->statement,idx));
         size_t length = get_binary_size(idx);
-        return std::string(v, v+length);
+        return std::string_view(v, length);
     }
 
     double result::get_double(int idx){
@@ -176,12 +182,17 @@ namespace sqlite{
     }
 
     void result::get_binary(int idx, std::vector<unsigned char> & v){
+        auto span = get_binary_span(idx);
+        v.assign(span.begin(), span.end());
+    }
+
+    std::span<const unsigned char> result::get_binary_span(int idx){
         access_check(idx);
         if(sqlite3_column_type(m_params->statement,idx) == SQLITE_NULL)
-            return;
+            return {};
         size_t size = sqlite3_column_bytes(m_params->statement,idx);
-        v.resize(size,0);
-        memcpy(&v[0],sqlite3_column_blob(m_params->statement,idx),size);
+        auto ptr = static_cast<unsigned char const *>(sqlite3_column_blob(m_params->statement,idx));
+        return std::span<const unsigned char>(ptr, size);
     }
 
     std::string result::get_column_name(int idx){
