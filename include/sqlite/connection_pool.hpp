@@ -42,6 +42,7 @@
 #include <sqlite/connection.hpp>
 
 namespace sqlite {
+inline namespace v2 {
 
     class connection_pool {
     public:
@@ -90,6 +91,7 @@ namespace sqlite {
         std::vector<std::shared_ptr<connection>> idle_;
     };
 
-}
+} // namespace v2
+} // namespace sqlite
 
 #endif

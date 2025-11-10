@@ -3,6 +3,7 @@
 #include <sqlite/database_exception.hpp>
 
 namespace sqlite {
+inline namespace v2 {
 
     connection_pool::lease::lease(connection_pool * pool, std::shared_ptr<connection> conn)
         : pool_(pool)
@@ -125,4 +126,5 @@ namespace sqlite {
         return created_;
     }
 
-}
+} // namespace v2
+} // namespace sqlite

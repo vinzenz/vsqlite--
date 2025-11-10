@@ -156,7 +156,8 @@ std::string quote_identifier(std::string_view identifier) {
 }
 }
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     connection::connection(std::string const & db)
         : connection(db, std::make_shared<default_filesystem_adapter>()) {}
 
@@ -311,4 +312,5 @@ namespace sqlite{
         return static_cast<std::int64_t>(
                 sqlite3_last_insert_rowid(handle));
     }
-}
+} // namespace v2
+} // namespace sqlite

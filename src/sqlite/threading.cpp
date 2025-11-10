@@ -4,6 +4,7 @@
 #include <sqlite3.h>
 
 namespace sqlite {
+inline namespace v2 {
 
     namespace {
         std::atomic<threading_mode> configured_mode(threading_mode::serialized);
@@ -42,4 +43,5 @@ namespace sqlite {
         return configured_mode.load(std::memory_order_relaxed);
     }
 
-}
+} // namespace v2
+} // namespace sqlite

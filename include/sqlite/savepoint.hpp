@@ -33,7 +33,8 @@
 #define GUARD_SQLITE_SAVEPOINT_HPP_INCLUDED
 #include <string>
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     struct connection;
 
     /** \brief this is a helper class to handle transaction savepoints
@@ -84,7 +85,7 @@ namespace sqlite{
         std::string  m_name;     ///< The alias for the savepoint
         bool         m_isActive; ///< if \c true the savepoint with alias \c m_name is still active (not currently released)
     };
-}
+} // namespace v2
+} // namespace sqlite
 
 #endif //GUARD_SQLITE_SAVEPOINT_HPP_INCLUDED
-

@@ -40,7 +40,8 @@
 #include <sqlite/deprecated.hpp>
 #include <stdexcept>
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     struct query;
     struct result_construct_params_private;
     namespace detail {
@@ -179,6 +180,7 @@ namespace sqlite{
     };
 
     typedef std::shared_ptr<result> result_type;
-}
+} // namespace v2
+} // namespace sqlite
 
 #endif //GUARD_SQLITE_RESULT_HPP_INCLUDED

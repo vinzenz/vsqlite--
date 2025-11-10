@@ -35,7 +35,8 @@
 #include <sqlite/transaction.hpp>
 #include <string>
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     transaction::transaction(connection & con, transaction_type type)
         : m_con(con){
         begin(type);
@@ -78,4 +79,5 @@ namespace sqlite{
     void transaction::exec(std::string const & cmd){
         execute(m_con,cmd,true);
     }
-}
+} // namespace v2
+} // namespace sqlite

@@ -36,7 +36,8 @@
 #include <sqlite/command.hpp>
 #include <sqlite/result.hpp>
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
 
     /** \brief query should be used to execute SQL queries
       * An object of this class is not copyable
@@ -67,6 +68,7 @@ namespace sqlite{
         void access_check();
         bool step();
     };
-}
+} // namespace v2
+} // namespace sqlite
 
 #endif //GUARD_SQLITE_QUERY_HPP_INCLUDED

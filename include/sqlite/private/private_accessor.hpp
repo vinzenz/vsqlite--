@@ -34,7 +34,8 @@ VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
 
 #include <sqlite/connection.hpp>
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     /** \brief A internal used class, shall not be used from users
       *
       */
@@ -46,7 +47,7 @@ namespace sqlite{
             m_con.access_check();
         }
     };
-}
+} // namespace v2
+} // namespace sqlite
 
 #endif// GUARD_SQLITE_PRIVATE_PRIVATE_ACCESSOR_HPP_INCLUDED
-

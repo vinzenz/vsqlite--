@@ -33,7 +33,8 @@
 #include <sqlite/savepoint.hpp>
 #include <sqlite/execute.hpp>
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     savepoint::savepoint(connection & con, std::string const & name)
         : m_con(con)
         , m_name(name){
@@ -57,4 +58,5 @@ namespace sqlite{
     void savepoint::exec(std::string const & cmd){
         execute(m_con,cmd,true);
     }
-}
+} // namespace v2
+} // namespace sqlite

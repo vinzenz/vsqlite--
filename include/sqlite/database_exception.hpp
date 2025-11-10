@@ -36,7 +36,8 @@
 #include <string>
 #include <utility>
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     struct database_exception : public std::runtime_error {
         database_exception(std::string const & msg)
         : std::runtime_error(msg.c_str())
@@ -119,6 +120,7 @@ namespace sqlite{
     protected:
         int error_code_;
     };
-}
+} // namespace v2
+} // namespace sqlite
 
 #endif //GUARD_SQLITE_DATABASE_EXCEPTION_HPP_INCLUDED

@@ -33,6 +33,7 @@
 #define GUARD_SQLITE_THREADING_HPP_INCLUDED
 
 namespace sqlite {
+inline namespace v2 {
 
     enum class threading_mode {
         single_thread,
@@ -43,6 +44,7 @@ namespace sqlite {
     bool configure_threading(threading_mode mode);
     threading_mode current_threading_mode();
 
-}
+} // namespace v2
+} // namespace sqlite
 
 #endif

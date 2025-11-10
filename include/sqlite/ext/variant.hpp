@@ -38,7 +38,8 @@
 #include <variant>
 #include <vector>
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
 
     enum type {
         unknown,
@@ -62,6 +63,7 @@ namespace sqlite{
             std::string,
             null_t,
             blob_ref_t > variant_t;
-}
+} // namespace v2
+} // namespace sqlite
 
 #endif //GUARD_SQLITE_EXT_VARIANT_HPP_INCLUDED

@@ -34,7 +34,8 @@
 #include <sqlite/private/private_accessor.hpp>
 #include <sqlite3.h>
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
 
     null_type nil = null_type();
 
@@ -243,4 +244,5 @@ namespace sqlite{
     struct sqlite3 * command::get_handle(){
         return private_accessor::get_handle(m_con);
     }
-}
+} // namespace v2
+} // namespace sqlite

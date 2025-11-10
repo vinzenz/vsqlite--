@@ -40,7 +40,8 @@
 #include <string_view>
 #include <limits>
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     namespace detail {
         bool end(result_construct_params_private const & params) {
             return params.ended;
@@ -213,4 +214,5 @@ namespace sqlite{
     int result::get_column_count(){
         return m_columns;
     }
-}
+} // namespace v2
+} // namespace sqlite

@@ -31,7 +31,8 @@
 ##############################################################################*/
 #include <sqlite/execute.hpp>
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     execute::execute(connection & con, std::string const & sql, bool immediately)
     : command(con,sql){
         if(immediately)
@@ -40,5 +41,5 @@ namespace sqlite{
 
     execute::~execute(){
     }
-}
-
+} // namespace v2
+} // namespace sqlite

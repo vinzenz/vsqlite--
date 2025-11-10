@@ -34,7 +34,8 @@
 
 #include <string>
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     struct connection;
     /** \brief view is used to create views. In SQLite a view can only be
       * queried. INSERT, DELETE and UPDATE will fail on a view
@@ -88,6 +89,6 @@ namespace sqlite{
     private:
         connection & m_con;
     };
-}
+} // namespace v2
+} // namespace sqlite
 #endif //GUARD_SQLITE_VIEW_HPP_INCLUDED
-

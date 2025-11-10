@@ -34,7 +34,8 @@
 
 #include <sqlite/command.hpp>
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
 
     /** \brief execute can be used for SQL commands which should executed
       * the constructor is defined in a way that it can be used like a function
@@ -55,7 +56,7 @@ namespace sqlite{
           */
         virtual ~execute();
     };
-}
+} // namespace v2
+} // namespace sqlite
 
 #endif //GUARD_SQLITE_EXECUTE_HPP_INCLUDED
-

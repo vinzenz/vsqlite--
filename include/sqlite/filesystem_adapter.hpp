@@ -36,6 +36,7 @@
 #include <memory>
 
 namespace sqlite {
+inline namespace v2 {
 
     struct filesystem_entry {
         std::filesystem::file_status status;
@@ -64,6 +65,7 @@ namespace sqlite {
 
     using filesystem_adapter_ptr = std::shared_ptr<filesystem_adapter>;
 
-}
+} // namespace v2
+} // namespace sqlite
 
 #endif

@@ -5,6 +5,7 @@
 #include <sqlite3.h>
 
 namespace sqlite {
+inline namespace v2 {
     backup::backup(connection& conn_to, connection& conn_from)
         : m_pBackup(NULL), m_conn_to(conn_to) {
         private_accessor::acccess_check(conn_to);
@@ -56,4 +57,5 @@ namespace sqlite {
     sqlite3* backup::get_to_handle() const {
         return private_accessor::get_handle(m_conn_to);
     }
-}
+} // namespace v2
+} // namespace sqlite

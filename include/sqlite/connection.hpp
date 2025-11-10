@@ -37,7 +37,8 @@
 #include <sqlite/filesystem_adapter.hpp>
 struct sqlite3;
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     enum class open_mode {
         open_readonly,  ///!> Opens an existing database for reads only or fails
         open_existing,  ///!> Opens an existing database or fails
@@ -117,5 +118,6 @@ namespace sqlite{
         sqlite3 * handle;
         filesystem_adapter_ptr filesystem;
     };
-}
+} // namespace v2
+} // namespace sqlite
 #endif //GUARD_SQLITE_CONNECTION_HPP_INCLUDED

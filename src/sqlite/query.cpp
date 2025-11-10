@@ -34,7 +34,8 @@
 #include <sqlite/query.hpp>
 #include <sqlite3.h>
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     query::query(connection & con, std::string const & sql)
     : command(con,sql) {
 
@@ -72,4 +73,5 @@ namespace sqlite{
     bool query::step(){
         return command::step();
     }
-}
+} // namespace v2
+} // namespace sqlite

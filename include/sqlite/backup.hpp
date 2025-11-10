@@ -6,6 +6,7 @@
 struct sqlite3_backup;
 
 namespace sqlite {
+inline namespace v2 {
     /** \brief \a backup is a class for representing SQLite backup operations
       * An object of this class is not copyable
       */
@@ -45,5 +46,6 @@ namespace sqlite {
         sqlite3_backup* m_pBackup;
         connection& m_conn_to;
     };
-}
+} // namespace v2
+} // namespace sqlite
 #endif // #ifndef GUARD_SQLITE_BACKUP_HPP_INCLUDED

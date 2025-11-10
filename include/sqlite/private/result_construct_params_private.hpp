@@ -37,7 +37,8 @@ VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
 struct sqlite3;
 struct sqlite3_stmt;
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     struct query;
     struct result_construct_params_private{
         sqlite3 * db;
@@ -47,7 +48,8 @@ namespace sqlite{
         std::function<bool()> step;
         bool ended;
     };
-}
+} // namespace v2
+} // namespace sqlite
 
 
 #endif //GUARD_SQLITE_RESULT_CONSTRUCT_PARAMS_PRIVATE_HPP_INCLUDED

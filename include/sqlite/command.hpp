@@ -41,7 +41,8 @@
 
 struct sqlite3_stmt;
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     /** \brief \a null_type is an empty type used to represent NULL
       * values
       */
@@ -198,6 +199,7 @@ namespace sqlite{
     private:
         int            last_arg_idx;
     };
-}
+} // namespace v2
+} // namespace sqlite
 
 #endif //GUARD_SQLITE_COMMAND_HPP_INCLUDED

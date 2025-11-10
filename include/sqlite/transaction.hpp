@@ -35,7 +35,8 @@
 
 #include <string>
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     struct connection;
 
     /** \brief Defines the kind of transaction to begin.
@@ -105,7 +106,7 @@ namespace sqlite{
         connection & m_con;
         bool m_isActive; ///< if \c true there is a transaction currently opened
     };
-}
+} // namespace v2
+} // namespace sqlite
 
 #endif //GUARD_SQLITE_TRANSACTION_HPP_INCLUDED
-

@@ -59,7 +59,8 @@ std::string schema_prefix(std::string const & database) {
 }
 }
 
-namespace sqlite{
+namespace sqlite {
+inline namespace v2 {
     view::view(connection & con)
         :m_con(con){
     }
@@ -110,4 +111,5 @@ namespace sqlite{
         auto sql = std::format("DROP VIEW {}{};", schema_prefix(database), quote_identifier(alias));
         execute(m_con,sql,true);
     }
-}
+} // namespace v2
+} // namespace sqlite
