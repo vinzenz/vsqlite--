@@ -40,6 +40,7 @@
 #include <utility>
 #include <vector>
 #include <sqlite/connection.hpp>
+#include <sqlite/detail/type_helpers.hpp>
 
 struct sqlite3_stmt;
 
@@ -140,6 +141,15 @@ inline namespace v2 {
         void bind(int idx, std::span<const unsigned char> v);
         void bind(int idx, std::span<const std::byte> v);
 
+        template <typename Value>
+        void bind_value(int idx, Value && value);
+
+        template <typename Value>
+            requires detail::needs_generic_binding_v<Value>
+        void bind(int idx, Value && value) {
+            bind_value(idx, std::forward<Value>(value));
+        }
+
         /** \brief replacement for void command::bind(int idx);
           * To use this operator% you have to use the global object
           * \a nil
@@ -193,6 +203,13 @@ inline namespace v2 {
         command & operator % (std::span<const unsigned char> p);
         command & operator % (std::span<const std::byte> p);
 
+        template <typename Value>
+            requires detail::needs_generic_binding_v<detail::decay_t<Value>>
+        command & operator % (Value && value) {
+            bind_value(++last_arg_idx, std::forward<Value>(value));
+            return *this;
+        }
+
     protected:
         void access_check();
         bool step();
@@ -209,6 +226,51 @@ inline namespace v2 {
     private:
         int            last_arg_idx;
     };
+
+    template <typename Value>
+    void command::bind_value(int idx, Value && value) {
+        using decayed = detail::decay_t<Value>;
+        if constexpr (detail::is_optional_v<decayed>) {
+            if(!value) {
+                bind(idx);
+            }
+            else {
+                bind_value(idx, *value);
+            }
+        }
+        else if constexpr (detail::is_duration_v<decayed>) {
+            auto micros = std::chrono::duration_cast<std::chrono::microseconds>(value).count();
+            bind(idx, static_cast<std::int64_t>(micros));
+        }
+        else if constexpr (detail::is_time_point_v<decayed>) {
+            auto micros = std::chrono::duration_cast<std::chrono::microseconds>(value.time_since_epoch()).count();
+            bind(idx, static_cast<std::int64_t>(micros));
+        }
+        else if constexpr (std::is_enum_v<decayed>) {
+            bind(idx, static_cast<std::int64_t>(value));
+        }
+        else if constexpr (std::is_integral_v<decayed>) {
+            bind(idx, static_cast<std::int64_t>(value));
+        }
+        else if constexpr (std::is_floating_point_v<decayed>) {
+            bind(idx, static_cast<double>(value));
+        }
+        else if constexpr (detail::is_string_like_v<decayed>) {
+            bind(idx, std::string_view(std::forward<Value>(value)));
+        }
+        else if constexpr (detail::is_byte_vector_v<decayed>) {
+            bind(idx, value);
+        }
+        else if constexpr (detail::is_unsigned_char_span_v<decayed>) {
+            bind(idx, value);
+        }
+        else if constexpr (detail::is_byte_span_v<decayed>) {
+            bind(idx, value);
+        }
+        else {
+            static_assert(detail::always_false_v<decayed>, "Unsupported type for sqlite::command::bind_value");
+        }
+    }
 } // namespace v2
 } // namespace sqlite
 

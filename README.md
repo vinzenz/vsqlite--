@@ -95,6 +95,32 @@ sqlite::query q(conn, "SELECT repeat_text('hi', 3);");
 
 The helper enforces type-safe conversions for integers, floating point values, `std::string_view`, `std::span<const std::byte>`/`unsigned char` blobs, and their `std::optional` counterparts. When needed, opt into SQLite flags such as deterministic/direct-only/innocuous through `function_options`. Exceptions thrown inside the callable are surfaced as SQLite errors at query time.
 
+## Type-Safe Binding & Row Materialization
+
+`sqlite::command` now offers `bind_value(idx, value)` and templated `bind/ operator%` overloads that accept `std::optional<T>`, `std::chrono::time_point`, enums, and other PODs without manual conversions. On the read side, `sqlite::result::get<T>` and `get_tuple<Ts...>` deserialize rows directly into strongly typed values (including tuples for structured bindings):
+
+```cpp
+#include <sqlite/command.hpp>
+#include <sqlite/result.hpp>
+
+sqlite::command insert(conn, "INSERT INTO events(id, happened, note) VALUES (?, ?, ?);");
+insert % 1
+       % std::chrono::system_clock::now()
+       % std::optional<std::string>("hello");
+insert.emit();
+
+sqlite::query q(conn, "SELECT id, happened, note FROM events;");
+auto row = q.get_result();
+row->next_row();
+auto [id, stamp, note] = row->get_tuple<
+    std::int64_t,
+    std::chrono::system_clock::time_point,
+    std::optional<std::string>
+>();
+```
+
+Bindings use microseconds for chrono values, unwrap `std::optional` automatically (binding `NULL` when empty), and tuple helpers validate column counts to keep mismatches from slipping through at runtime.
+
 ## Snapshots, WAL & WAL2
 
 The wrapper exposes WAL helpers and snapshot utilities in `#include <sqlite/snapshot.hpp>`. Switch a database into WAL or WAL2 (when supported by your SQLite build) using `sqlite::enable_wal(conn, /*prefer_wal2=*/true);` – the helper automatically falls back to classic WAL if WAL2 is unavailable. Once running in WAL, capture consistent read views via the transaction/savepoint adapters:

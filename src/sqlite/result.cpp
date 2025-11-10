@@ -201,6 +201,11 @@ inline namespace v2 {
         return sqlite3_column_name(m_params->statement,idx);
     }
 
+    bool result::is_null(int idx){
+        access_check(idx);
+        return sqlite3_column_type(m_params->statement,idx) == SQLITE_NULL;
+    }
+
     void result::access_check(int idx){
         m_params->access_check();
         if(idx < 0 || idx >= m_columns)

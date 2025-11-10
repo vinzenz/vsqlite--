@@ -655,6 +655,35 @@ TEST(CommandQueryTest, BindsAndRetrievesData) {
     EXPECT_FALSE(emitted->next_row());
 }
 
+TEST(CommandQueryTest, TypeSafeBindingAndTupleGet) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE events(id INTEGER PRIMARY KEY, happened INTEGER, note TEXT, flag INTEGER);", true);
+
+    sqlite::command insert(conn, "INSERT INTO events(id, happened, note, flag) VALUES (?, ?, ?, ?);");
+    auto now = std::chrono::time_point_cast<std::chrono::microseconds>(std::chrono::system_clock::now());
+    insert % 1;
+    insert % now;
+    insert % std::optional<std::string>("typed");
+    insert % std::optional<int>();
+    insert.emit();
+
+    sqlite::query q(conn, "SELECT id, happened, note, flag FROM events;");
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    auto row = res->get_tuple<
+        std::int64_t,
+        std::chrono::system_clock::time_point,
+        std::optional<std::string>,
+        std::optional<int>
+    >();
+
+    EXPECT_EQ(std::get<0>(row), 1);
+    EXPECT_TRUE(std::get<2>(row).has_value());
+    EXPECT_EQ(*std::get<2>(row), "typed");
+    EXPECT_FALSE(std::get<3>(row).has_value());
+    EXPECT_EQ(std::get<1>(row).time_since_epoch(), now.time_since_epoch());
+}
+
 TEST(TransactionTest, TransactionAndSavepoint) {
     sqlite::connection conn(":memory:");
     sqlite::execute(conn, "CREATE TABLE items(id INTEGER PRIMARY KEY, value TEXT);", true);
