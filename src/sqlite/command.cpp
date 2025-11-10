@@ -149,11 +149,7 @@ inline namespace v2 {
         }
     }
 
-    void command::bind(int idx, std::string const & v){
-        bind(idx, std::string_view(v));
-    }
-
-    void command::bind(int idx, std::string_view v){
+    void command::bind_text_impl(int idx, std::string_view v){
         access_check();
         char const * dummy = nullptr;
         auto ptr = text_or_dummy(v, dummy);

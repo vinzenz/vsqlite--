@@ -32,10 +32,12 @@
 #ifndef GUARD_SQLITE_COMMAND_HPP_INCLUDED
 #define GUARD_SQLITE_COMMAND_HPP_INCLUDED
 
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <span>
 #include <string_view>
+#include <utility>
 #include <vector>
 #include <sqlite/connection.hpp>
 
@@ -116,8 +118,11 @@ inline namespace v2 {
           * \param idx 1 based index of the placeholder within the sql statement
           * \param v text/string value which should replace the placeholder
           */
-        void bind(int idx, std::string const & v);
-        void bind(int idx, std::string_view v);
+        template <typename Text>
+            requires std::convertible_to<Text, std::string_view>
+        void bind(int idx, Text && text) {
+            bind_text_impl(idx, std::string_view(std::forward<Text>(text)));
+        }
 
         /** \brief binds the binary/blob buf to the given 1 based index
           * \param idx 1 based index of the placeholder within the sql statement
@@ -195,6 +200,7 @@ inline namespace v2 {
     private:
         void prepare();
         void finalize();
+        void bind_text_impl(int idx, std::string_view text);
     private:
         connection &   m_con;
         std::string    m_sql;
