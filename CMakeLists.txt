@@ -10,6 +10,8 @@ project(VSQLite++
 
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(VSQLITE_BUILD_EXAMPLES "Build the sqlite wrapper example" ON)
+option(VSQLITE_BUILD_TESTS "Build unit tests" OFF)
+option(VSQLITE_ENABLE_COVERAGE "Enable code coverage instrumentation" OFF)
 
 set(VSQLITEPP_SOVERSION "${PROJECT_VERSION_MAJOR}" CACHE STRING "Shared object version to use")
 
@@ -19,6 +21,15 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 find_package(SQLite3 REQUIRED)
+
+if(VSQLITE_ENABLE_COVERAGE)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(--coverage -O0 -g)
+    add_link_options(--coverage)
+  else()
+    message(WARNING "Coverage instrumentation requested but not supported for ${CMAKE_CXX_COMPILER_ID}.")
+  endif()
+endif()
 
 add_library(vsqlitepp)
 add_library(vsqlite::vsqlitepp ALIAS vsqlitepp)
@@ -115,6 +126,28 @@ install(FILES
   "${CMAKE_CURRENT_BINARY_DIR}/vsqliteppConfigVersion.cmake"
   DESTINATION "${VSQLITEPP_INSTALL_CMAKEDIR}"
 )
+
+if(VSQLITE_BUILD_TESTS)
+  include(CTest)
+  enable_testing()
+  include(FetchContent)
+  FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+  )
+  FetchContent_MakeAvailable(googletest)
+
+  add_executable(vsqlitepp_tests
+    tests/vsqlitepp_tests.cpp
+  )
+  target_link_libraries(vsqlitepp_tests
+    PRIVATE
+      vsqlite::vsqlitepp
+      GTest::gtest_main
+  )
+  add_test(NAME vsqlitepp_tests COMMAND vsqlitepp_tests)
+endif()
 
 set(CPACK_PACKAGE_NAME "vsqlitepp")
 set(CPACK_PACKAGE_VENDOR "virtuosic bytes")

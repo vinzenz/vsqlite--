@@ -33,6 +33,7 @@
 #include <filesystem>
 #include <format>
 #include <string_view>
+#include <system_error>
 #include <sqlite/command.hpp>
 #include <sqlite/database_exception.hpp>
 #include <sqlite/execute.hpp>
@@ -105,7 +106,8 @@ void validate_db_path(std::string const & db, bool require_exists) {
     ensure_parent_directory_safe(path, db);
     std::error_code ec;
     auto status = std::filesystem::symlink_status(path, ec);
-    if(ec) {
+    auto not_found = std::make_error_code(std::errc::no_such_file_or_directory);
+    if(ec && ec != not_found) {
         throw sqlite::database_system_error(
             "Failed to inspect database '" + db + "'",
             ec.value()
