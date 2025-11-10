@@ -30,8 +30,10 @@
 
 ##############################################################################*/
 #include <sqlite/connection.hpp>
-#include <sqlite/savepoint.hpp>
+#include <sqlite/database_exception.hpp>
 #include <sqlite/execute.hpp>
+#include <sqlite/savepoint.hpp>
+#include <sqlite/snapshot.hpp>
 
 namespace sqlite {
 inline namespace v2 {
@@ -53,6 +55,20 @@ inline namespace v2 {
     
     void savepoint::rollback() {
         exec("ROLLBACK TRANSACTION TO SAVEPOINT " + m_name);
+    }
+
+    snapshot savepoint::take_snapshot(std::string_view schema) {
+        if(!m_isActive) {
+            throw database_exception("Cannot capture snapshot on an inactive savepoint.");
+        }
+        return snapshot::take(m_con, schema);
+    }
+
+    void savepoint::open_snapshot(snapshot const & snap, std::string_view schema) {
+        if(!m_isActive) {
+            throw database_exception("Cannot open snapshot on a released savepoint.");
+        }
+        snap.open(m_con, schema);
     }
 
     void savepoint::exec(std::string const & cmd){

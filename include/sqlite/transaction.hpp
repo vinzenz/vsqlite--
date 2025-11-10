@@ -34,10 +34,12 @@
 #define GUARD_SQLITE_TRANSACTION_HPP_INCLUDED
 
 #include <string>
+#include <string_view>
 
 namespace sqlite {
 inline namespace v2 {
     struct connection;
+    struct snapshot;
 
     /** \brief Defines the kind of transaction to begin.
      *
@@ -101,6 +103,14 @@ inline namespace v2 {
           * \return \c true if transaction is still active, \c false otherwise
           */
         bool isActive() const { return m_isActive; }
+
+        /** \brief Capture a consistent snapshot for the current transaction.
+          * \param schema Database schema name (defaults to "main").
+          */
+        snapshot take_snapshot(std::string_view schema = "main");
+
+        /** \brief Re-open this transaction so it reads from the supplied snapshot. */
+        void open_snapshot(snapshot const & snap, std::string_view schema = "main");
     private:
         void exec(std::string const &);
         connection & m_con;

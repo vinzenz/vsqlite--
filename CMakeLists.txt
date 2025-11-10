@@ -47,6 +47,7 @@ target_sources(vsqlitepp
   src/sqlite/view.cpp
   src/sqlite/threading.cpp
   src/sqlite/connection_pool.cpp
+  src/sqlite/snapshot.cpp
 )
 
 target_include_directories(vsqlitepp

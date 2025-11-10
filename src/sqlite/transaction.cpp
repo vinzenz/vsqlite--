@@ -31,14 +31,17 @@
 
 ##############################################################################*/
 #include <sqlite/connection.hpp>
+#include <sqlite/database_exception.hpp>
 #include <sqlite/execute.hpp>
 #include <sqlite/transaction.hpp>
+#include <sqlite/snapshot.hpp>
 #include <string>
 
 namespace sqlite {
 inline namespace v2 {
     transaction::transaction(connection & con, transaction_type type)
-        : m_con(con){
+        : m_con(con)
+        , m_isActive(false){
         begin(type);
     }
 
@@ -74,6 +77,20 @@ inline namespace v2 {
     void transaction::rollback(){
         exec("ROLLBACK TRANSACTION");
         m_isActive = false;
+    }
+
+    snapshot transaction::take_snapshot(std::string_view schema){
+        if(!m_isActive) {
+            throw database_exception("Cannot capture a snapshot on an inactive transaction.");
+        }
+        return snapshot::take(m_con, schema);
+    }
+
+    void transaction::open_snapshot(snapshot const & snap, std::string_view schema){
+        if(!m_isActive) {
+            throw database_exception("Cannot open a snapshot without an active transaction.");
+        }
+        snap.open(m_con, schema);
     }
 
     void transaction::exec(std::string const & cmd){

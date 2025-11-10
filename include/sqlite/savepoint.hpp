@@ -32,10 +32,12 @@
 #ifndef GUARD_SQLITE_SAVEPOINT_HPP_INCLUDED
 #define GUARD_SQLITE_SAVEPOINT_HPP_INCLUDED
 #include <string>
+#include <string_view>
 
 namespace sqlite {
 inline namespace v2 {
     struct connection;
+    struct snapshot;
 
     /** \brief this is a helper class to handle transaction savepoints
       * within SQLite
@@ -78,6 +80,9 @@ inline namespace v2 {
          * \return The alias of savepoint handled by this object
          */
         std::string getName() const { return m_name; }
+
+        snapshot take_snapshot(std::string_view schema = "main");
+        void open_snapshot(snapshot const & snap, std::string_view schema = "main");
     private:
         void exec(std::string const &);
 

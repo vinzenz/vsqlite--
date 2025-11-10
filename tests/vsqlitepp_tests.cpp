@@ -7,6 +7,7 @@
 #include <sqlite/database_exception.hpp>
 #include <sqlite/execute.hpp>
 #include <sqlite/function.hpp>
+#include <sqlite/snapshot.hpp>
 #include <sqlite/query.hpp>
 #include <sqlite/savepoint.hpp>
 #include <sqlite/threading.hpp>
@@ -201,6 +202,81 @@ TEST(ConnectionTest, RelativePathSupported) {
     EXPECT_FALSE(std::filesystem::exists(relative));
 }
 
+TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
+    if(!sqlite::snapshots_supported()) {
+        GTEST_SKIP() << "SQLite snapshot APIs not available in this build.";
+    }
+    TempFile db("snapshot_read");
+    sqlite::connection writer(db.string());
+    sqlite::enable_wal(writer);
+    sqlite::execute(writer, "CREATE TABLE docs(id INTEGER PRIMARY KEY, value TEXT);", true);
+    {
+        sqlite::command insert(writer, "INSERT INTO docs(value) VALUES (?);");
+        insert % std::string("before");
+        insert.emit();
+    }
+
+    sqlite::connection reader(db.string());
+    sqlite::enable_wal(reader);
+
+    sqlite::transaction capture(reader, sqlite::transaction_type::deferred);
+    auto snap = capture.take_snapshot();
+    capture.commit();
+
+    {
+        sqlite::command update(writer, "UPDATE docs SET value=? WHERE id=1;");
+        update % std::string("after");
+        update.emit();
+    }
+
+    sqlite::transaction replay(reader, sqlite::transaction_type::deferred);
+    replay.open_snapshot(snap);
+    sqlite::query past(reader, "SELECT value FROM docs WHERE id=1;");
+    auto past_res = past.get_result();
+    ASSERT_TRUE(past_res->next_row());
+    EXPECT_EQ(past_res->get_string(0), "before");
+    replay.commit();
+
+    sqlite::transaction latest(reader, sqlite::transaction_type::deferred);
+    sqlite::query now(reader, "SELECT value FROM docs WHERE id=1;");
+    auto now_res = now.get_result();
+    ASSERT_TRUE(now_res->next_row());
+    EXPECT_EQ(now_res->get_string(0), "after");
+    latest.commit();
+}
+
+TEST(SnapshotTest, SavepointSnapshotControlsScope) {
+    if(!sqlite::snapshots_supported()) {
+        GTEST_SKIP() << "SQLite snapshot APIs not available in this build.";
+    }
+    TempFile db("snapshot_savepoint");
+    sqlite::connection writer(db.string());
+    sqlite::enable_wal(writer, true);
+    sqlite::execute(writer, "CREATE TABLE numbers(id INTEGER PRIMARY KEY, value INTEGER);", true);
+    sqlite::execute(writer, "INSERT INTO numbers(value) VALUES (42);", true);
+
+    sqlite::connection reader(db.string());
+    sqlite::enable_wal(reader);
+
+    sqlite::transaction read_tx(reader, sqlite::transaction_type::deferred);
+    sqlite::savepoint guard(reader, "snap");
+    auto snap = guard.take_snapshot();
+    guard.release();
+    read_tx.commit();
+
+    sqlite::execute(writer, "UPDATE numbers SET value = 7;", true);
+
+    sqlite::transaction scoped(reader, sqlite::transaction_type::deferred);
+    sqlite::savepoint branch(reader, "snap_branch");
+    branch.open_snapshot(snap);
+    sqlite::query q(reader, "SELECT value FROM numbers;");
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get_int(0), 42);
+    branch.release();
+    scoped.commit();
+}
+
 TEST(FunctionTest, RegistersScalarFunction) {
     sqlite::connection conn(":memory:");
     sqlite::create_function(conn, "repeat_text",
@@ -313,6 +389,7 @@ TEST(ConnectionTest, PathMustBeRegularFile) {
 TEST(ConnectionTest, SpecialMemoryUri) {
     sqlite::connection conn(unique_memory_uri());
     sqlite::execute(conn, "CREATE TABLE IF NOT EXISTS data(id INTEGER);", true);
+    sqlite::execute(conn, "DELETE FROM data;", true);
     sqlite::execute(conn, "INSERT INTO data VALUES (1);", true);
     sqlite::query q(conn, "SELECT COUNT(*) FROM data;");
     auto res = q.get_result();

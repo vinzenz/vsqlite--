@@ -94,3 +94,21 @@ sqlite::query q(conn, "SELECT repeat_text('hi', 3);");
 ```
 
 The helper enforces type-safe conversions for integers, floating point values, `std::string_view`, `std::span<const std::byte>`/`unsigned char` blobs, and their `std::optional` counterparts. When needed, opt into SQLite flags such as deterministic/direct-only/innocuous through `function_options`. Exceptions thrown inside the callable are surfaced as SQLite errors at query time.
+
+## Snapshots, WAL & WAL2
+
+The wrapper exposes WAL helpers and snapshot utilities in `#include <sqlite/snapshot.hpp>`. Switch a database into WAL or WAL2 (when supported by your SQLite build) using `sqlite::enable_wal(conn, /*prefer_wal2=*/true);` – the helper automatically falls back to classic WAL if WAL2 is unavailable. Once running in WAL, capture consistent read views via the transaction/savepoint adapters:
+
+```cpp
+#include <sqlite/snapshot.hpp>
+
+sqlite::enable_wal(reader, true);
+sqlite::transaction tx(reader, sqlite::transaction_type::deferred);
+auto snap = tx.take_snapshot();
+tx.commit();
+
+sqlite::transaction replay(reader);
+replay.open_snapshot(snap); // reads the historical view
+```
+
+`sqlite::snapshots_supported()` reports whether the linked SQLite library exposes `sqlite3_snapshot_*` APIs (they require `SQLITE_ENABLE_SNAPSHOT`). Savepoints gain identical helpers so you can scope replayed snapshots to subtransactions.
