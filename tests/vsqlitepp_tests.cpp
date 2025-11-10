@@ -7,6 +7,7 @@
 #include <sqlite/database_exception.hpp>
 #include <sqlite/execute.hpp>
 #include <sqlite/function.hpp>
+#include <sqlite/session.hpp>
 #include <sqlite/snapshot.hpp>
 #include <sqlite/query.hpp>
 #include <sqlite/savepoint.hpp>
@@ -275,6 +276,57 @@ TEST(SnapshotTest, SavepointSnapshotControlsScope) {
     EXPECT_EQ(res->get_int(0), 42);
     branch.release();
     scoped.commit();
+}
+
+TEST(SessionTest, CapturesAndAppliesChangeset) {
+    if(!sqlite::sessions_supported()) {
+        GTEST_SKIP() << "SQLite session API not available in this build.";
+    }
+    TempFile db("session_changeset");
+    sqlite::connection writer(db.string());
+    sqlite::connection replica(db.string());
+    sqlite::execute(writer, "CREATE TABLE items(id INTEGER PRIMARY KEY, value TEXT);", true);
+    sqlite::execute(replica, "CREATE TABLE items(id INTEGER PRIMARY KEY, value TEXT);", true);
+
+    sqlite::session tracker(writer);
+    tracker.attach_all();
+    sqlite::execute(writer, "INSERT INTO items(value) VALUES ('alpha');", true);
+    sqlite::execute(writer, "UPDATE items SET value='beta' WHERE id=1;", true);
+    auto changes = tracker.changeset();
+    ASSERT_FALSE(changes.empty());
+
+    EXPECT_NO_THROW(sqlite::apply_changeset(replica, changes));
+    sqlite::query q(replica, "SELECT value FROM items WHERE id=1;");
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get_string(0), "beta");
+}
+
+TEST(SessionTest, PatchsetTracksDeletes) {
+    if(!sqlite::sessions_supported()) {
+        GTEST_SKIP() << "SQLite session API not available in this build.";
+    }
+    TempFile db("session_patchset");
+    sqlite::connection writer(db.string());
+    sqlite::connection replica(db.string());
+    sqlite::execute(writer, "CREATE TABLE logs(id INTEGER PRIMARY KEY, msg TEXT);", true);
+    sqlite::execute(replica, "CREATE TABLE logs(id INTEGER PRIMARY KEY, msg TEXT);", true);
+    sqlite::execute(writer, "INSERT INTO logs VALUES (1, 'keep');", true);
+    sqlite::execute(writer, "INSERT INTO logs VALUES (2, 'drop');", true);
+    sqlite::execute(replica, "INSERT INTO logs VALUES (1, 'keep');", true);
+    sqlite::execute(replica, "INSERT INTO logs VALUES (2, 'drop');", true);
+
+    sqlite::session tracker(writer);
+    tracker.attach_all();
+    sqlite::execute(writer, "DELETE FROM logs WHERE id=2;", true);
+    auto patch = tracker.patchset();
+    ASSERT_FALSE(patch.empty());
+
+    EXPECT_NO_THROW(sqlite::apply_patchset(replica, patch));
+    sqlite::query q(replica, "SELECT COUNT(*) FROM logs;");
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get_int(0), 1);
 }
 
 TEST(FunctionTest, RegistersScalarFunction) {

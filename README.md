@@ -112,3 +112,18 @@ replay.open_snapshot(snap); // reads the historical view
 ```
 
 `sqlite::snapshots_supported()` reports whether the linked SQLite library exposes `sqlite3_snapshot_*` APIs (they require `SQLITE_ENABLE_SNAPSHOT`). Savepoints gain identical helpers so you can scope replayed snapshots to subtransactions.
+
+## Session & Changesets
+
+When SQLite is built with `SQLITE_ENABLE_SESSION`, `#include <sqlite/session.hpp>` unlocks RAII wrappers for `sqlite3_session` so you can capture and ship changes without raw C glue:
+
+```cpp
+sqlite::session tracker(conn);
+tracker.attach_all();
+sqlite::execute(conn, "UPDATE docs SET body = 'patched' WHERE id = 1;", true);
+auto diff = tracker.patchset(); // std::vector<unsigned char>
+
+sqlite::apply_patchset(replica_conn, diff);
+```
+
+Patchsets/changesets arrive as `std::vector<unsigned char>` buffers and helpers exist to apply them with a single call. Use this to fan out live syncing, create lightweight undo/redo stacks, or persist incremental diffs between tests.
