@@ -40,9 +40,9 @@ struct sqlite3_stmt;
 namespace sqlite {
 inline namespace v2 {
     struct query;
-    struct result_construct_params_private{
-        sqlite3 * db;
-        sqlite3_stmt * statement;
+    struct result_construct_params_private {
+        sqlite3 *db;
+        sqlite3_stmt *statement;
         int row_count;
         std::function<void()> access_check;
         std::function<bool()> step;
@@ -51,5 +51,4 @@ inline namespace v2 {
 } // namespace v2
 } // namespace sqlite
 
-
-#endif //GUARD_SQLITE_RESULT_CONSTRUCT_PARAMS_PRIVATE_HPP_INCLUDED
+#endif // GUARD_SQLITE_RESULT_CONSTRUCT_PARAMS_PRIVATE_HPP_INCLUDED

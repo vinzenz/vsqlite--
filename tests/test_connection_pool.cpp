@@ -13,7 +13,7 @@ TEST(ConnectionPoolTest, BlocksUntilConnectionReturns) {
     sqlite::connection_pool pool(1, factory);
 
     auto first = pool.acquire();
-    auto fut = std::async(std::launch::async, [&]() {
+    auto fut   = std::async(std::launch::async, [&]() {
         auto second = pool.acquire();
         sqlite::execute(*second, "SELECT 1;", true);
     });
@@ -21,4 +21,3 @@ TEST(ConnectionPoolTest, BlocksUntilConnectionReturns) {
     first = {};
     fut.wait();
 }
-

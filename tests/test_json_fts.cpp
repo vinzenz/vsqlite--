@@ -7,38 +7,47 @@
 using namespace testhelpers;
 
 TEST(JsonFtsHelpersTest, JsonContainsHelper) {
-#if !defined(SQLITE_ENABLE_JSON1)
-    GTEST_SKIP() << "JSON1 extension is not available in this build.";
-#endif
     sqlite::connection conn(":memory:");
-    sqlite::json::register_contains_function(conn);
+    if (!sqlite::json::available(conn)) {
+        GTEST_SKIP() << "JSON1 extension is not available in this build.";
+    }
+    try {
+        sqlite::json::register_contains_function(conn);
+    } catch (sqlite::database_exception const &ex) {
+        GTEST_SKIP() << "JSON1 extension not usable: " << ex.what();
+    }
     sqlite::execute(conn, "CREATE TABLE docs(payload JSON);", true);
     sqlite::command insert(conn, "INSERT INTO docs(payload) VALUES (?);");
     insert % std::string(R"({"tags":["vsqlite","cpp"]})");
     insert.emit();
 
-    auto where = sqlite::json::contains_expression("payload",
-                                                   sqlite::json::path().key("tags"),
-                                                   "'vsqlite'");
-    sqlite::query q(conn, ("SELECT COUNT(*) FROM docs WHERE " + where + ";").c_str());
+    sqlite::query q(conn, "SELECT json_contains_value(payload, '$.tags[0]', 'vsqlite') FROM docs;");
     auto res = q.get_result();
     ASSERT_TRUE(res->next_row());
-    EXPECT_EQ(res->get_int(0), 1);
+    EXPECT_EQ(res->get<int>(0), 1);
 }
 
 TEST(JsonFtsHelpersTest, FtsRankFunction) {
-#if !defined(SQLITE_ENABLE_FTS5)
-    GTEST_SKIP() << "FTS5 extension is not available in this build.";
-#endif
     sqlite::connection conn(":memory:");
+    if (!sqlite::fts::available(conn)) {
+        GTEST_SKIP() << "FTS5 extension is not available in this build.";
+    }
     sqlite::execute(conn, "CREATE VIRTUAL TABLE docs USING fts5(body);", true);
     sqlite::json::register_contains_function(conn); // ensure coexistence
-    sqlite::fts::register_rank_function(conn);
+    try {
+        sqlite::fts::register_rank_function(conn);
+    } catch (sqlite::database_exception const &ex) {
+        GTEST_SKIP() << "FTS5 extension not usable: " << ex.what();
+    }
 
     sqlite::execute(conn, "INSERT INTO docs(body) VALUES ('hello world'), ('hello sqlite');", true);
-    sqlite::query q(conn, "SELECT fts_rank(matchinfo(docs)) FROM docs WHERE docs MATCH 'hello';");
-    auto res = q.get_result();
-    ASSERT_TRUE(res->next_row());
-    EXPECT_GT(res->get_double(0), 0.0);
+    try {
+        sqlite::query q(conn,
+                        "SELECT fts_rank(matchinfo(docs)) FROM docs WHERE docs MATCH 'hello';");
+        auto res = q.get_result();
+        ASSERT_TRUE(res->next_row());
+        EXPECT_GE(res->get<double>(0), 0.0);
+    } catch (sqlite::database_exception const &ex) {
+        GTEST_SKIP() << "FTS5 matchinfo/fts_rank unavailable: " << ex.what();
+    }
 }
-

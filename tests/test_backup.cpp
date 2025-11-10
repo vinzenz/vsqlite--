@@ -16,14 +16,14 @@ TEST(BackupTest, CopiesBetweenDatabases) {
 
     sqlite::connection dst(dst_file.string());
     sqlite::backup job(dst, src);
-    while(job.step()) {
+    while (job.step()) {
     }
     job.finish();
 
     sqlite::query q(dst, "SELECT COUNT(*) FROM data;");
     auto res = q.get_result();
     ASSERT_TRUE(res->next_row());
-    EXPECT_EQ(res->get_int(0), 2);
+    EXPECT_EQ(res->get<int>(0), 2);
 }
 
 TEST(BackupTest, StepAfterFinishThrows) {

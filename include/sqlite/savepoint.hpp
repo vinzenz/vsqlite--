@@ -47,57 +47,63 @@ inline namespace v2 {
     struct snapshot;
 
     /** \brief this is a helper class to handle transaction savepoints
-      * within SQLite
-      */
-    struct savepoint{
+     * within SQLite
+     */
+    struct savepoint {
     public:
         /** \brief constructor
-          * \param con a reference to the connection object where the
-          * transaction should be started/ended/committed or rolled back
-          * \param name alias for the savepoint
-          */
-        savepoint(connection & con, std::string const & name);
+         * \param con a reference to the connection object where the
+         * transaction should be started/ended/committed or rolled back
+         * \param name alias for the savepoint
+         */
+        savepoint(connection &con, std::string const &name);
 
         /** \brief destructor
-          *
-          */
+         *
+         */
         ~savepoint();
 
         /** \brief Releases a previously created savepoint
-          *
-          */
+         *
+         */
         void release();
-        
+
         /** \brief Roll the database status back to the position of the current
-          * saveopint.
-          */
+         * saveopint.
+         */
         void rollback();
 
         /** \brief Allow to check if savepoint handled by this object is
-          * currently active.
-          * \note This dues not make any checks inside SQlite's internal data
-          * so if a previously-made savepoint is alredy released or rollbacked
-          * (committing or rollbacking also this one) this method will continue
-          * to say that the savepoint is active.
-          * \return \c true if savepoint is still active, \c false otherwise
-          */
-        bool isActive() const { return m_isActive; }
+         * currently active.
+         * \note This dues not make any checks inside SQlite's internal data
+         * so if a previously-made savepoint is alredy released or rollbacked
+         * (committing or rollbacking also this one) this method will continue
+         * to say that the savepoint is active.
+         * \return \c true if savepoint is still active, \c false otherwise
+         */
+        bool isActive() const {
+            return m_isActive;
+        }
 
         /** \brief Returns a string containing the current savepoint name
          * \return The alias of savepoint handled by this object
          */
-        std::string getName() const { return m_name; }
+        std::string getName() const {
+            return m_name;
+        }
 
         snapshot take_snapshot(std::string_view schema = "main");
-        void open_snapshot(snapshot const & snap, std::string_view schema = "main");
+        void open_snapshot(snapshot const &snap, std::string_view schema = "main");
+
     private:
         void exec(std::string const &);
 
-        connection & m_con;      ///< SQlite connection handler
-        std::string  m_name;     ///< The alias for the savepoint
-        bool         m_isActive; ///< if \c true the savepoint with alias \c m_name is still active (not currently released)
+        connection &m_con;  ///< SQlite connection handler
+        std::string m_name; ///< The alias for the savepoint
+        bool m_isActive;    ///< if \c true the savepoint with alias \c m_name is still active (not
+                            ///< currently released)
     };
 } // namespace v2
 } // namespace sqlite
 
-#endif //GUARD_SQLITE_SAVEPOINT_HPP_INCLUDED
+#endif // GUARD_SQLITE_SAVEPOINT_HPP_INCLUDED

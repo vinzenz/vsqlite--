@@ -51,7 +51,7 @@ inline namespace v2 {
 
     /// Configuration flags supplied when opening a new change session.
     struct session_options {
-        bool indirect = false;   /// Track changes as indirect (ignored by session filtering)
+        bool indirect = false; /// Track changes as indirect (ignored by session filtering)
     };
 
     /**
@@ -61,14 +61,14 @@ inline namespace v2 {
      * accumulated changes via `changeset()` / `patchset()`.
      */
     struct session {
-        session(connection & con, std::string_view schema = "main", session_options options = {});
+        session(connection &con, std::string_view schema = "main", session_options options = {});
         ~session();
 
-        session(session && other) noexcept;
-        session & operator=(session && other) noexcept;
+        session(session &&other) noexcept;
+        session &operator=(session &&other) noexcept;
 
-        session(session const &) = delete;
-        session & operator=(session const &) = delete;
+        session(session const &)            = delete;
+        session &operator=(session const &) = delete;
 
         void attach(std::string_view table);
         void attach_all();
@@ -79,27 +79,22 @@ inline namespace v2 {
         /// Serializes the recorded changes in the smaller patchset format.
         std::vector<unsigned char> patchset();
 
-        void * native_handle() const noexcept;
+        void *native_handle() const noexcept;
+
     private:
         std::vector<unsigned char> collect(bool patchset);
-        connection * con_;
-        void * handle_;
+        connection *con_;
+        void *handle_;
     };
 
     /** \brief Returns true when SQLite sessions API is available. */
-    constexpr bool sessions_supported() noexcept {
-#if defined(SQLITE_ENABLE_SESSION)
-        return true;
-#else
-        return false;
-#endif
-    }
+    bool sessions_supported() noexcept;
 
     /// Applies a changeset produced by @ref session::changeset onto @p con.
-    void apply_changeset(connection & con, std::span<const unsigned char> data);
+    void apply_changeset(connection &con, std::span<const unsigned char> data);
     /// Applies a patchset produced by @ref session::patchset onto @p con.
-    void apply_patchset(connection & con, std::span<const unsigned char> data);
+    void apply_patchset(connection &con, std::span<const unsigned char> data);
 } // namespace v2
 } // namespace sqlite
 
-#endif //GUARD_SQLITE_SESSION_HPP_INCLUDED
+#endif // GUARD_SQLITE_SESSION_HPP_INCLUDED

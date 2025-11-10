@@ -80,7 +80,7 @@ TEST(ConnectionTest, AttachAndDetachQuoteIdentifiers) {
     EXPECT_THROW(main.detach(""), sqlite::database_exception);
 
     ASSERT_NO_THROW(main.attach(attached.string(), alias));
-    auto qualified = quote_identifier(alias) + ".items";
+    auto qualified  = quote_identifier(alias) + ".items";
     auto create_sql = "CREATE TABLE " + qualified + "(id INTEGER);";
     auto insert_sql = "INSERT INTO " + qualified + " VALUES (1);";
     auto select_sql = "SELECT COUNT(*) FROM " + qualified + ";";
@@ -90,7 +90,7 @@ TEST(ConnectionTest, AttachAndDetachQuoteIdentifiers) {
         sqlite::query check(main, select_sql);
         auto res = check.get_result();
         ASSERT_TRUE(res->next_row());
-        EXPECT_EQ(res->get_int(0), 1);
+        EXPECT_EQ(res->get<int>(0), 1);
     });
     EXPECT_NO_THROW(main.detach(alias));
     EXPECT_THROW(sqlite::execute(main, "SELECT COUNT(*) FROM " + qualified + ";", true),

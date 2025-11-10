@@ -68,7 +68,7 @@ inline namespace v2 {
              * @param segment Key to append.
              * @return Reference to the builder for chaining.
              */
-            path_builder & key(std::string_view segment);
+            path_builder &key(std::string_view segment);
 
             /**
              * @brief Appends an array index access to the path.
@@ -76,16 +76,21 @@ inline namespace v2 {
              * @param idx Zero-based array index to append.
              * @return Reference to the builder for chaining.
              */
-            path_builder & index(std::size_t idx);
+            path_builder &index(std::size_t idx);
 
             /// Returns the current JSON path representation (e.g. `$.user.name`).
-            std::string const & str() const noexcept { return path_; }
+            std::string const &str() const noexcept {
+                return path_;
+            }
+
         private:
             std::string path_;
         };
 
         /// Convenience shortcut for starting a new JSON path builder rooted at `$`.
-        inline path_builder path() { return path_builder(); }
+        inline path_builder path() {
+            return path_builder();
+        }
 
         /**
          * @brief Produces a SQL expression that extracts a JSON value at the given path.
@@ -94,16 +99,16 @@ inline namespace v2 {
          * @param path JSON path built with @ref path_builder.
          * @return SQL snippet invoking `json_extract(json_expr, path)`.
          */
-        std::string extract_expression(std::string_view json_expr, path_builder const & path);
+        std::string extract_expression(std::string_view json_expr, path_builder const &path);
 
         /**
-         * @brief Produces a SQL expression that compares a JSON value at @p path with @p value_expr.
+         * @brief Produces a SQL expression that compares a JSON value at @p path with @p
+         * value_expr.
          *
          * This expands to `json_extract(json_expr, path) = value_expr` so it can be embedded
          * inside WHERE clauses or CHECK constraints.
          */
-        std::string contains_expression(std::string_view json_expr,
-                                        path_builder const & path,
+        std::string contains_expression(std::string_view json_expr, path_builder const &path,
                                         std::string_view value_expr);
 
         /**
@@ -111,7 +116,7 @@ inline namespace v2 {
          *
          * @returns true when JSON functions (e.g. `json_extract`) can be executed, false otherwise.
          */
-        bool available(connection & con);
+        bool available(connection &con);
 
         /**
          * @brief Registers a deterministic SQL scalar function that checks for JSON containment.
@@ -121,7 +126,7 @@ inline namespace v2 {
          *
          * @throws database_exception when JSON1 is unavailable or the function cannot be created.
          */
-        void register_contains_function(connection & con,
+        void register_contains_function(connection &con,
                                         std::string_view function_name = "json_contains_value");
     } // namespace json
 
@@ -131,13 +136,14 @@ inline namespace v2 {
          *
          * @returns true when FTS5 APIs are discoverable, false otherwise.
          */
-        bool available(connection & con);
+        bool available(connection &con);
 
         /**
          * @brief Builds a SQL `MATCH` expression for FTS tables or columns.
          *
          * @param column_or_table Identifier on the left-hand side of MATCH.
-         * @param query_expr SQL expression for the right-hand side (defaults to a parameter placeholder).
+         * @param query_expr SQL expression for the right-hand side (defaults to a parameter
+         * placeholder).
          * @return SQL snippet like `col MATCH ?`.
          */
         std::string match_expression(std::string_view column_or_table,
@@ -154,10 +160,9 @@ inline namespace v2 {
          *
          * @throws database_exception when FTS5 is unavailable or registration fails.
          */
-        void register_rank_function(connection & con,
-                                    std::string_view function_name = "fts_rank");
+        void register_rank_function(connection &con, std::string_view function_name = "fts_rank");
     } // namespace fts
 } // namespace v2
 } // namespace sqlite
 
-#endif //GUARD_SQLITE_JSON_FTS_HPP_INCLUDED
+#endif // GUARD_SQLITE_JSON_FTS_HPP_INCLUDED

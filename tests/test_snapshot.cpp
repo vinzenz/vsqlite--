@@ -10,9 +10,9 @@
 using namespace testhelpers;
 
 TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
-#if !defined(SQLITE_ENABLE_SNAPSHOT)
-    GTEST_SKIP() << "SQLite snapshot APIs not available in this build.";
-#endif
+    if (!sqlite::snapshots_supported()) {
+        GTEST_SKIP() << "SQLite snapshot APIs not available in this build.";
+    }
     sqlite::connection conn(":memory:");
     sqlite::execute(conn, "CREATE TABLE docs(id INTEGER PRIMARY KEY, body TEXT);", true);
 
@@ -30,13 +30,13 @@ TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
     sqlite::query q(conn, "SELECT COUNT(*) FROM docs;");
     auto res = q.get_result();
     ASSERT_TRUE(res->next_row());
-    EXPECT_EQ(res->get_int(0), 1);
+    EXPECT_EQ(res->get<int>(0), 1);
 }
 
 TEST(SnapshotTest, SavepointSnapshotControlsScope) {
-#if !defined(SQLITE_ENABLE_SNAPSHOT)
-    GTEST_SKIP() << "SQLite snapshot APIs not available in this build.";
-#endif
+    if (!sqlite::snapshots_supported()) {
+        GTEST_SKIP() << "SQLite snapshot APIs not available in this build.";
+    }
     sqlite::connection conn(":memory:");
     sqlite::execute(conn, "CREATE TABLE docs(id INTEGER PRIMARY KEY, body TEXT);", true);
 
@@ -52,11 +52,11 @@ TEST(SnapshotTest, SavepointSnapshotControlsScope) {
     sqlite::query q(conn, "SELECT COUNT(*) FROM docs;");
     auto res = q.get_result();
     ASSERT_TRUE(res->next_row());
-    EXPECT_EQ(res->get_int(0), 0);
+    EXPECT_EQ(res->get<int>(0), 0);
 
     snap.open(conn);
     sqlite::query check(conn, "SELECT COUNT(*) FROM docs;");
     auto snap_res = check.get_result();
     ASSERT_TRUE(snap_res->next_row());
-    EXPECT_EQ(snap_res->get_int(0), 1);
+    EXPECT_EQ(snap_res->get<int>(0), 1);
 }

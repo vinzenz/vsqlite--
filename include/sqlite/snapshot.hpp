@@ -50,7 +50,7 @@ inline namespace v2 {
     struct connection;
 
     enum class wal_mode {
-        rollback,  ///< DELETE/legacy rollback journal
+        rollback, ///< DELETE/legacy rollback journal
         truncate,
         persist,
         memory,
@@ -63,51 +63,52 @@ inline namespace v2 {
         snapshot() = default;
         ~snapshot();
 
-        snapshot(snapshot const &) = delete;
-        snapshot & operator=(snapshot const &) = delete;
+        snapshot(snapshot const &)            = delete;
+        snapshot &operator=(snapshot const &) = delete;
 
-        snapshot(snapshot && other) noexcept;
-        snapshot & operator=(snapshot && other) noexcept;
+        snapshot(snapshot &&other) noexcept;
+        snapshot &operator=(snapshot &&other) noexcept;
 
-        bool valid() const noexcept { return handle_ != nullptr; }
-        explicit operator bool() const noexcept { return valid(); }
+        bool valid() const noexcept {
+            return handle_ != nullptr;
+        }
+        explicit operator bool() const noexcept {
+            return valid();
+        }
 
         /** \brief Release the managed sqlite3_snapshot (if owned). */
         void reset() noexcept;
 
         /** \brief Capture a snapshot for the provided connection/schema. */
-        static snapshot take(connection & con, std::string_view schema = "main");
+        static snapshot take(connection &con, std::string_view schema = "main");
 
         /** \brief Rewind an open read transaction to this snapshot. */
-        void open(connection & con, std::string_view schema = "main") const;
+        void open(connection &con, std::string_view schema = "main") const;
 
-        sqlite3_snapshot * native_handle() const noexcept { return handle_; }
+        sqlite3_snapshot *native_handle() const noexcept {
+            return handle_;
+        }
+
     private:
-        explicit snapshot(sqlite3_snapshot * handle);
-        sqlite3_snapshot * handle_ = nullptr;
+        explicit snapshot(sqlite3_snapshot *handle);
+        sqlite3_snapshot *handle_ = nullptr;
     };
 
     /** \brief Force a specific WAL journal mode. */
-    wal_mode set_wal_mode(connection & con, wal_mode mode);
+    wal_mode set_wal_mode(connection &con, wal_mode mode);
 
     /** \brief Enable WAL, optionally preferring WAL2 with transparent fallback. */
-    wal_mode enable_wal(connection & con, bool prefer_wal2 = false);
+    wal_mode enable_wal(connection &con, bool prefer_wal2 = false);
 
     /** \brief Query the current journal mode for a connection. */
-    wal_mode get_wal_mode(connection & con);
+    wal_mode get_wal_mode(connection &con);
 
     /** \brief Convert wal_mode to the corresponding PRAGMA token. */
     std::string_view to_string(wal_mode mode);
 
     /** \brief Check if the linked SQLite library exposes snapshot helpers. */
-    inline constexpr bool snapshots_supported() noexcept {
-    #if defined(SQLITE_ENABLE_SNAPSHOT)
-        return true;
-    #else
-        return false;
-    #endif
-    }
+    bool snapshots_supported() noexcept;
 } // namespace v2
 } // namespace sqlite
 
-#endif //GUARD_SQLITE_SNAPSHOT_HPP_INCLUDED
+#endif // GUARD_SQLITE_SNAPSHOT_HPP_INCLUDED

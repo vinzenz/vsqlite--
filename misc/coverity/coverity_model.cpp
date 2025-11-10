@@ -15,5 +15,3 @@
  * must be uploaded by an admin in the analysis settings of
  * http://scan.coverity.com/projects/1976
  */
-
-

@@ -35,18 +35,16 @@
 #include <sqlite/query.hpp>
 #include <iostream>
 
-
-int main()
-{
-    try
-    {
+int main() {
+    try {
         sqlite::connection con("test.db");
 
         sqlite::connection con_memory(":memory:");
 
-        sqlite::execute(con,"Create Table IF NOT EXISTS test(id INTEGER PRIMARY KEY, name TEXT);",true);
+        sqlite::execute(con, "Create Table IF NOT EXISTS test(id INTEGER PRIMARY KEY, name TEXT);",
+                        true);
 
-        sqlite::execute ins(con,"INSERT INTO TEST VALUES(?,?);");
+        sqlite::execute ins(con, "INSERT INTO TEST VALUES(?,?);");
 
         ins % sqlite::nil % "Hallo";
 
@@ -58,16 +56,16 @@ int main()
 
         ins.emit();
 
-        sqlite::query q(con,"SELECT * from test;");
+        sqlite::query q(con, "SELECT * from test;");
 
         sqlite::result_type res = q.get_result();
-        while(res->next_row()) {
-            std::cout << res->get_int(0) << "|" << res->get_string(1) << std::endl;
+        while (res->next_row()) {
+            std::cout << res->get<int>(0) << "|" << res->get<std::string>(1) << std::endl;
         }
 
         res->reset();
-        while(res->next_row()) {
-            std::cout << res->get_int(0) << "|" << res->get_string(1) << std::endl;
+        while (res->next_row()) {
+            std::cout << res->get<int>(0) << "|" << res->get<std::string>(1) << std::endl;
         }
 
         sqlite::backup backup_op(con_memory, con);
@@ -77,17 +75,15 @@ int main()
         sqlite::query q_memory(con_memory, "SELECT * FROM test;");
 
         sqlite::result_type res2 = q_memory.get_result();
-        while(res2->next_row()) {
-            std::cout << res2->get_int(0) << "|" << res2->get_string(1) << std::endl;
+        while (res2->next_row()) {
+            std::cout << res2->get<int>(0) << "|" << res2->get<std::string>(1) << std::endl;
         }
 
-        sqlite::execute(con,"DROP TABLE test;",true);
+        sqlite::execute(con, "DROP TABLE test;", true);
 
-        sqlite::execute(con,"VACUUM;",true);
-    }
-    catch (std::exception const & e)
-    {
+        sqlite::execute(con, "VACUUM;", true);
+    } catch (std::exception const &e) {
         std::cout << "EXCEPTION: " << e.what() << std::endl;
     }
-	return 0;
+    return 0;
 }

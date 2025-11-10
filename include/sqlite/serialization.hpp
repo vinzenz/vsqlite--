@@ -48,14 +48,8 @@ namespace sqlite {
 inline namespace v2 {
     struct connection;
 
-    /// Indicates whether the current build of SQLite exposes the serialize/deserialise feature.
-    constexpr bool serialization_supported() noexcept {
-#if defined(SQLITE_ENABLE_DESERIALIZE)
-        return true;
-#else
-        return false;
-#endif
-    }
+    /// Indicates whether the linked SQLite exposes the serialize/deserialise feature.
+    bool serialization_supported() noexcept;
 
     /**
      * @brief Copies the complete database image for @p schema into a byte vector.
@@ -65,8 +59,7 @@ inline namespace v2 {
      * @param flags Optional SQLite serialization flags.
      * @throws database_exception when serialization is unavailable or fails.
      */
-    std::vector<unsigned char> serialize(connection & con,
-                                         std::string_view schema = "main",
+    std::vector<unsigned char> serialize(connection &con, std::string_view schema = "main",
                                          unsigned int flags = 0);
 
     /**
@@ -77,11 +70,9 @@ inline namespace v2 {
      * @param schema Logical database name.
      * @param read_only When true the connection treats the schema as immutable.
      */
-    void deserialize(connection & con,
-                     std::span<const unsigned char> image,
-                     std::string_view schema = "main",
-                     bool read_only = false);
+    void deserialize(connection &con, std::span<const unsigned char> image,
+                     std::string_view schema = "main", bool read_only = false);
 } // namespace v2
 } // namespace sqlite
 
-#endif //GUARD_SQLITE_SERIALIZATION_HPP_INCLUDED
+#endif // GUARD_SQLITE_SERIALIZATION_HPP_INCLUDED

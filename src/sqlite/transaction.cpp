@@ -39,62 +39,67 @@
 
 namespace sqlite {
 inline namespace v2 {
-    transaction::transaction(connection & con, transaction_type type)
-        : m_con(con)
-        , m_isActive(false){
+    transaction::transaction(connection &con, transaction_type type) :
+        m_con(con), m_isActive(false) {
         begin(type);
     }
 
-    transaction::~transaction(){
+    transaction::~transaction() {
         if (m_isActive) {
             rollback();
         }
     }
 
-    void transaction::begin(transaction_type type){
+    void transaction::begin(transaction_type type) {
         std::string sql("BEGIN ");
         switch (type) {
-          case transaction_type::deferred:  sql += "DEFERRED " ; break;
-          case transaction_type::immediate: sql += "IMMEDIATE "; break;
-          case transaction_type::exclusive: sql += "EXCLUSIVE "; break;
-          case transaction_type::undefined: ; /* noop */
+        case transaction_type::deferred:
+            sql += "DEFERRED ";
+            break;
+        case transaction_type::immediate:
+            sql += "IMMEDIATE ";
+            break;
+        case transaction_type::exclusive:
+            sql += "EXCLUSIVE ";
+            break;
+        case transaction_type::undefined:; /* noop */
         }
         sql += "TRANSACTION";
         exec(sql);
         m_isActive = true;
     }
 
-    void transaction::end(){
+    void transaction::end() {
         exec("END TRANSACTION");
         m_isActive = false;
     }
 
-    void transaction::commit(){
+    void transaction::commit() {
         exec("COMMIT TRANSACTION");
         m_isActive = false;
     }
 
-    void transaction::rollback(){
+    void transaction::rollback() {
         exec("ROLLBACK TRANSACTION");
         m_isActive = false;
     }
 
-    snapshot transaction::take_snapshot(std::string_view schema){
-        if(!m_isActive) {
+    snapshot transaction::take_snapshot(std::string_view schema) {
+        if (!m_isActive) {
             throw database_exception("Cannot capture a snapshot on an inactive transaction.");
         }
         return snapshot::take(m_con, schema);
     }
 
-    void transaction::open_snapshot(snapshot const & snap, std::string_view schema){
-        if(!m_isActive) {
+    void transaction::open_snapshot(snapshot const &snap, std::string_view schema) {
+        if (!m_isActive) {
             throw database_exception("Cannot open a snapshot without an active transaction.");
         }
         snap.open(m_con, schema);
     }
 
-    void transaction::exec(std::string const & cmd){
-        execute(m_con,cmd,true);
+    void transaction::exec(std::string const &cmd) {
+        execute(m_con, cmd, true);
     }
 } // namespace v2
 } // namespace sqlite

@@ -21,4 +21,3 @@ TEST(ViewTest, CreateAndDropWithDatabaseName) {
     view.create(true, "temp", "v_src", "SELECT * FROM src;");
     view.drop("temp", "v_src");
 }
-

@@ -61,69 +61,67 @@ inline namespace v2 {
      * feature:
      * http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2347.pdf
      */
-    enum class transaction_type {
-        undefined,
-        deferred,
-        immediate,
-        exclusive
-    };
+    enum class transaction_type { undefined, deferred, immediate, exclusive };
 
     /** \brief transaction is a helper class to start transactions within SQLite
-      *
-      */
-    struct transaction{
+     *
+     */
+    struct transaction {
     public:
         /** \brief constructor
-          * \param con a reference to the connection object where the
-          * transaction should be started/ended/committed or rolled back
-          * \param type define the transaction type
-          */
-        transaction(connection & con, transaction_type type = transaction_type::undefined);
+         * \param con a reference to the connection object where the
+         * transaction should be started/ended/committed or rolled back
+         * \param type define the transaction type
+         */
+        transaction(connection &con, transaction_type type = transaction_type::undefined);
 
         /** \brief destructor
-          *
-          */
+         *
+         */
         ~transaction();
 
         /** \brief Starts a transaction
-          * \param type define the transaction type
-          */
+         * \param type define the transaction type
+         */
         void begin(transaction_type type = transaction_type::undefined);
 
         /** \brief Ends an transaction
-          *
-          */
+         *
+         */
         void end();
 
         /** \brief Commits a transaction
-          *
-          */
+         *
+         */
         void commit();
 
         /** \brief Rolls back a transaction
-          *
-          */
+         *
+         */
         void rollback();
 
         /** \brief Allow to check if transaction handled by this object is
-          * currently active
-          * \return \c true if transaction is still active, \c false otherwise
-          */
-        bool isActive() const { return m_isActive; }
+         * currently active
+         * \return \c true if transaction is still active, \c false otherwise
+         */
+        bool isActive() const {
+            return m_isActive;
+        }
 
         /** \brief Capture a consistent snapshot for the current transaction.
-          * \param schema Database schema name (defaults to "main").
-          */
+         * \param schema Database schema name (defaults to "main").
+         */
         snapshot take_snapshot(std::string_view schema = "main");
 
         /** \brief Re-open this transaction so it reads from the supplied snapshot. */
-        void open_snapshot(snapshot const & snap, std::string_view schema = "main");
+        void open_snapshot(snapshot const &snap, std::string_view schema = "main");
+
     private:
         void exec(std::string const &);
-        connection & m_con;
+        connection &m_con;
         bool m_isActive; ///< if \c true there is a transaction currently opened
     };
 } // namespace v2
 } // namespace sqlite
 
-#endif //GUARD_SQLITE_TRANSACTION_HPP_INCLUDED
+#endif // GUARD_SQLITE_TRANSACTION_HPP_INCLUDED

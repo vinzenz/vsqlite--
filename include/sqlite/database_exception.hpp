@@ -47,14 +47,12 @@ namespace sqlite {
 inline namespace v2 {
     /// Generic runtime failure raised for most SQLite errors.
     struct database_exception : public std::runtime_error {
-        database_exception(std::string const & msg)
-        : std::runtime_error(msg.c_str())
-        {}
+        database_exception(std::string const &msg) : std::runtime_error(msg.c_str()) {}
     };
 
     /// Helper that appends ` [SQL: ...]` context to an existing message.
-    inline std::string append_sql_context(std::string message, std::string const & sql){
-        if(sql.empty()){
+    inline std::string append_sql_context(std::string message, std::string const &sql) {
+        if (sql.empty()) {
             return message;
         }
         message.append(" [SQL: ");
@@ -65,56 +63,49 @@ inline namespace v2 {
 
     /// Exception that carries the original SQLite error code and optional SQL snippet.
     struct database_exception_code : database_exception {
-        database_exception_code(std::string const & error_message,
-                                int sqlite_error_code,
-                                std::string sql_context = std::string())
-        : database_exception(append_sql_context(error_message, sql_context))
-        , sqlite_error_code_(sqlite_error_code)
-        , sql_(std::move(sql_context))
-        {}
+        database_exception_code(std::string const &error_message, int sqlite_error_code,
+                                std::string sql_context = std::string()) :
+            database_exception(append_sql_context(error_message, sql_context)),
+            sqlite_error_code_(sqlite_error_code), sql_(std::move(sql_context)) {}
 
         int error_code() const {
             return sqlite_error_code_;
         }
 
-        std::string const & sql() const {
+        std::string const &sql() const {
             return sql_;
         }
+
     protected:
         int const sqlite_error_code_;
         std::string sql_;
     };
 
     /// Raised when a caller-provided buffer is too small to hold a blob/text payload.
-    struct buffer_too_small_exception : public std::runtime_error{
-        buffer_too_small_exception(std::string const & msg)
-            : std::runtime_error(msg.c_str()){}
+    struct buffer_too_small_exception : public std::runtime_error {
+        buffer_too_small_exception(std::string const &msg) : std::runtime_error(msg.c_str()) {}
     };
 
     /// Used for programming errors such as double-closing or using invalidated resources.
-    struct database_misuse_exception : public std::logic_error{
-        database_misuse_exception(std::string const & msg)
-        : std::logic_error(msg)
-        {}
+    struct database_misuse_exception : public std::logic_error {
+        database_misuse_exception(std::string const &msg) : std::logic_error(msg) {}
     };
 
     /// Logic-error flavour that also exposes the SQLite status code and SQL string.
     struct database_misuse_exception_code : database_misuse_exception {
-        database_misuse_exception_code(std::string const & msg,
-                                       int sqlite_error_code,
-                                       std::string sql_context = std::string())
-        : database_misuse_exception(append_sql_context(msg, sql_context))
-        , sqlite_error_code_(sqlite_error_code)
-        , sql_(std::move(sql_context))
-        {}
+        database_misuse_exception_code(std::string const &msg, int sqlite_error_code,
+                                       std::string sql_context = std::string()) :
+            database_misuse_exception(append_sql_context(msg, sql_context)),
+            sqlite_error_code_(sqlite_error_code), sql_(std::move(sql_context)) {}
 
         int error_code() const {
             return sqlite_error_code_;
         }
 
-        std::string const & sql() const {
+        std::string const &sql() const {
             return sql_;
         }
+
     protected:
         int const sqlite_error_code_;
         std::string sql_;
@@ -122,19 +113,17 @@ inline namespace v2 {
 
     /// Wraps system-level failures (e.g., file I/O) that bubble up from SQLite APIs.
     struct database_system_error : database_exception {
-        database_system_error(std::string const & msg,
-                              int error_code)
-        : database_exception(msg)
-        , error_code_(error_code)
-        {}
+        database_system_error(std::string const &msg, int error_code) :
+            database_exception(msg), error_code_(error_code) {}
 
         int error_code() const {
             return error_code_;
         }
+
     protected:
         int error_code_;
     };
 } // namespace v2
 } // namespace sqlite
 
-#endif //GUARD_SQLITE_DATABASE_EXCEPTION_HPP_INCLUDED
+#endif // GUARD_SQLITE_DATABASE_EXCEPTION_HPP_INCLUDED

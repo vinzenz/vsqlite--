@@ -37,43 +37,42 @@
 
 namespace sqlite {
 inline namespace v2 {
-    statement_cache::statement_cache(statement_cache_config cfg)
-        : config_(std::move(cfg)) {}
+    statement_cache::statement_cache(statement_cache_config cfg) : config_(std::move(cfg)) {}
 
-    sqlite3_stmt * statement_cache::acquire(sqlite3 * db, std::string_view sql) {
-        if(!config_.enabled || config_.capacity == 0) {
+    sqlite3_stmt *statement_cache::acquire(sqlite3 *db, std::string_view sql) {
+        if (!config_.enabled || config_.capacity == 0) {
             return nullptr;
         }
         auto it = map_.find(std::string(sql));
-        if(it == map_.end()) {
+        if (it == map_.end()) {
             return nullptr;
         }
-        auto node = *(it->second);
-        sqlite3_stmt * stmt = node.stmt;
+        auto node          = *(it->second);
+        sqlite3_stmt *stmt = node.stmt;
         lru_.erase(it->second);
         map_.erase(it);
         sqlite3_reset(stmt);
         sqlite3_clear_bindings(stmt);
-        sqlite3 * owner = sqlite3_db_handle(stmt);
-        if(owner != db) {
+        sqlite3 *owner = sqlite3_db_handle(stmt);
+        if (owner != db) {
             sqlite3_finalize(stmt);
             return nullptr;
         }
         return stmt;
     }
 
-    void statement_cache::release(std::string_view sql, sqlite3_stmt * stmt) {
-        if(!config_.enabled || config_.capacity == 0 || !stmt) {
+    void statement_cache::release(std::string_view sql, sqlite3_stmt *stmt) {
+        if (!config_.enabled || config_.capacity == 0 || !stmt) {
             sqlite3_finalize(stmt);
             return;
         }
         auto key = std::string(sql);
-        if(map_.find(key) != map_.end()) {
+        if (map_.find(key) != map_.end()) {
             sqlite3_finalize(stmt);
             return;
         }
-        if(lru_.size() >= config_.capacity) {
-            auto & back = lru_.back();
+        if (lru_.size() >= config_.capacity) {
+            auto &back = lru_.back();
             sqlite3_finalize(back.stmt);
             map_.erase(back.sql);
             lru_.pop_back();
@@ -83,7 +82,7 @@ inline namespace v2 {
     }
 
     void statement_cache::clear(sqlite3 *) {
-        for(auto & node : lru_) {
+        for (auto &node : lru_) {
             sqlite3_finalize(node.stmt);
         }
         lru_.clear();

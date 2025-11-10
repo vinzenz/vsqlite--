@@ -47,14 +47,14 @@
 
 namespace {
 bool is_special_database(std::string_view db) {
-    if(db == ":memory:") {
+    if (db == ":memory:") {
         return true;
     }
-    if(db.rfind("file:", 0) == 0) {
+    if (db.rfind("file:", 0) == 0) {
         auto query_pos = db.find('?');
-        if(query_pos != std::string_view::npos) {
+        if (query_pos != std::string_view::npos) {
             auto params = db.substr(query_pos + 1);
-            if(params.find("mode=memory") != std::string_view::npos) {
+            if (params.find("mode=memory") != std::string_view::npos) {
                 return true;
             }
         }
@@ -62,79 +62,76 @@ bool is_special_database(std::string_view db) {
     return false;
 }
 
-std::string describe_path(std::filesystem::path const & path) {
+std::string describe_path(std::filesystem::path const &path) {
     return path.empty() ? std::string(".") : path.string();
 }
 
-void ensure_parent_directory_safe(std::filesystem::path const & path, std::string const & original_db,
-                                  sqlite::filesystem_adapter_ptr const & fs) {
+void ensure_parent_directory_safe(std::filesystem::path const &path, std::string const &original_db,
+                                  sqlite::filesystem_adapter_ptr const &fs) {
     auto parent = path.parent_path();
-    if(parent.empty()) {
+    if (parent.empty()) {
         return;
     }
     auto entry = fs->status(parent);
-    if(entry.error) {
-        throw sqlite::database_system_error(
-            "Failed to inspect directory '" + describe_path(parent) + "' for database '" + original_db + "'",
-            entry.error.value()
-        );
+    if (entry.error) {
+        throw sqlite::database_system_error("Failed to inspect directory '" +
+                                                describe_path(parent) + "' for database '" +
+                                                original_db + "'",
+                                            entry.error.value());
     }
-    if(entry.status.type() == std::filesystem::file_type::not_found) {
-        throw sqlite::database_exception(
-            "Directory '" + describe_path(parent) + "' for database '" + original_db + "' does not exist"
-        );
+    if (entry.status.type() == std::filesystem::file_type::not_found) {
+        throw sqlite::database_exception("Directory '" + describe_path(parent) +
+                                         "' for database '" + original_db + "' does not exist");
     }
-    if(!std::filesystem::is_directory(entry.status)) {
-        throw sqlite::database_exception(
-            "Path '" + describe_path(parent) + "' is not a directory (required for database '" + original_db + "')"
-        );
+    if (!std::filesystem::is_directory(entry.status)) {
+        throw sqlite::database_exception("Path '" + describe_path(parent) +
+                                         "' is not a directory (required for database '" +
+                                         original_db + "')");
     }
-    if(std::filesystem::is_symlink(entry.status)) {
-        throw sqlite::database_exception(
-            "Directory '" + describe_path(parent) + "' for database '" + original_db + "' must not be a symlink"
-        );
+    if (std::filesystem::is_symlink(entry.status)) {
+        throw sqlite::database_exception("Directory '" + describe_path(parent) +
+                                         "' for database '" + original_db +
+                                         "' must not be a symlink");
     }
 }
 
-void validate_db_path(std::string const & db, bool require_exists, sqlite::filesystem_adapter_ptr const & fs) {
-    if(is_special_database(db)) {
+void validate_db_path(std::string const &db, bool require_exists,
+                      sqlite::filesystem_adapter_ptr const &fs) {
+    if (is_special_database(db)) {
         return;
     }
-    if(db.empty()) {
+    if (db.empty()) {
         throw sqlite::database_exception("Database path must not be empty.");
     }
     std::filesystem::path path(db);
     ensure_parent_directory_safe(path, db, fs);
-    auto entry = fs->status(path);
+    auto entry     = fs->status(path);
     auto not_found = std::make_error_code(std::errc::no_such_file_or_directory);
-    if(entry.error && entry.error != not_found) {
-        throw sqlite::database_system_error(
-            "Failed to inspect database '" + db + "'",
-            entry.error.value()
-        );
+    if (entry.error && entry.error != not_found) {
+        throw sqlite::database_system_error("Failed to inspect database '" + db + "'",
+                                            entry.error.value());
     }
-    if(entry.status.type() == std::filesystem::file_type::not_found) {
-        if(require_exists) {
+    if (entry.status.type() == std::filesystem::file_type::not_found) {
+        if (require_exists) {
             throw sqlite::database_exception("Database '" + db + "' does not exist");
         }
         return;
     }
-    if(std::filesystem::is_symlink(entry.status)) {
+    if (std::filesystem::is_symlink(entry.status)) {
         throw sqlite::database_exception("Database path '" + db + "' must not be a symlink");
     }
-    if(!std::filesystem::is_regular_file(entry.status)) {
+    if (!std::filesystem::is_regular_file(entry.status)) {
         throw sqlite::database_exception("Database path '" + db + "' must refer to a regular file");
     }
 }
 
 int make_open_flags(bool readonly, bool allow_create) {
     int flags = SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_NOFOLLOW;
-    if(readonly) {
+    if (readonly) {
         flags |= SQLITE_OPEN_READONLY;
-    }
-    else {
+    } else {
         flags |= SQLITE_OPEN_READWRITE;
-        if(allow_create) {
+        if (allow_create) {
             flags |= SQLITE_OPEN_CREATE;
         }
     }
@@ -145,8 +142,8 @@ std::string quote_identifier(std::string_view identifier) {
     std::string quoted;
     quoted.reserve(identifier.size() + 2);
     quoted.push_back('"');
-    for(char c : identifier) {
-        if(c == '"') {
+    for (char c : identifier) {
+        if (c == '"') {
             quoted.push_back('"');
         }
         quoted.push_back(c);
@@ -154,121 +151,111 @@ std::string quote_identifier(std::string_view identifier) {
     quoted.push_back('"');
     return quoted;
 }
-}
+} // namespace
 
 namespace sqlite {
 inline namespace v2 {
-    connection::connection(std::string const & db)
-        : connection(db, std::make_shared<default_filesystem_adapter>()) {}
+    connection::connection(std::string const &db) :
+        connection(db, std::make_shared<default_filesystem_adapter>()) {}
 
-    connection::connection(std::string const & db, filesystem_adapter_ptr fs)
-        : handle(0)
-        , filesystem(std::move(fs) ? std::move(fs) : std::make_shared<default_filesystem_adapter>())
-        , cache_() {
-            open(db);
+    connection::connection(std::string const &db, filesystem_adapter_ptr fs) :
+        handle(0),
+        filesystem(std::move(fs) ? std::move(fs) : std::make_shared<default_filesystem_adapter>()),
+        cache_() {
+        open(db);
     }
 
-    connection::connection(std::string const & db, sqlite::open_mode open_mode)
-        : connection(db, open_mode, std::make_shared<default_filesystem_adapter>()) {}
+    connection::connection(std::string const &db, sqlite::open_mode open_mode) :
+        connection(db, open_mode, std::make_shared<default_filesystem_adapter>()) {}
 
-    connection::connection(std::string const & db, sqlite::open_mode open_mode, filesystem_adapter_ptr fs)
-        : handle(0)
-        , filesystem(std::move(fs) ? std::move(fs) : std::make_shared<default_filesystem_adapter>())
-        , cache_() {
+    connection::connection(std::string const &db, sqlite::open_mode open_mode,
+                           filesystem_adapter_ptr fs) :
+        handle(0),
+        filesystem(std::move(fs) ? std::move(fs) : std::make_shared<default_filesystem_adapter>()),
+        cache_() {
         open(db, open_mode);
     }
 
-    connection::~connection(){
-        try{
+    connection::~connection() {
+        try {
             close();
-        }
-        catch(...){
+        } catch (...) {
         }
     }
 
-    void connection::open(const std::string &db){
+    void connection::open(const std::string &db) {
         validate_db_path(db, false, filesystem);
         open_with_flags(db, make_open_flags(false, true));
     }
 
-    void connection::open(const std::string &db, bool readonly){
+    void connection::open(const std::string &db, bool readonly) {
         validate_db_path(db, readonly, filesystem);
         open_with_flags(db, make_open_flags(readonly, !readonly));
     }
 
-    void connection::open(std::string const & db, sqlite::open_mode open_mode){
+    void connection::open(std::string const &db, sqlite::open_mode open_mode) {
         bool special = is_special_database(db);
-        if(!special) {
+        if (!special) {
             validate_db_path(db,
-                open_mode == sqlite::open_mode::open_existing ||
-                open_mode == sqlite::open_mode::open_readonly,
-                filesystem);
+                             open_mode == sqlite::open_mode::open_existing ||
+                                 open_mode == sqlite::open_mode::open_readonly,
+                             filesystem);
         }
 
-        std::filesystem::path disk_path = special ? std::filesystem::path() : std::filesystem::path(db);
+        std::filesystem::path disk_path =
+            special ? std::filesystem::path() : std::filesystem::path(db);
         std::error_code ec;
         bool exists = special ? false : std::filesystem::exists(disk_path, ec);
-        if(ec && !special) {
+        if (ec && !special) {
             throw database_system_error("Failed to inspect database '" + db + "'", ec.value());
         }
 
-        switch(open_mode) {
-            case sqlite::open_mode::open_readonly:
-                if(!exists && !special) {
-                    throw database_exception(
-                        "Read-only database '" + db + "' does not exist"
-                    );
+        switch (open_mode) {
+        case sqlite::open_mode::open_readonly:
+            if (!exists && !special) {
+                throw database_exception("Read-only database '" + db + "' does not exist");
+            }
+            open_with_flags(db, make_open_flags(true, false));
+            return;
+        case sqlite::open_mode::open_existing:
+            if (!exists && !special) {
+                throw database_exception("Database '" + db + "' does not exist");
+            }
+            open_with_flags(db, make_open_flags(false, false));
+            return;
+        case sqlite::open_mode::always_create:
+            if (exists && !special) {
+                auto entry = filesystem->status(disk_path);
+                if (entry.error) {
+                    throw database_system_error("Failed to inspect existing database '" + db + "'",
+                                                entry.error.value());
                 }
-                open_with_flags(db, make_open_flags(true, false));
-                return;
-            case sqlite::open_mode::open_existing:
-                if(!exists && !special) {
-                    throw database_exception(
-                        "Database '" + db + "' does not exist"
-                    );
+                if (std::filesystem::is_symlink(entry.status)) {
+                    throw database_exception("Refusing to remove symlinked database '" + db + "'");
                 }
-                open_with_flags(db, make_open_flags(false, false));
-                return;
-            case sqlite::open_mode::always_create:
-                if(exists && !special) {
-                    auto entry = filesystem->status(disk_path);
-                    if(entry.error) {
-                        throw database_system_error(
-                            "Failed to inspect existing database '" + db + "'",
-                            entry.error.value()
-                        );
-                    }
-                    if(std::filesystem::is_symlink(entry.status)) {
-                        throw database_exception(
-                            "Refusing to remove symlinked database '" + db + "'"
-                        );
-                    }
-                    if(!std::filesystem::is_regular_file(entry.status)) {
-                        throw database_exception(
-                            "Refusing to remove non-regular database target '" + db + "'"
-                        );
-                    }
-                    if(!filesystem->remove(disk_path, ec) || ec) {
-                        throw database_system_error(
-                            "Failed to remove existing database '" + db + "'",
-                            ec.value()
-                        );
-                    }
+                if (!std::filesystem::is_regular_file(entry.status)) {
+                    throw database_exception("Refusing to remove non-regular database target '" +
+                                             db + "'");
                 }
-                [[fallthrough]];
-            case sqlite::open_mode::open_or_create:
-            default:
-                open_with_flags(db, make_open_flags(false, true));
-                return;
+                if (!filesystem->remove(disk_path, ec) || ec) {
+                    throw database_system_error("Failed to remove existing database '" + db + "'",
+                                                ec.value());
+                }
+            }
+            [[fallthrough]];
+        case sqlite::open_mode::open_or_create:
+        default:
+            open_with_flags(db, make_open_flags(false, true));
+            return;
         }
     }
 
-    void connection::open_with_flags(std::string const & db, int flags){
-        sqlite3 * tmp = nullptr;
-        int err = sqlite3_open_v2(db.c_str(), &tmp, flags, nullptr);
-        if(err != SQLITE_OK){
+    void connection::open_with_flags(std::string const &db, int flags) {
+        sqlite3 *tmp = nullptr;
+        int err      = sqlite3_open_v2(db.c_str(), &tmp, flags, nullptr);
+        if (err != SQLITE_OK) {
             std::string message = tmp ? sqlite3_errmsg(tmp) : "Could not open database";
-            if(tmp){
+            if (tmp) {
                 sqlite3_close(tmp);
             }
             throw database_exception_code(message, err);
@@ -277,22 +264,22 @@ inline namespace v2 {
         sqlite3_extended_result_codes(handle, 1);
     }
 
-    void connection::close(){
+    void connection::close() {
         access_check();
         cache_.clear(handle);
         int err = sqlite3_close(handle);
-        if(err != SQLITE_OK)
+        if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(handle), err);
         handle = 0;
     }
 
-    void connection::access_check(){
-        if(!handle)
+    void connection::access_check() {
+        if (!handle)
             throw database_exception("Database is not open.");
     }
 
-    void connection::attach(std::string const & db, std::string const & alias){
-        if(alias.empty()) {
+    void connection::attach(std::string const &db, std::string const &alias) {
+        if (alias.empty()) {
             throw database_exception("Database alias must not be empty.");
         }
         validate_db_path(db, false, filesystem);
@@ -301,22 +288,21 @@ inline namespace v2 {
         cmd.emit();
     }
 
-    void connection::detach(std::string const & alias){
-        if(alias.empty()) {
+    void connection::detach(std::string const &alias) {
+        if (alias.empty()) {
             throw database_exception("Database alias must not be empty.");
         }
         auto sql = std::format("DETACH DATABASE {};", quote_identifier(alias));
-        execute(*this,sql,true);
+        execute(*this, sql, true);
     }
 
-    std::int64_t connection::get_last_insert_rowid(){
-        if(!handle)
+    std::int64_t connection::get_last_insert_rowid() {
+        if (!handle)
             throw database_exception("Database is not open.");
-        return static_cast<std::int64_t>(
-                sqlite3_last_insert_rowid(handle));
+        return static_cast<std::int64_t>(sqlite3_last_insert_rowid(handle));
     }
 
-    void connection::configure_statement_cache(statement_cache_config const & cfg) {
+    void connection::configure_statement_cache(statement_cache_config const &cfg) {
         cache_.clear(handle);
         cache_ = statement_cache(cfg);
     }
@@ -325,14 +311,16 @@ inline namespace v2 {
         return cache_.config();
     }
 
-    sqlite3_stmt * connection::acquire_cached_statement(std::string const & sql) {
-        if(!handle) return nullptr;
+    sqlite3_stmt *connection::acquire_cached_statement(std::string const &sql) {
+        if (!handle)
+            return nullptr;
         return cache_.acquire(handle, sql);
     }
 
-    void connection::release_cached_statement(std::string const & sql, sqlite3_stmt * stmt) {
-        if(!stmt) return;
-        if(!handle) {
+    void connection::release_cached_statement(std::string const &sql, sqlite3_stmt *stmt) {
+        if (!stmt)
+            return;
+        if (!handle) {
             sqlite3_finalize(stmt);
             return;
         }

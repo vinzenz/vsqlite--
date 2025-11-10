@@ -5,20 +5,19 @@
 namespace sqlite {
 inline namespace v2 {
 
-    connection_pool::lease::lease(connection_pool * pool, std::shared_ptr<connection> conn)
-        : pool_(pool)
-        , connection_(std::move(conn)) {}
+    connection_pool::lease::lease(connection_pool *pool, std::shared_ptr<connection> conn) :
+        pool_(pool), connection_(std::move(conn)) {}
 
-    connection_pool::lease::lease(lease && other) noexcept {
-        pool_ = other.pool_;
+    connection_pool::lease::lease(lease &&other) noexcept {
+        pool_       = other.pool_;
         connection_ = std::move(other.connection_);
         other.pool_ = nullptr;
     }
 
-    connection_pool::lease & connection_pool::lease::operator=(lease && other) noexcept {
-        if(this != &other) {
+    connection_pool::lease &connection_pool::lease::operator=(lease &&other) noexcept {
+        if (this != &other) {
             release();
-            pool_ = other.pool_;
+            pool_       = other.pool_;
             connection_ = std::move(other.connection_);
             other.pool_ = nullptr;
         }
@@ -30,17 +29,17 @@ inline namespace v2 {
     }
 
     void connection_pool::lease::release() {
-        if(pool_ && connection_) {
+        if (pool_ && connection_) {
             pool_->release(std::move(connection_));
         }
         pool_ = nullptr;
     }
 
-    connection & connection_pool::lease::operator*() const {
+    connection &connection_pool::lease::operator*() const {
         return *connection_;
     }
 
-    connection * connection_pool::lease::operator->() const {
+    connection *connection_pool::lease::operator->() const {
         return connection_.get();
     }
 
@@ -48,22 +47,20 @@ inline namespace v2 {
         return connection_;
     }
 
-    connection_pool::connection_pool(std::size_t capacity, connection_factory factory)
-        : factory_(std::move(factory))
-        , capacity_(capacity) {
-        if(capacity_ == 0) {
+    connection_pool::connection_pool(std::size_t capacity, connection_factory factory) :
+        factory_(std::move(factory)), capacity_(capacity) {
+        if (capacity_ == 0) {
             throw database_exception("connection_pool capacity must be greater than zero");
         }
-        if(!factory_) {
+        if (!factory_) {
             throw database_exception("connection_pool requires a valid factory");
         }
     }
 
-    connection_pool::connection_factory connection_pool::make_factory(std::string db,
-                                                                      open_mode mode,
-                                                                      filesystem_adapter_ptr fs) {
+    connection_pool::connection_factory
+    connection_pool::make_factory(std::string db, open_mode mode, filesystem_adapter_ptr fs) {
         return [db = std::move(db), mode, fs = std::move(fs)]() mutable {
-            if(fs) {
+            if (fs) {
                 return std::make_shared<connection>(db, mode, fs);
             }
             return std::make_shared<connection>(db, mode);
@@ -76,13 +73,13 @@ inline namespace v2 {
 
         {
             std::unique_lock<std::mutex> lock(mutex_);
-            while(true) {
-                if(!idle_.empty()) {
+            while (true) {
+                if (!idle_.empty()) {
                     conn = std::move(idle_.back());
                     idle_.pop_back();
                     break;
                 }
-                if(created_ < capacity_) {
+                if (created_ < capacity_) {
                     ++created_;
                     needs_creation = true;
                     break;
@@ -91,11 +88,10 @@ inline namespace v2 {
             }
         }
 
-        if(needs_creation) {
+        if (needs_creation) {
             try {
                 conn = factory_();
-            }
-            catch(...) {
+            } catch (...) {
                 std::lock_guard<std::mutex> guard(mutex_);
                 --created_;
                 cv_.notify_one();

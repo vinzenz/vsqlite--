@@ -33,13 +33,12 @@
 
 namespace sqlite {
 inline namespace v2 {
-    execute::execute(connection & con, std::string const & sql, bool immediately)
-    : command(con,sql){
-        if(immediately)
+    execute::execute(connection &con, std::string const &sql, bool immediately) :
+        command(con, sql) {
+        if (immediately)
             emit();
     }
 
-    execute::~execute(){
-    }
+    execute::~execute() {}
 } // namespace v2
 } // namespace sqlite

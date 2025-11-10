@@ -5,8 +5,8 @@
                          and contributors
  All rights reserved.
 
- Redistribution and use in source and binary forms, with or without modification,
- are permitted provided that the following conditions are met:
+ Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
 
  * Redistributions of source code must retain the above copyright notice,
    this list of conditions and the following disclaimer.
@@ -42,86 +42,94 @@
 
 #include <sqlite3.h>
 
-namespace {
-constexpr char kSerializationUnsupported[] = "SQLite was built without SQLITE_ENABLE_DESERIALIZE.";
+#include "dynamic_symbols.hpp"
 
-#if defined(SQLITE_ENABLE_DESERIALIZE)
-sqlite3 * get_handle(sqlite::connection & con) {
+namespace {
+sqlite3 *get_handle(sqlite::connection &con) {
     sqlite::private_accessor::acccess_check(con);
     return sqlite::private_accessor::get_handle(con);
 }
 
 std::string normalize_schema(std::string_view schema) {
-    if(schema.empty()) {
+    if (schema.empty()) {
         return "main";
     }
     return std::string(schema);
 }
-#endif
+struct serialization_api {
+    using serialize_fn   = decltype(&sqlite3_serialize);
+    using deserialize_fn = decltype(&sqlite3_deserialize);
+
+    serialize_fn serialize     = nullptr;
+    deserialize_fn deserialize = nullptr;
+};
+
+serialization_api const &serialization_symbols() {
+    static serialization_api api = [] {
+        serialization_api loaded;
+        loaded.serialize = sqlite::detail::load_sqlite_symbol<serialization_api::serialize_fn>(
+            "sqlite3_serialize");
+        loaded.deserialize = sqlite::detail::load_sqlite_symbol<serialization_api::deserialize_fn>(
+            "sqlite3_deserialize");
+        return loaded;
+    }();
+    return api;
+}
+
+void ensure_serialization_available() {
+    if (!sqlite::serialization_supported()) {
+        throw sqlite::database_exception(
+            "SQLite serialization APIs are not available in this build.");
+    }
+}
 } // namespace
 
 namespace sqlite {
 inline namespace v2 {
-    std::vector<unsigned char> serialize(connection & con,
-                                         std::string_view schema,
+    bool serialization_supported() noexcept {
+        auto const &api = serialization_symbols();
+        return api.serialize != nullptr && api.deserialize != nullptr;
+    }
+
+    std::vector<unsigned char> serialize(connection &con, std::string_view schema,
                                          unsigned int flags) {
-#if !defined(SQLITE_ENABLE_DESERIALIZE)
-        (void)con;
-        (void)schema;
-        (void)flags;
-        throw database_exception(kSerializationUnsupported);
-#else
-        sqlite3_int64 size = 0;
-        auto normalized = normalize_schema(schema);
-        unsigned char * blob = sqlite3_serialize(get_handle(con),
-                                                 normalized.c_str(),
-                                                 &size,
-                                                 flags);
-        if(!blob) {
+        ensure_serialization_available();
+        sqlite3_int64 size  = 0;
+        auto normalized     = normalize_schema(schema);
+        auto fn             = serialization_symbols().serialize;
+        unsigned char *blob = fn ? fn(get_handle(con), normalized.c_str(), &size, flags) : nullptr;
+        if (!blob) {
             throw database_exception("Failed to serialize database image.");
         }
         std::vector<unsigned char> out(blob, blob + size);
         sqlite3_free(blob);
         return out;
-#endif
     }
 
-    void deserialize(connection & con,
-                     std::span<const unsigned char> image,
-                     std::string_view schema,
+    void deserialize(connection &con, std::span<const unsigned char> image, std::string_view schema,
                      bool read_only) {
-#if !defined(SQLITE_ENABLE_DESERIALIZE)
-        (void)con;
-        (void)image;
-        (void)schema;
-        (void)read_only;
-        throw database_exception(kSerializationUnsupported);
-#else
-        if(image.empty()) {
+        ensure_serialization_available();
+        if (image.empty()) {
             throw database_exception("Serialized database image is empty.");
         }
-        auto normalized = normalize_schema(schema);
-        auto size = static_cast<sqlite3_int64>(image.size());
-        unsigned char * buffer = static_cast<unsigned char *>(sqlite3_malloc64(image.size()));
-        if(!buffer) {
+        auto normalized       = normalize_schema(schema);
+        auto size             = static_cast<sqlite3_int64>(image.size());
+        unsigned char *buffer = static_cast<unsigned char *>(sqlite3_malloc64(image.size()));
+        if (!buffer) {
             throw database_exception("Failed to allocate buffer for sqlite3_deserialize.");
         }
         std::memcpy(buffer, image.data(), image.size());
         unsigned flags = SQLITE_DESERIALIZE_FREEONCLOSE;
-        if(read_only) {
+        if (read_only) {
             flags |= SQLITE_DESERIALIZE_READONLY;
         }
-        int rc = sqlite3_deserialize(get_handle(con),
-                                     normalized.c_str(),
-                                     buffer,
-                                     size,
-                                     size,
-                                     flags);
-        if(rc != SQLITE_OK) {
+        auto fn = serialization_symbols().deserialize;
+        int rc =
+            fn ? fn(get_handle(con), normalized.c_str(), buffer, size, size, flags) : SQLITE_ERROR;
+        if (rc != SQLITE_OK) {
             sqlite3_free(buffer);
             throw database_exception_code(sqlite3_errmsg(get_handle(con)), rc);
         }
-#endif
     }
 } // namespace v2
 } // namespace sqlite

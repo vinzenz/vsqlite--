@@ -12,27 +12,27 @@ inline namespace v2 {
 
     bool configure_threading(threading_mode mode) {
         int flag = SQLITE_CONFIG_SERIALIZED;
-        switch(mode) {
-            case threading_mode::single_thread:
-                flag = SQLITE_CONFIG_SINGLETHREAD;
-                break;
-            case threading_mode::multi_thread:
-                flag = SQLITE_CONFIG_MULTITHREAD;
-                break;
-            case threading_mode::serialized:
-            default:
-                flag = SQLITE_CONFIG_SERIALIZED;
-                break;
+        switch (mode) {
+        case threading_mode::single_thread:
+            flag = SQLITE_CONFIG_SINGLETHREAD;
+            break;
+        case threading_mode::multi_thread:
+            flag = SQLITE_CONFIG_MULTITHREAD;
+            break;
+        case threading_mode::serialized:
+        default:
+            flag = SQLITE_CONFIG_SERIALIZED;
+            break;
         }
 
         sqlite3_shutdown();
         int rc = sqlite3_config(flag);
-        if(rc != SQLITE_OK) {
+        if (rc != SQLITE_OK) {
             sqlite3_initialize();
             return false;
         }
         rc = sqlite3_initialize();
-        if(rc == SQLITE_OK) {
+        if (rc == SQLITE_OK) {
             configured_mode.store(mode, std::memory_order_relaxed);
             return true;
         }

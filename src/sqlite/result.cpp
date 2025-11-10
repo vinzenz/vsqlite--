@@ -43,27 +43,25 @@
 namespace sqlite {
 inline namespace v2 {
     namespace detail {
-        bool end(result_construct_params_private const & params) {
+        bool end(result_construct_params_private const &params) {
             return params.ended;
         }
 
-        void reset(result_construct_params_private & params) {
+        void reset(result_construct_params_private &params) {
             params.ended = false;
         }
-    }
+    } // namespace detail
 
-    result::result(construct_params p)
-    : m_params(p) {
+    result::result(construct_params p) : m_params(p) {
         m_params->access_check();
-        m_columns = sqlite3_column_count(m_params->statement);
+        m_columns   = sqlite3_column_count(m_params->statement);
         m_row_count = m_params->row_count;
     }
 
-    result::~result(){
-    }
+    result::~result() {}
 
-    bool result::next_row(){
-        if(!m_params->ended) {
+    bool result::next_row() {
+        if (!m_params->ended) {
             m_params->ended = !m_params->step();
             return !end();
         }
@@ -72,151 +70,147 @@ inline namespace v2 {
 
     std::string result::get_column_decltype(int idx) {
         access_check(idx);
-        return sqlite3_column_decltype(m_params->statement,idx);
+        return sqlite3_column_decltype(m_params->statement, idx);
     }
 
     type result::get_column_type(int idx) {
         access_check(idx);
-        switch(sqlite3_column_type(m_params->statement,idx)) {
-            case SQLITE_BLOB:
-                return  sqlite::blob;
-            case SQLITE_NULL:
-                return sqlite::null;
-            case SQLITE_FLOAT:
-                return sqlite::real;
-            case SQLITE_INTEGER:
-                return sqlite::integer;
-            case SQLITE_TEXT:
-                return sqlite::text;
-            default:
-                break;
+        switch (sqlite3_column_type(m_params->statement, idx)) {
+        case SQLITE_BLOB:
+            return sqlite::blob;
+        case SQLITE_NULL:
+            return sqlite::null;
+        case SQLITE_FLOAT:
+            return sqlite::real;
+        case SQLITE_INTEGER:
+            return sqlite::integer;
+        case SQLITE_TEXT:
+            return sqlite::text;
+        default:
+            break;
         }
         return sqlite::unknown;
     }
 
     variant_t result::get_variant(int idx) {
         variant_t v;
-        switch( get_column_type(idx) ) {
-            case sqlite::integer:
-                {
-                    std::int64_t i = get_int64(idx);
-                    if( i > std::numeric_limits<int>::max()
-                        || i < std::numeric_limits<int>::min() ) {
-                        v = i;
-                    }
-                    else {
-                        v = int(i);
-                    }
-                }
-                break;
-            case sqlite::blob:
-                v = std::make_shared<blob_t>();
-                get_binary(idx, *std::get<blob_ref_t>(v));
-                break;
-            case sqlite::real:
-                {
-                    long double x = get_double(idx);
-                    v = x;
-                }
-                break;
-            case sqlite::null:
-                v = null_t();
-                break;
-            default:
-            case sqlite::text:
-                v = get_string(idx);
-                break;
+        switch (get_column_type(idx)) {
+        case sqlite::integer: {
+            std::int64_t i = get_int64(idx);
+            if (i > std::numeric_limits<int>::max() || i < std::numeric_limits<int>::min()) {
+                v = i;
+            } else {
+                v = int(i);
+            }
+        } break;
+        case sqlite::blob:
+            v = std::make_shared<blob_t>();
+            get_binary(idx, *std::get<blob_ref_t>(v));
+            break;
+        case sqlite::real: {
+            long double x = get_double(idx);
+            v             = x;
+        } break;
+        case sqlite::null:
+            v = null_t();
+            break;
+        default:
+        case sqlite::text:
+            v = get_string(idx);
+            break;
         }
         return v;
     }
 
-    int result::get_int(int idx){
+    int result::get_int(int idx) {
         access_check(idx);
-        if(sqlite3_column_type(m_params->statement,idx) == SQLITE_NULL)
+        if (sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL)
             return 0;
-        return sqlite3_column_int(m_params->statement,idx);
+        return sqlite3_column_int(m_params->statement, idx);
     }
 
-    std::int64_t result::get_int64(int idx){
+    std::int64_t result::get_int64(int idx) {
         access_check(idx);
-        if(sqlite3_column_type(m_params->statement,idx) == SQLITE_NULL)
+        if (sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL)
             return 0;
-        return sqlite3_column_int64(m_params->statement,idx);
+        return sqlite3_column_int64(m_params->statement, idx);
     }
 
-    std::string result::get_string(int idx){
+    std::string result::get_string(int idx) {
         auto view = get_string_view(idx);
         return std::string(view.begin(), view.end());
     }
 
-    std::string_view result::get_string_view(int idx){
+    std::string_view result::get_string_view(int idx) {
         access_check(idx);
-        if(sqlite3_column_type(m_params->statement,idx) == SQLITE_NULL)
+        if (sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL)
             return std::string_view("NULL", 4);
-        char const * v = reinterpret_cast<char const*>(sqlite3_column_text(m_params->statement,idx));
+        char const *v =
+            reinterpret_cast<char const *>(sqlite3_column_text(m_params->statement, idx));
         size_t length = get_binary_size(idx);
         return std::string_view(v, length);
     }
 
-    double result::get_double(int idx){
+    double result::get_double(int idx) {
         access_check(idx);
-        if(sqlite3_column_type(m_params->statement,idx) == SQLITE_NULL)
+        if (sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL)
             return 0.0;
-        return sqlite3_column_double(m_params->statement,idx);
+        return sqlite3_column_double(m_params->statement, idx);
     }
 
-    size_t result::get_binary_size(int idx){
+    size_t result::get_binary_size(int idx) {
         access_check(idx);
-        if(sqlite3_column_type(m_params->statement,idx) == SQLITE_NULL)
+        if (sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL)
             return 0;
-        return sqlite3_column_bytes(m_params->statement,idx);
+        return sqlite3_column_bytes(m_params->statement, idx);
     }
 
-    void result::get_binary(int idx, void * buf, size_t buf_size){
+    void result::get_binary(int idx, void *buf, size_t buf_size) {
         access_check(idx);
-        if(sqlite3_column_type(m_params->statement,idx) == SQLITE_NULL)
+        if (sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL)
             return;
-        size_t size = sqlite3_column_bytes(m_params->statement,idx);
-        if(size > buf_size)
+        size_t size = sqlite3_column_bytes(m_params->statement, idx);
+        if (size > buf_size)
             throw buffer_too_small_exception("buffer too small");
-        memcpy(buf,sqlite3_column_blob(m_params->statement,idx),size);
+        memcpy(buf, sqlite3_column_blob(m_params->statement, idx), size);
     }
 
-    void result::get_binary(int idx, std::vector<unsigned char> & v){
+    void result::get_binary(int idx, std::vector<unsigned char> &v) {
         auto span = get_binary_span(idx);
         v.assign(span.begin(), span.end());
     }
 
-    std::span<const unsigned char> result::get_binary_span(int idx){
+    std::span<const unsigned char> result::get_binary_span(int idx) {
         access_check(idx);
-        if(sqlite3_column_type(m_params->statement,idx) == SQLITE_NULL)
+        if (sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL)
             return {};
-        size_t size = sqlite3_column_bytes(m_params->statement,idx);
-        auto ptr = static_cast<unsigned char const *>(sqlite3_column_blob(m_params->statement,idx));
+        size_t size = sqlite3_column_bytes(m_params->statement, idx);
+        auto ptr =
+            static_cast<unsigned char const *>(sqlite3_column_blob(m_params->statement, idx));
         return std::span<const unsigned char>(ptr, size);
     }
 
-    std::string result::get_column_name(int idx){
+    std::string result::get_column_name(int idx) {
         access_check(idx);
-        return sqlite3_column_name(m_params->statement,idx);
+        return sqlite3_column_name(m_params->statement, idx);
     }
 
-    bool result::is_null(int idx){
+    bool result::is_null(int idx) {
         access_check(idx);
-        return sqlite3_column_type(m_params->statement,idx) == SQLITE_NULL;
+        return sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL;
     }
 
-    void result::access_check(int idx){
+    void result::access_check(int idx) {
         m_params->access_check();
-        if(idx < 0 || idx >= m_columns)
+        if (idx < 0 || idx >= m_columns)
             throw std::out_of_range("no such column index");
     }
 
-    int result::get_row_count(){
+    int result::get_row_count() {
         return m_params->row_count;
     }
 
-    int result::get_column_count(){
+    int result::get_column_count() {
         return m_columns;
     }
 } // namespace v2

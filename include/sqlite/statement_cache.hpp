@@ -56,8 +56,8 @@ inline namespace v2 {
 
     /// Configuration knobs for the built-in LRU statement cache.
     struct statement_cache_config {
-        std::size_t capacity = 32; ///< Maximum cached statements.
-        bool enabled = true;       ///< Disable caching without destroying existing entries.
+        std::size_t capacity = 32;   ///< Maximum cached statements.
+        bool enabled         = true; ///< Disable caching without destroying existing entries.
     };
 
     /// Tracks prepared statements by SQL text and hands them out on demand.
@@ -65,14 +65,17 @@ inline namespace v2 {
     public:
         explicit statement_cache(statement_cache_config cfg = {});
 
-        sqlite3_stmt * acquire(sqlite3 * db, std::string_view sql);
-        void release(std::string_view sql, sqlite3_stmt * stmt);
-        void clear(sqlite3 * db);
-        statement_cache_config config() const noexcept { return config_; }
+        sqlite3_stmt *acquire(sqlite3 *db, std::string_view sql);
+        void release(std::string_view sql, sqlite3_stmt *stmt);
+        void clear(sqlite3 *db);
+        statement_cache_config config() const noexcept {
+            return config_;
+        }
+
     private:
         struct entry {
             std::string sql;
-            sqlite3_stmt * stmt = nullptr;
+            sqlite3_stmt *stmt = nullptr;
         };
 
         using lru_list = std::list<entry>;
@@ -85,4 +88,4 @@ inline namespace v2 {
 } // namespace v2
 } // namespace sqlite
 
-#endif //GUARD_SQLITE_STATEMENT_CACHE_HPP_INCLUDED
+#endif // GUARD_SQLITE_STATEMENT_CACHE_HPP_INCLUDED

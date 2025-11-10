@@ -38,17 +38,13 @@
 
 namespace sqlite {
 inline namespace v2 {
-    query::query(connection & con, std::string const & sql)
-    : command(con,sql) {
+    query::query(connection &con, std::string const &sql) : command(con, sql) {}
 
-    }
+    query::~query() {}
 
-    query::~query(){
-    }
-
-    std::shared_ptr<result> query::emit_result(){
-        bool ended = !step();
-        auto params = std::make_shared<result_construct_params_private>();
+    std::shared_ptr<result> query::emit_result() {
+        bool ended           = !step();
+        auto params          = std::make_shared<result_construct_params_private>();
         params->access_check = [this]() { access_check(); };
         params->step         = [this]() -> bool { return step(); };
         params->db           = sqlite3_db_handle(stmt);
@@ -58,9 +54,9 @@ inline namespace v2 {
         return std::shared_ptr<result>(new result(params));
     }
 
-    std::shared_ptr<result> query::get_result(){
+    std::shared_ptr<result> query::get_result() {
         access_check();
-        auto params = std::make_shared<result_construct_params_private>();
+        auto params          = std::make_shared<result_construct_params_private>();
         params->access_check = [this]() { access_check(); };
         params->step         = [this]() -> bool { return step(); };
         params->db           = sqlite3_db_handle(stmt);
@@ -76,34 +72,30 @@ inline namespace v2 {
 
     query::result_range::result_range() = default;
 
-    query::result_range::result_range(result_type res)
-        : result_(std::move(res))
-        , cache_(result_ ? std::make_shared<column_cache>() : nullptr) {}
+    query::result_range::result_range(result_type res) :
+        result_(std::move(res)), cache_(result_ ? std::make_shared<column_cache>() : nullptr) {}
 
     query::result_range::iterator::iterator() = default;
 
-    query::result_range::iterator::iterator(result_type res,
-                                            std::shared_ptr<column_cache> cache,
-                                            bool end)
-        : result_(std::move(res))
-        , end_(end)
-        , cache_(std::move(cache)) {
-        if(result_ && !end_) {
+    query::result_range::iterator::iterator(result_type res, std::shared_ptr<column_cache> cache,
+                                            bool end) :
+        result_(std::move(res)), end_(end), cache_(std::move(cache)) {
+        if (result_ && !end_) {
             prime_cache();
             advance();
         }
     }
 
     void query::result_range::iterator::prime_cache() {
-        if(!result_ || !cache_) {
+        if (!result_ || !cache_) {
             return;
         }
-        if(!cache_->lookup.empty()) {
+        if (!cache_->lookup.empty()) {
             return;
         }
         int columns = result_->get_column_count();
         cache_->names.reserve(columns);
-        for(int i = 0; i < columns; ++i) {
+        for (int i = 0; i < columns; ++i) {
             auto name = result_->get_column_name(i);
             cache_->lookup.emplace(name, i);
             cache_->names.push_back(name);
@@ -111,18 +103,17 @@ inline namespace v2 {
     }
 
     void query::result_range::iterator::advance() {
-        if(!result_) {
-            end_ = true;
+        if (!result_) {
+            end_     = true;
             current_ = row_view();
             return;
         }
-        if(!result_->next_row()) {
+        if (!result_->next_row()) {
             result_.reset();
-            end_ = true;
+            end_     = true;
             current_ = row_view();
-        }
-        else {
-            end_ = false;
+        } else {
+            end_     = false;
             current_ = row_view(result_.get(), cache_);
         }
     }
@@ -135,7 +126,7 @@ inline namespace v2 {
         return const_cast<row_view *>(&current_);
     }
 
-    query::result_range::iterator & query::result_range::iterator::operator++() {
+    query::result_range::iterator &query::result_range::iterator::operator++() {
         advance();
         return *this;
     }
@@ -146,23 +137,23 @@ inline namespace v2 {
         return tmp;
     }
 
-    bool query::result_range::iterator::operator==(iterator const & other) const {
-        if(end_ && other.end_) {
+    bool query::result_range::iterator::operator==(iterator const &other) const {
+        if (end_ && other.end_) {
             return true;
         }
         return result_ == other.result_ && end_ == other.end_;
     }
 
-    bool query::result_range::iterator::operator!=(iterator const & other) const {
+    bool query::result_range::iterator::operator!=(iterator const &other) const {
         return !(*this == other);
     }
 
     query::result_range::iterator query::result_range::begin() {
-        if(begin_called_ || !result_) {
+        if (begin_called_ || !result_) {
             return iterator();
         }
         begin_called_ = true;
-        if(!cache_) {
+        if (!cache_) {
             cache_ = std::make_shared<column_cache>();
         }
         return iterator(result_, cache_, false);
@@ -174,23 +165,23 @@ inline namespace v2 {
 
     int query::result_range::column_cache::index_of(std::string_view name) const {
         auto it = lookup.find(std::string(name));
-        if(it == lookup.end()) {
+        if (it == lookup.end()) {
             throw std::out_of_range("no such column name");
         }
         return it->second;
     }
 
     int query::result_range::row_view::column(std::string_view name) const {
-        if(!cache_) {
+        if (!cache_) {
             throw std::runtime_error("column cache is not initialized");
         }
         return cache_->index_of(name);
     }
 
-    void query::access_check(){
+    void query::access_check() {
         command::access_check();
     }
-    bool query::step(){
+    bool query::step() {
         return command::step();
     }
 } // namespace v2

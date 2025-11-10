@@ -41,8 +41,8 @@ std::string quote_identifier(std::string_view identifier) {
     std::string quoted;
     quoted.reserve(identifier.size() + 2);
     quoted.push_back('"');
-    for(char c : identifier) {
-        if(c == '"') {
+    for (char c : identifier) {
+        if (c == '"') {
             quoted.push_back('"');
         }
         quoted.push_back(c);
@@ -51,65 +51,61 @@ std::string quote_identifier(std::string_view identifier) {
     return quoted;
 }
 
-std::string schema_prefix(std::string const & database) {
-    if(database.empty()) {
+std::string schema_prefix(std::string const &database) {
+    if (database.empty()) {
         return std::string();
     }
     return quote_identifier(database) + ".";
 }
-}
+} // namespace
 
 namespace sqlite {
 inline namespace v2 {
-    view::view(connection & con)
-        :m_con(con){
-    }
+    view::view(connection &con) : m_con(con) {}
 
-    view::~view(){
-    }
-    void view::create(bool temporary,
-                      std::string const & database,
-                      std::string const & alias,
-                      std::string const & sql_query){
-        if(database.empty()) {
-            throw database_exception("Database name must not be empty when creating a qualified view.");
+    view::~view() {}
+    void view::create(bool temporary, std::string const &database, std::string const &alias,
+                      std::string const &sql_query) {
+        if (database.empty()) {
+            throw database_exception(
+                "Database name must not be empty when creating a qualified view.");
         }
-        if(alias.empty()) {
+        if (alias.empty()) {
             throw database_exception("View alias must not be empty.");
         }
         const std::string temp = temporary ? "TEMPORARY " : "";
-        auto sql = std::format("CREATE {}VIEW {}{} AS {};", temp, schema_prefix(database), quote_identifier(alias), sql_query);
-        execute(m_con,sql,true);
+        auto sql = std::format("CREATE {}VIEW {}{} AS {};", temp, schema_prefix(database),
+                               quote_identifier(alias), sql_query);
+        execute(m_con, sql, true);
     }
 
-    void view::create(bool temporary,
-                      std::string const & alias,
-                      std::string const & sql_query){
-        if(alias.empty()) {
+    void view::create(bool temporary, std::string const &alias, std::string const &sql_query) {
+        if (alias.empty()) {
             throw database_exception("View alias must not be empty.");
         }
         const std::string temp = temporary ? "TEMPORARY " : "";
         auto sql = std::format("CREATE {}VIEW {} AS {};", temp, quote_identifier(alias), sql_query);
-        execute(m_con,sql,true);
+        execute(m_con, sql, true);
     }
 
-    void view::drop(std::string const & alias){
-        if(alias.empty()) {
+    void view::drop(std::string const &alias) {
+        if (alias.empty()) {
             throw database_exception("View alias must not be empty.");
         }
         auto sql = std::format("DROP VIEW {};", quote_identifier(alias));
-        execute(m_con,sql,true);
+        execute(m_con, sql, true);
     }
 
-    void view::drop(std::string const & database, std::string const & alias){
-        if(database.empty()) {
-            throw database_exception("Database name must not be empty when dropping a qualified view.");
+    void view::drop(std::string const &database, std::string const &alias) {
+        if (database.empty()) {
+            throw database_exception(
+                "Database name must not be empty when dropping a qualified view.");
         }
-        if(alias.empty()) {
+        if (alias.empty()) {
             throw database_exception("View alias must not be empty.");
         }
         auto sql = std::format("DROP VIEW {}{};", schema_prefix(database), quote_identifier(alias));
-        execute(m_con,sql,true);
+        execute(m_con, sql, true);
     }
 } // namespace v2
 } // namespace sqlite

@@ -45,25 +45,25 @@ namespace sqlite {
 inline namespace v2 {
 
     /** \brief execute can be used for SQL commands which should executed
-      * the constructor is defined in a way that it can be used like a function
-      * An object of this class is not copyable
-      */
-    struct execute : command{
+     * the constructor is defined in a way that it can be used like a function
+     * An object of this class is not copyable
+     */
+    struct execute : command {
         /** \brief constructor
-          * \param con reference to the connection object which should be used
-          * \param sql the SQL statement which should be executed
-          * \param immediately if it is true the sql command will be immediately
-          *        executed if it is false the command will be executed after an
-          *        emit or operator() call
-          */
-        execute(connection & con, std::string const & sql, bool immediately = false);
+         * \param con reference to the connection object which should be used
+         * \param sql the SQL statement which should be executed
+         * \param immediately if it is true the sql command will be immediately
+         *        executed if it is false the command will be executed after an
+         *        emit or operator() call
+         */
+        execute(connection &con, std::string const &sql, bool immediately = false);
 
         /** \brief destructor
-          *
-          */
+         *
+         */
         virtual ~execute();
     };
 } // namespace v2
 } // namespace sqlite
 
-#endif //GUARD_SQLITE_EXECUTE_HPP_INCLUDED
+#endif // GUARD_SQLITE_EXECUTE_HPP_INCLUDED

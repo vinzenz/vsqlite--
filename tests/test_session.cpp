@@ -7,9 +7,9 @@
 using namespace testhelpers;
 
 TEST(SessionTest, CapturesAndAppliesChangeset) {
-#if !defined(SQLITE_ENABLE_SESSION)
-    GTEST_SKIP() << "SQLite session API not available in this build.";
-#endif
+    if (!sqlite::sessions_supported()) {
+        GTEST_SKIP() << "SQLite session API not available in this build.";
+    }
     sqlite::connection conn(":memory:");
     sqlite::execute(conn, "CREATE TABLE inventory(id INTEGER PRIMARY KEY, qty INTEGER);", true);
     sqlite::session session(conn);
@@ -24,13 +24,13 @@ TEST(SessionTest, CapturesAndAppliesChangeset) {
     sqlite::query q(consumer, "SELECT COUNT(*) FROM inventory;");
     auto res = q.get_result();
     ASSERT_TRUE(res->next_row());
-    EXPECT_EQ(res->get_int(0), 2);
+    EXPECT_EQ(res->get<int>(0), 2);
 }
 
 TEST(SessionTest, PatchsetTracksDeletes) {
-#if !defined(SQLITE_ENABLE_SESSION)
-    GTEST_SKIP() << "SQLite session API not available in this build.";
-#endif
+    if (!sqlite::sessions_supported()) {
+        GTEST_SKIP() << "SQLite session API not available in this build.";
+    }
     sqlite::connection conn(":memory:");
     sqlite::execute(conn, "CREATE TABLE docs(id INTEGER PRIMARY KEY, body TEXT);", true);
     sqlite::execute(conn, "INSERT INTO docs(body) VALUES ('old');", true);
@@ -47,6 +47,5 @@ TEST(SessionTest, PatchsetTracksDeletes) {
     sqlite::query q(other, "SELECT COUNT(*) FROM docs;");
     auto res = q.get_result();
     ASSERT_TRUE(res->next_row());
-    EXPECT_EQ(res->get_int(0), 0);
+    EXPECT_EQ(res->get<int>(0), 0);
 }
-

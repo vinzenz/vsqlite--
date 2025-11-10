@@ -7,9 +7,9 @@
 using namespace testhelpers;
 
 TEST(SerializationTest, RoundTripsInMemoryDatabase) {
-#if !defined(SQLITE_ENABLE_DESERIALIZE)
-    GTEST_SKIP() << "SQLite serialization APIs not available in this build.";
-#endif
+    if (!sqlite::serialization_supported()) {
+        GTEST_SKIP() << "SQLite serialization APIs not available in this build.";
+    }
     sqlite::connection src(":memory:");
     sqlite::execute(src, "CREATE TABLE data(id INTEGER PRIMARY KEY, value TEXT);", true);
     sqlite::execute(src, "INSERT INTO data(value) VALUES ('one'), ('two');", true);
@@ -20,6 +20,5 @@ TEST(SerializationTest, RoundTripsInMemoryDatabase) {
     sqlite::query q(dest, "SELECT COUNT(*) FROM data;");
     auto res = q.get_result();
     ASSERT_TRUE(res->next_row());
-    EXPECT_EQ(res->get_int(0), 2);
+    EXPECT_EQ(res->get<int>(0), 2);
 }
-

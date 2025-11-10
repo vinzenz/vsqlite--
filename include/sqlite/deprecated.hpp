@@ -39,11 +39,11 @@
  * Include this header whenever you need to mark an API for removal across GCC/Clang/MSVC.
  */
 #if defined(__GNUC__)
-#   define VSQLITE_DEPRECATED __attribute__((deprecated))
+#define VSQLITE_DEPRECATED __attribute__((deprecated))
 #elif defined(_MSC_VER)
-#   define VSQLITE_DEPRECATED __declspec(deprecated)
+#define VSQLITE_DEPRECATED __declspec(deprecated)
 #else
-#   error "You need to implement VSQLITE_DEPRECATED for this compiler"
+#error "You need to implement VSQLITE_DEPRECATED for this compiler"
 #endif
 
-#endif //GUARD_SQLITE_DEPRECATED_HPP_INCLUDED
+#endif // GUARD_SQLITE_DEPRECATED_HPP_INCLUDED

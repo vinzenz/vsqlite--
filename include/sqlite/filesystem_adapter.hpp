@@ -55,20 +55,20 @@ inline namespace v2 {
     struct filesystem_adapter {
         virtual ~filesystem_adapter() = default;
 
-        virtual filesystem_entry status(std::filesystem::path const & target) const = 0;
-        virtual bool remove(std::filesystem::path const & target, std::error_code & ec) const = 0;
+        virtual filesystem_entry status(std::filesystem::path const &target) const          = 0;
+        virtual bool remove(std::filesystem::path const &target, std::error_code &ec) const = 0;
     };
 
     /// Default adapter that simply forwards to `std::filesystem`.
     class default_filesystem_adapter : public filesystem_adapter {
     public:
-        filesystem_entry status(std::filesystem::path const & target) const override {
+        filesystem_entry status(std::filesystem::path const &target) const override {
             std::error_code ec;
             auto stat = std::filesystem::symlink_status(target, ec);
             return {stat, ec};
         }
 
-        bool remove(std::filesystem::path const & target, std::error_code & ec) const override {
+        bool remove(std::filesystem::path const &target, std::error_code &ec) const override {
             return std::filesystem::remove(target, ec);
         }
     };

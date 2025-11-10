@@ -43,72 +43,63 @@
 
 namespace sqlite {
 inline namespace v2 {
-namespace detail {
+    namespace detail {
 
-template <typename T>
-inline constexpr bool always_false_v = false;
+        template <typename T> inline constexpr bool always_false_v = false;
 
-template <typename T>
-struct always_false : std::false_type {};
+        template <typename T> struct always_false : std::false_type {};
 
-template <typename T>
-using decay_t = std::remove_cvref_t<T>;
+        template <typename T> using decay_t = std::remove_cvref_t<T>;
 
-template <typename T>
-inline constexpr bool is_optional_v = false;
+        template <typename T> inline constexpr bool is_optional_v = false;
 
-template <typename T>
-inline constexpr bool is_optional_v<std::optional<T>> = true;
+        template <typename T> inline constexpr bool is_optional_v<std::optional<T>> = true;
 
-template <typename T>
-struct optional_value {
-    using type = T;
-};
+        template <typename T> struct optional_value {
+            using type = T;
+        };
 
-template <typename T>
-struct optional_value<std::optional<T>> {
-    using type = T;
-};
+        template <typename T> struct optional_value<std::optional<T>> {
+            using type = T;
+        };
 
-template <typename T>
-inline constexpr bool is_duration_v = false;
+        template <typename T> inline constexpr bool is_duration_v = false;
 
-template <typename Rep, typename Period>
-inline constexpr bool is_duration_v<std::chrono::duration<Rep, Period>> = true;
+        template <typename Rep, typename Period>
+        inline constexpr bool is_duration_v<std::chrono::duration<Rep, Period>> = true;
 
-template <typename T>
-inline constexpr bool is_time_point_v = false;
+        template <typename T> inline constexpr bool is_time_point_v = false;
 
-template <typename Clock, typename Duration>
-inline constexpr bool is_time_point_v<std::chrono::time_point<Clock, Duration>> = true;
+        template <typename Clock, typename Duration>
+        inline constexpr bool is_time_point_v<std::chrono::time_point<Clock, Duration>> = true;
 
-template <typename T>
-inline constexpr bool is_string_like_v = std::is_convertible_v<T, std::string_view>;
+        template <typename T>
+        inline constexpr bool is_string_like_v = std::is_convertible_v<T, std::string_view>;
 
-template <typename T>
-inline constexpr bool is_byte_vector_v = std::is_same_v<decay_t<T>, std::vector<unsigned char>>;
+        template <typename T>
+        inline constexpr bool is_byte_vector_v =
+            std::is_same_v<decay_t<T>, std::vector<unsigned char>>;
 
-template <typename T>
-inline constexpr bool is_unsigned_char_span_v = std::is_same_v<decay_t<T>, std::span<const unsigned char>>;
+        template <typename T>
+        inline constexpr bool is_unsigned_char_span_v =
+            std::is_same_v<decay_t<T>, std::span<const unsigned char>>;
 
-template <typename T>
-inline constexpr bool is_byte_span_v = std::is_same_v<decay_t<T>, std::span<const std::byte>>;
+        template <typename T>
+        inline constexpr bool is_byte_span_v =
+            std::is_same_v<decay_t<T>, std::span<const std::byte>>;
 
-template <typename T>
-inline constexpr bool needs_generic_binding_v =
-    is_optional_v<decay_t<T>> ||
-    is_duration_v<decay_t<T>> ||
-    is_time_point_v<decay_t<T>> ||
-    std::is_enum_v<decay_t<T>>;
+        template <typename T>
+        inline constexpr bool needs_generic_binding_v =
+            is_optional_v<decay_t<T>> || is_duration_v<decay_t<T>> || is_time_point_v<decay_t<T>> ||
+            std::is_enum_v<decay_t<T>>;
 
-template <typename... Ts>
-struct pack_size;
+        template <typename... Ts> struct pack_size;
 
-template <typename... Ts>
-struct pack_size<std::tuple<Ts...>> : std::integral_constant<std::size_t, sizeof...(Ts)> {};
+        template <typename... Ts>
+        struct pack_size<std::tuple<Ts...>> : std::integral_constant<std::size_t, sizeof...(Ts)> {};
 
-} // namespace detail
+    } // namespace detail
 } // namespace v2
 } // namespace sqlite
 
-#endif //GUARD_SQLITE_DETAIL_TYPE_HELPERS_HPP_INCLUDED
+#endif // GUARD_SQLITE_DETAIL_TYPE_HELPERS_HPP_INCLUDED

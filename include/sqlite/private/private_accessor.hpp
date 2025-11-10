@@ -37,26 +37,27 @@ VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
 namespace sqlite {
 inline namespace v2 {
     /** \brief A internal used class, shall not be used from users
-      *
-      */
-    struct private_accessor{
-        static struct sqlite3 * get_handle(connection & m_con){
+     *
+     */
+    struct private_accessor {
+        static struct sqlite3 *get_handle(connection &m_con) {
             return m_con.handle;
         }
-        static void acccess_check(connection & m_con){
+        static void acccess_check(connection &m_con) {
             m_con.access_check();
         }
-        static sqlite3_stmt * acquire_cached_statement(connection & con, std::string const & sql) {
+        static sqlite3_stmt *acquire_cached_statement(connection &con, std::string const &sql) {
             return con.acquire_cached_statement(sql);
         }
-        static void release_cached_statement(connection & con, std::string const & sql, sqlite3_stmt * stmt) {
+        static void release_cached_statement(connection &con, std::string const &sql,
+                                             sqlite3_stmt *stmt) {
             con.release_cached_statement(sql, stmt);
         }
-        static void clear_statement_cache(connection & con) {
+        static void clear_statement_cache(connection &con) {
             con.clear_statement_cache();
         }
     };
 } // namespace v2
 } // namespace sqlite
 
-#endif// GUARD_SQLITE_PRIVATE_PRIVATE_ACCESSOR_HPP_INCLUDED
+#endif // GUARD_SQLITE_PRIVATE_PRIVATE_ACCESSOR_HPP_INCLUDED

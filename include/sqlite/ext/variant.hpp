@@ -41,29 +41,16 @@
 namespace sqlite {
 inline namespace v2 {
 
-    enum type {
-        unknown,
-        null,
-        integer,
-        real,
-        text,
-        blob
-    };
+    enum type { unknown, null, integer, real, text, blob };
 
-    struct unknown_t{};
-    struct null_t{};
+    struct unknown_t {};
+    struct null_t {};
     typedef std::vector<std::uint8_t> blob_t;
     typedef std::shared_ptr<blob_t> blob_ref_t;
 
-    typedef std::variant<
-            unknown_t,
-            int,
-            std::int64_t,
-            long double,
-            std::string,
-            null_t,
-            blob_ref_t > variant_t;
+    typedef std::variant<unknown_t, int, std::int64_t, long double, std::string, null_t, blob_ref_t>
+        variant_t;
 } // namespace v2
 } // namespace sqlite
 
-#endif //GUARD_SQLITE_EXT_VARIANT_HPP_INCLUDED
+#endif // GUARD_SQLITE_EXT_VARIANT_HPP_INCLUDED

@@ -56,34 +56,37 @@ inline namespace v2 {
     public:
         using connection_factory = std::function<std::shared_ptr<connection>()>;
 
-        /// Scoped handle returned by @ref connection_pool::acquire that returns the connection on destruction.
+        /// Scoped handle returned by @ref connection_pool::acquire that returns the connection on
+        /// destruction.
         class lease {
         public:
             lease() = default;
-            lease(connection_pool * pool, std::shared_ptr<connection> conn);
-            lease(lease && other) noexcept;
-            lease & operator=(lease && other) noexcept;
-            lease(lease const &) = delete;
-            lease & operator=(lease const &) = delete;
+            lease(connection_pool *pool, std::shared_ptr<connection> conn);
+            lease(lease &&other) noexcept;
+            lease &operator=(lease &&other) noexcept;
+            lease(lease const &)            = delete;
+            lease &operator=(lease const &) = delete;
             ~lease();
 
-            connection & operator*() const;
-            connection * operator->() const;
+            connection &operator*() const;
+            connection *operator->() const;
             std::shared_ptr<connection> shared() const;
 
         private:
             void release();
-            connection_pool * pool_ = nullptr;
+            connection_pool *pool_ = nullptr;
             std::shared_ptr<connection> connection_;
         };
 
         /**
-         * @brief Constructs a pool with a maximum @p capacity and a @p factory used to create new connections.
+         * @brief Constructs a pool with a maximum @p capacity and a @p factory used to create new
+         * connections.
          */
         connection_pool(std::size_t capacity, connection_factory factory);
 
         /**
-         * @brief Helper that captures the parameters for creating connections inside a pool factory.
+         * @brief Helper that captures the parameters for creating connections inside a pool
+         * factory.
          */
         static connection_factory make_factory(std::string db,
                                                open_mode mode = open_mode::open_or_create,
@@ -98,7 +101,7 @@ inline namespace v2 {
         std::size_t capacity() const;
 
         /// Number of idle connections currently waiting in the pool.
-       std::size_t idle_count() const;
+        std::size_t idle_count() const;
 
         /// Number of connections that have been created so far.
         std::size_t created_count() const;

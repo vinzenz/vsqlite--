@@ -16,15 +16,14 @@ TEST(StatementCacheTest, RetainsStatementsBetweenUses) {
         sqlite::command cmd(conn, "SELECT 1;");
         cmd.emit();
     }
-    auto handle = sqlite::private_accessor::get_handle(conn);
-    sqlite3_stmt * cached = sqlite3_next_stmt(handle, nullptr);
+    auto handle          = sqlite::private_accessor::get_handle(conn);
+    sqlite3_stmt *cached = sqlite3_next_stmt(handle, nullptr);
     ASSERT_NE(cached, nullptr);
 
     {
         sqlite::command cmd(conn, "SELECT 1;");
         cmd.emit();
     }
-    sqlite3_stmt * cached_again = sqlite3_next_stmt(handle, nullptr);
+    sqlite3_stmt *cached_again = sqlite3_next_stmt(handle, nullptr);
     EXPECT_EQ(cached_again, cached);
 }
-
