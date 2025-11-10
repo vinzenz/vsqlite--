@@ -7,6 +7,7 @@
 #include <sqlite/database_exception.hpp>
 #include <sqlite/execute.hpp>
 #include <sqlite/function.hpp>
+#include <sqlite/serialization.hpp>
 #include <sqlite/session.hpp>
 #include <sqlite/snapshot.hpp>
 #include <sqlite/query.hpp>
@@ -327,6 +328,25 @@ TEST(SessionTest, PatchsetTracksDeletes) {
     auto res = q.get_result();
     ASSERT_TRUE(res->next_row());
     EXPECT_EQ(res->get_int(0), 1);
+}
+
+TEST(SerializationTest, RoundTripsInMemoryDatabase) {
+    if(!sqlite::serialization_supported()) {
+        GTEST_SKIP() << "SQLite serialization APIs not available in this build.";
+    }
+    sqlite::connection source(":memory:");
+    sqlite::execute(source, "CREATE TABLE docs(id INTEGER PRIMARY KEY, body TEXT);", true);
+    sqlite::execute(source, "INSERT INTO docs(body) VALUES ('alpha'), ('beta');", true);
+
+    auto image = sqlite::serialize(source);
+    ASSERT_FALSE(image.empty());
+
+    sqlite::connection restored(":memory:");
+    EXPECT_NO_THROW(sqlite::deserialize(restored, image));
+    sqlite::query q(restored, "SELECT COUNT(*) FROM docs;");
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get_int(0), 2);
 }
 
 TEST(FunctionTest, RegistersScalarFunction) {

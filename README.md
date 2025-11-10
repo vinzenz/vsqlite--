@@ -127,3 +127,7 @@ sqlite::apply_patchset(replica_conn, diff);
 ```
 
 Patchsets/changesets arrive as `std::vector<unsigned char>` buffers and helpers exist to apply them with a single call. Use this to fan out live syncing, create lightweight undo/redo stacks, or persist incremental diffs between tests.
+
+## Serialization Helpers
+
+Need to persist an in-memory database or hydrate a fixture from bytes? With `#include <sqlite/serialization.hpp>` you can call `sqlite::serialize(conn)` to obtain a `std::vector<unsigned char>` snapshot and `sqlite::deserialize(conn, image)` to restore it later (requires `SQLITE_ENABLE_DESERIALIZE`). This keeps golden images in memory-friendly buffers and lets tests fast-forward between prebuilt schemas without temporary files.
