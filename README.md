@@ -70,3 +70,27 @@ sqlite::command cmd(*lease, "INSERT INTO log(msg) VALUES (?);");
 cmd % std::string("hello from worker");
 cmd.emit();
 ```
+
+## User-Defined SQL Functions
+
+Register portable SQL functions directly from C++ lambdas via `sqlite::create_function` (from `#include <sqlite/function.hpp>`). Arguments map to lambda parameters (including `std::optional<T>` for nullable inputs) while return values are written back automatically:
+
+```cpp
+#include <sqlite/function.hpp>
+
+sqlite::create_function(conn, "repeat_text",
+    [](std::string_view text, int times) -> std::string {
+        auto copies = times < 0 ? 0 : times;
+        std::string out;
+        out.reserve(text.size() * static_cast<std::size_t>(copies));
+        for(int i = 0; i < copies; ++i) {
+            out.append(text);
+        }
+        return out;
+    },
+    {.deterministic = true}
+);
+sqlite::query q(conn, "SELECT repeat_text('hi', 3);");
+```
+
+The helper enforces type-safe conversions for integers, floating point values, `std::string_view`, `std::span<const std::byte>`/`unsigned char` blobs, and their `std::optional` counterparts. When needed, opt into SQLite flags such as deterministic/direct-only/innocuous through `function_options`. Exceptions thrown inside the callable are surfaced as SQLite errors at query time.

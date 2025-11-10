@@ -6,6 +6,7 @@
 #include <sqlite/connection_pool.hpp>
 #include <sqlite/database_exception.hpp>
 #include <sqlite/execute.hpp>
+#include <sqlite/function.hpp>
 #include <sqlite/query.hpp>
 #include <sqlite/savepoint.hpp>
 #include <sqlite/threading.hpp>
@@ -13,12 +14,14 @@
 #include <sqlite/view.hpp>
 
 #include <algorithm>
+#include <cstddef>
 #include <array>
 #include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <future>
+#include <optional>
 #include <random>
 #include <sstream>
 #include <string>
@@ -196,6 +199,73 @@ TEST(ConnectionTest, RelativePathSupported) {
     }
     std::filesystem::remove(relative, ec);
     EXPECT_FALSE(std::filesystem::exists(relative));
+}
+
+TEST(FunctionTest, RegistersScalarFunction) {
+    sqlite::connection conn(":memory:");
+    sqlite::create_function(conn, "repeat_text",
+        [](std::string_view text, int times) -> std::string {
+            auto copies = times < 0 ? 0 : times;
+            std::string out;
+            out.reserve(text.size() * static_cast<std::size_t>(copies));
+            for(int i = 0; i < copies; ++i) {
+                out.append(text);
+            }
+            return out;
+        },
+        {.deterministic = true}
+    );
+
+    sqlite::query q(conn, "SELECT repeat_text('ab', 3);");
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get_string(0), "ababab");
+}
+
+TEST(FunctionTest, OptionalAndBlobArguments) {
+    sqlite::connection conn(":memory:");
+    sqlite::create_function(conn, "maybe_concat",
+        [](std::optional<std::string_view> prefix, std::string_view value) -> std::optional<std::string> {
+            if(!prefix) {
+                return std::nullopt;
+            }
+            std::string out(prefix->data(), prefix->size());
+            out.append(value);
+            return out;
+        }
+    );
+
+    sqlite::query null_check(conn, "SELECT maybe_concat(NULL, 'beta') IS NULL;");
+    auto null_res = null_check.get_result();
+    ASSERT_TRUE(null_res->next_row());
+    EXPECT_EQ(null_res->get_int(0), 1);
+
+    sqlite::query value_check(conn, "SELECT maybe_concat('pre', 'beta');");
+    auto value_res = value_check.get_result();
+    ASSERT_TRUE(value_res->next_row());
+    EXPECT_EQ(value_res->get_string(0), "prebeta");
+
+    sqlite::create_function(conn, "blob_sum",
+        [](std::span<const std::byte> blob) -> std::int64_t {
+            std::int64_t total = 0;
+            for(std::byte b : blob) {
+                total += std::to_integer<unsigned>(b);
+            }
+            return total;
+        }
+    );
+
+    sqlite::query blob(conn, "SELECT blob_sum(x'00010203FF');");
+    auto blob_res = blob.get_result();
+    ASSERT_TRUE(blob_res->next_row());
+    EXPECT_EQ(blob_res->get_int64(0), 0 + 1 + 2 + 3 + 255);
+
+    sqlite::create_function(conn, "explode",
+        []() -> int {
+            throw sqlite::database_exception("boom");
+        }
+    );
+    EXPECT_THROW(sqlite::execute(conn, "SELECT explode();", true), sqlite::database_exception);
 }
 
 TEST(ConnectionTest, MissingParentDirectoryRejected) {
