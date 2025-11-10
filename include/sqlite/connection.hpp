@@ -108,6 +108,7 @@ namespace sqlite{
         void open(std::string const & db, sqlite::open_mode open_mode);
         void close();
         void access_check();
+        void open_with_flags(std::string const & db, int flags);
     private:
         sqlite3 * handle;
     };
