@@ -34,6 +34,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace sqlite{
     struct database_exception : public std::runtime_error {
@@ -42,18 +43,35 @@ namespace sqlite{
         {}
     };
 
+    inline std::string append_sql_context(std::string message, std::string const & sql){
+        if(sql.empty()){
+            return message;
+        }
+        message.append(" [SQL: ");
+        message.append(sql);
+        message.push_back(']');
+        return message;
+    }
+
     struct database_exception_code : database_exception {
         database_exception_code(std::string const & error_message,
-                                int sqlite_error_code)
-        : database_exception(error_message)
+                                int sqlite_error_code,
+                                std::string sql_context = std::string())
+        : database_exception(append_sql_context(error_message, sql_context))
         , sqlite_error_code_(sqlite_error_code)
+        , sql_(std::move(sql_context))
         {}
 
         int error_code() const {
             return sqlite_error_code_;
         }
+
+        std::string const & sql() const {
+            return sql_;
+        }
     protected:
         int const sqlite_error_code_;
+        std::string sql_;
     };
 
     struct buffer_too_small_exception : public std::runtime_error{
@@ -69,16 +87,23 @@ namespace sqlite{
 
     struct database_misuse_exception_code : database_misuse_exception {
         database_misuse_exception_code(std::string const & msg,
-                                       int sqlite_error_code)
-        : database_misuse_exception(msg)
+                                       int sqlite_error_code,
+                                       std::string sql_context = std::string())
+        : database_misuse_exception(append_sql_context(msg, sql_context))
         , sqlite_error_code_(sqlite_error_code)
+        , sql_(std::move(sql_context))
         {}
 
         int error_code() const {
             return sqlite_error_code_;
         }
+
+        std::string const & sql() const {
+            return sql_;
+        }
     protected:
         int const sqlite_error_code_;
+        std::string sql_;
     };
 
     struct database_system_error : database_exception {

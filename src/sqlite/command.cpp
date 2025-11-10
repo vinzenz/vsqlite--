@@ -56,7 +56,7 @@ namespace sqlite{
         access_check();
         int err = sqlite3_finalize(stmt);
         if(err != SQLITE_OK)
-            throw database_exception_code(sqlite3_errmsg(get_handle()), err);
+            throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
         stmt = 0;
     }
 
@@ -73,7 +73,7 @@ namespace sqlite{
         const char * tail = 0;
         int err = sqlite3_prepare(get_handle(),m_sql.c_str(),-1,&stmt,&tail);
         if(err != SQLITE_OK)
-            throw database_exception_code(sqlite3_errmsg(get_handle()), err);
+            throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     bool command::emit(){
@@ -89,9 +89,9 @@ namespace sqlite{
         case SQLITE_DONE:
             return false;
         case SQLITE_MISUSE:
-            throw database_misuse_exception_code(sqlite3_errmsg(get_handle()), err);
+            throw database_misuse_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
         default:
-            throw database_exception_code(sqlite3_errmsg(get_handle()), err);
+            throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
         }
         return false;
     }
@@ -104,28 +104,28 @@ namespace sqlite{
         access_check();
         int err = sqlite3_bind_null(stmt,idx);
         if(err != SQLITE_OK)
-            throw database_exception_code(sqlite3_errmsg(get_handle()), err);
+            throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     void command::bind(int idx, int v){
         access_check();
         int err = sqlite3_bind_int(stmt,idx,v);
         if(err != SQLITE_OK)
-            throw database_exception_code(sqlite3_errmsg(get_handle()), err);
+            throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     void command::bind(int idx, std::int64_t v){
         access_check();
         int err = sqlite3_bind_int64(stmt,idx,v);
         if(err != SQLITE_OK)
-            throw database_exception_code(sqlite3_errmsg(get_handle()), err);
+            throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     void command::bind(int idx, double v){
         access_check();
         int err = sqlite3_bind_double(stmt,idx,v);
         if(err != SQLITE_OK)
-            throw database_exception_code(sqlite3_errmsg(get_handle()), err);
+            throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     void command::bind(int idx, std::string const & v){
@@ -133,14 +133,14 @@ namespace sqlite{
         static char const dummy = 0;
         int err = sqlite3_bind_text(stmt,idx,v.empty() ? &dummy : v.c_str(),int(v.size()),SQLITE_TRANSIENT);
         if(err != SQLITE_OK)
-            throw database_exception_code(sqlite3_errmsg(get_handle()), err);
+            throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     void command::bind(int idx, void const * v , size_t vn){
         access_check();
         int err = sqlite3_bind_blob(stmt,idx,v,int(vn),SQLITE_TRANSIENT);
         if(err != SQLITE_OK)
-            throw database_exception_code(sqlite3_errmsg(get_handle()), err);
+            throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     void command::bind(int idx, std::vector<unsigned char> const & v)
