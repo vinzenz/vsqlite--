@@ -31,9 +31,8 @@
 ##############################################################################*/
 #ifndef GUARD_SQLITE_CONNECTION_HPP_INCLUDED
 #define GUARD_SQLITE_CONNECTION_HPP_INCLUDED
+#include <cstdint>
 #include <string>
-#include <boost/cstdint.hpp>
-#include <boost/noncopyable.hpp>
 struct sqlite3;
 
 namespace sqlite{
@@ -50,7 +49,7 @@ namespace sqlite{
       * you can see a connection object as handle to the database
       * An object of this class is not copyable
       */
-    struct connection : boost::noncopyable{
+    struct connection {
         /** \brief constructor opens the database
           * \param db filename of the database file
           *           if the given file already exists the file will be opened
@@ -58,6 +57,8 @@ namespace sqlite{
           *           If the file does not exist a new database will be created
           */
         connection(std::string const & db);
+        connection(connection const &) = delete;
+        connection & operator=(connection const &) = delete;
 
         /** \brief constructor opens the database
           * \param db filename of the database file
@@ -97,7 +98,7 @@ namespace sqlite{
         /** \brief Returns the last inserted rowid in the currently opened
          *  database
          */
-        boost::int64_t get_last_insert_rowid();
+        std::int64_t get_last_insert_rowid();
 
     private:
         friend struct private_accessor;
@@ -112,4 +113,3 @@ namespace sqlite{
     };
 }
 #endif //GUARD_SQLITE_CONNECTION_HPP_INCLUDED
-

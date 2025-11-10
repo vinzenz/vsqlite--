@@ -29,7 +29,7 @@
  POSSIBILITY OF SUCH DAMAGE.
 
 ##############################################################################*/
-#include <boost/format.hpp>
+#include <format>
 #include <sqlite/connection.hpp>
 #include <sqlite/execute.hpp>
 #include <sqlite/view.hpp>
@@ -45,29 +45,26 @@ namespace sqlite{
                       std::string const & database,
                       std::string const & alias,
                       std::string const & sql_query){
-        boost::format fmt("CREATE %1% VIEW %2%.%3% AS %4%;");
-        fmt % (temporary ? "TEMPORARY" : "") % database % alias % sql_query;
-        execute(m_con,fmt.str(),true);
+        const std::string temp = temporary ? "TEMPORARY " : "";
+        auto sql = std::format("CREATE {}VIEW {}.{} AS {};", temp, database, alias, sql_query);
+        execute(m_con,sql,true);
     }
 
     void view::create(bool temporary,
                       std::string const & alias,
                       std::string const & sql_query){
-        boost::format fmt("CREATE %1% VIEW %2% AS %3%;");
-        fmt % (temporary ? "TEMPORARY" : "") % alias % sql_query;
-        execute(m_con,fmt.str(),true);
+        const std::string temp = temporary ? "TEMPORARY " : "";
+        auto sql = std::format("CREATE {}VIEW {} AS {};", temp, alias, sql_query);
+        execute(m_con,sql,true);
     }
 
     void view::drop(std::string const & alias){
-        boost::format fmt("DROP VIEW %1%;");
-        fmt % alias;
-        execute(m_con,fmt.str(),true);
+        auto sql = std::format("DROP VIEW {};", alias);
+        execute(m_con,sql,true);
     }
 
     void view::drop(std::string const & database, std::string const & alias){
-        boost::format fmt("DROP VIEW %1%.%2%;");
-        fmt % database % alias;
-        execute(m_con,fmt.str(),true);
+        auto sql = std::format("DROP VIEW {}.{};", database, alias);
+        execute(m_con,sql,true);
     }
 }
-

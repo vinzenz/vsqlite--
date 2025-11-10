@@ -1,7 +1,6 @@
 #ifndef GUARD_SQLITE_BACKUP_HPP_INCLUDED
 #define GUARD_SQLITE_BACKUP_HPP_INCLUDED
 
-#include <boost/noncopyable.hpp>
 #include <sqlite/connection.hpp>
 
 struct sqlite3_backup;
@@ -10,7 +9,7 @@ namespace sqlite {
     /** \brief \a backup is a class for representing SQLite backup operations
       * An object of this class is not copyable
       */
-    struct backup: boost::noncopyable {
+    struct backup {
         /** \brief \a backup constructor
           * \param conn_to takes a reference to the \a connection object
           *        of the destination database
@@ -18,6 +17,8 @@ namespace sqlite {
           *        of the source database
           */
         backup(connection& conn_to, connection& conn_from);
+        backup(backup const &) = delete;
+        backup & operator=(backup const &) = delete;
 
         /** \brief \a backup destructor. The backup operation is automatically
           *        finished after the object destructed.

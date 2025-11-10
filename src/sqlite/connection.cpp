@@ -30,12 +30,12 @@
  POSSIBILITY OF SUCH DAMAGE.
 
 ##############################################################################*/
-#include <boost/format.hpp>
+#include <filesystem>
+#include <format>
 #include <sqlite/database_exception.hpp>
 #include <sqlite/execute.hpp>
 #include <sqlite/connection.hpp>
 #include <sqlite3.h>
-#include <boost/filesystem.hpp>
 
 namespace sqlite{
     connection::connection(std::string const & db)
@@ -75,9 +75,14 @@ namespace sqlite{
     }
 
     void connection::open(std::string const & db, sqlite::open_mode open_mode){
-        boost::system::error_code ec;
-        bool exists = boost::filesystem::exists(db, ec);
-        exists = exists && !ec;
+        std::error_code ec;
+        bool exists = std::filesystem::exists(db, ec);
+        if(ec) {
+            throw database_system_error(
+                "Failed to inspect database '" + db + "'",
+                ec.value()
+            );
+        }
         switch(open_mode) {
           case sqlite::open_mode::open_readonly:
              if (!exists) {
@@ -96,7 +101,7 @@ namespace sqlite{
                 break;
             case sqlite::open_mode::always_create:
                 if(exists) {
-                    boost::filesystem::remove(db, ec);
+                    std::filesystem::remove(db, ec);
                     if(ec) {
                         throw database_system_error(
                             "Failed to remove existing database '" + db + "'",
@@ -128,21 +133,19 @@ namespace sqlite{
     }
 
     void connection::attach(std::string const & db, std::string const & alias){
-        boost::format fmt("ATTACH DATABASE %1% AS %2%;");
-        fmt % db % alias;
-        execute(*this,fmt.str(),true);
+        auto sql = std::format("ATTACH DATABASE {} AS {};", db, alias);
+        execute(*this,sql,true);
     }
 
     void connection::detach(std::string const & alias){
-        boost::format fmt("DETACH DATABASE %1%;");
-        fmt % alias;
-        execute(*this,fmt.str(),true);
+        auto sql = std::format("DETACH DATABASE {};", alias);
+        execute(*this,sql,true);
     }
 
-    boost::int64_t connection::get_last_insert_rowid(){
+    std::int64_t connection::get_last_insert_rowid(){
         if(!handle)
             throw database_exception("Database is not open.");
-        return static_cast<boost::int64_t>(
+        return static_cast<std::int64_t>(
                 sqlite3_last_insert_rowid(handle));
     }
 }

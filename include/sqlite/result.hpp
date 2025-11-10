@@ -32,7 +32,8 @@
 #ifndef GUARD_SQLITE_RESULT_HPP_INCLUDED
 #define GUARD_SQLITE_RESULT_HPP_INCLUDED
 
-#include <boost/noncopyable.hpp>
+#include <cstdint>
+#include <memory>
 #include <sqlite/ext/variant.hpp>
 #include <sqlite/deprecated.hpp>
 #include <stdexcept>
@@ -49,11 +50,13 @@ namespace sqlite{
       * An object of this class is not copyable.
       *
       */
-    struct result : boost::noncopyable{
+    struct result {
     private:
-        typedef boost::shared_ptr<result_construct_params_private> construct_params;
+        typedef std::shared_ptr<result_construct_params_private> construct_params;
         friend struct query;
         result(construct_params);
+        result(result const &) = delete;
+        result & operator=(result const &) = delete;
     public:
         /** \brief destructor
           *
@@ -123,7 +126,7 @@ namespace sqlite{
           * \param idx column index of the current row in the results
           * \return a 64-Bit Integer
           */
-        boost::int64_t get_int64(int idx);
+        std::int64_t get_int64(int idx);
 
         /** \brief Returns the data at the given index as String
           * \param idx column index of the current row in the results
@@ -171,7 +174,7 @@ namespace sqlite{
         int m_row_count;
     };
 
-    typedef boost::shared_ptr<result> result_type;
+    typedef std::shared_ptr<result> result_type;
 }
 
 #endif //GUARD_SQLITE_RESULT_HPP_INCLUDED

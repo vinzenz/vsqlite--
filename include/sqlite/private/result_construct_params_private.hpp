@@ -32,7 +32,7 @@ VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
 #ifndef GUARD_SQLITE_RESULT_CONSTRUCT_PARAMS_PRIVATE_HPP_INCLUDED
 #define GUARD_SQLITE_RESULT_CONSTRUCT_PARAMS_PRIVATE_HPP_INCLUDED
 
-#include <boost/function/function0.hpp>
+#include <functional>
 
 struct sqlite3;
 struct sqlite3_stmt;
@@ -43,8 +43,8 @@ namespace sqlite{
         sqlite3 * db;
         sqlite3_stmt * statement;
         int row_count;
-        boost::function0<void> access_check;
-        boost::function0<bool> step;
+        std::function<void()> access_check;
+        std::function<bool()> step;
         bool ended;
     };
 }

@@ -1,115 +1,127 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required(VERSION 3.21)
 
-project(VSQLite++)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" VSQLITEPP_VERSION_RAW)
+string(STRIP "${VSQLITEPP_VERSION_RAW}" VSQLITEPP_VERSION)
 
-set(CMAKE_BUILD_TYPE Release)
-set(LIB_SUFFIX '' CACHE STRING "empty by default - can be used to override to e.g. lib64 for systems like Fedora etc that use these for alt archs")
-
-set(VSQLITE_SOVERSION "3.0.0" CACHE STRING "Shared object version to use")
-file(STRINGS "VERSION" VSQLITE_VERSION)
-
-set(CMAKE_MODULE_PATH
-  ${CMAKE_SOURCE_DIR}/cmake
-  ${CMAKE_MODULE_PATH}
+project(VSQLite++
+  VERSION ${VSQLITEPP_VERSION}
+  LANGUAGES CXX
 )
 
-find_package(Boost COMPONENTS system filesystem REQUIRED)
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+option(VSQLITE_BUILD_EXAMPLES "Build the sqlite wrapper example" ON)
+
+set(VSQLITEPP_SOVERSION "${PROJECT_VERSION_MAJOR}" CACHE STRING "Shared object version to use")
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 find_package(SQLite3 REQUIRED)
 
-# Compiler-specific C++11 activation.
-if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    execute_process(
-        COMMAND ${CMAKE_CXX_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
-    if (NOT (GCC_VERSION VERSION_GREATER 4.7 OR GCC_VERSION VERSION_EQUAL 4.7))
-        message(FATAL_ERROR "${PROJECT_NAME} requires g++ 4.7 or greater.")
-    endif ()
-    set(COMPILER_IS_GNU_COMPATIBLE TRUE)
-elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND APPLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-    set(COMPILER_IS_GNU_COMPATIBLE TRUE)
-elseif (MSVC AND MSVC_VERSION GREATER 1800)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest")
-else ()
-    message(FATAL_ERROR "Your C++ compiler does not support C++11.")
-endif ()
+add_library(vsqlitepp)
+add_library(vsqlite::vsqlitepp ALIAS vsqlitepp)
 
-if (COMPILER_IS_GNU_COMPATIBLE)
-  # Initialize CXXFLAGS.
-  set(CMAKE_CXX_FLAGS                "-Wall -std=c++11 -Werror -Wall -pedantic -W")
-  set(CMAKE_CXX_FLAGS_DEBUG          "-O0 -g")
-  set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
-  set(CMAKE_CXX_FLAGS_RELEASE        "-O3 -DNDEBUG")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
-endif ()
-
-include_directories(.
-  ${PROJECT_SOURCE_DIR}/include
+target_sources(vsqlitepp
+  PRIVATE
+    src/sqlite/backup.cpp
+    src/sqlite/command.cpp
+    src/sqlite/connection.cpp
+    src/sqlite/execute.cpp
+    src/sqlite/query.cpp
+    src/sqlite/result.cpp
+    src/sqlite/savepoint.cpp
+    src/sqlite/transaction.cpp
+    src/sqlite/view.cpp
 )
 
-set(VSQLITE_SRC
-  src/sqlite/backup.cpp
-  src/sqlite/command.cpp
-  src/sqlite/connection.cpp
-  src/sqlite/savepoint.cpp
-  src/sqlite/execute.cpp
-  src/sqlite/query.cpp
-  src/sqlite/result.cpp
-  src/sqlite/transaction.cpp
-  src/sqlite/view.cpp
+target_include_directories(vsqlitepp
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-if(NOT LIBRARY_TYPE)
-message(WARNING "Library type not specified, falling back to Shared.
-To specify library type use:
--DLIBRARY_TYPE=<type> where <type> is Shared or Static.")
-set(LIBRARY_TYPE "Shared" CACHE STRING
-     "Choose the type of library, options are: Shared Static."
-            FORCE)
-endif(NOT LIBRARY_TYPE)
+target_compile_features(vsqlitepp PUBLIC cxx_std_20)
 
-if (LIBRARY_TYPE STREQUAL "Shared")
-  add_library(vsqlitepp SHARED ${VSQLITE_SRC})
-elseif(LIBRARY_TYPE STREQUAL "Static")
-  add_library(vsqlitepp STATIC ${VSQLITE_SRC})
+target_compile_options(vsqlitepp
+  PRIVATE
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wall -Wextra -Wpedantic>
+    $<$<CXX_COMPILER_ID:MSVC>:/permissive- /W4>
+)
+
+if(TARGET SQLite::SQLite3)
+  set(VSQLITEPP_SQLITE_TARGET SQLite::SQLite3)
 else()
-  message(FATAL "Unknown Library type specified: ${LIBRARY_TYPE}")
+  set(VSQLITEPP_SQLITE_TARGET ${SQLITE3_LIBRARIES})
+  target_include_directories(vsqlitepp PUBLIC ${SQLITE3_INCLUDE_DIRS})
 endif()
 
-set(VSQLITE_LINK_LIBS ${SQLITE3_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
-
-target_link_libraries(vsqlitepp ${VSQLITE_LINK_LIBS})
-
-if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    set_target_properties(vsqlitepp PROPERTIES LINK_FLAGS "-Wl,--no-as-needed")
-endif ()
+target_link_libraries(vsqlitepp PUBLIC ${VSQLITEPP_SQLITE_TARGET})
 
 set_target_properties(vsqlitepp
-                      PROPERTIES VERSION    ${VSQLITE_VERSION}
-                                 SOVERSION  ${VSQLITE_SOVERSION}
-                                 INSTALL_NAME_DIR  "${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}")
-
-if (LIBRARY_TYPE STREQUAL "Shared")
-install(TARGETS vsqlitepp
-    LIBRARY DESTINATION lib${LIB_SUFFIX})
-else()
-install(TARGETS vsqlitepp
-    ARCHIVE DESTINATION lib${LIB_SUFFIX})
-endif()
-
-add_executable(vsqlitepp_example
-  examples/sqlite_wrapper.cpp)
-
-target_link_libraries(vsqlitepp_example 
-        vsqlitepp
-        ${VSQLITE_LINK_LIBS}
+  PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${VSQLITEPP_SOVERSION}
+    EXPORT_NAME vsqlitepp
 )
 
-install(FILES NEWS INSTALL COPYING README.md VERSION TODO ChangeLog AUTHORS 
-        DESTINATION "share/doc/libvsqlite3")
+if(VSQLITE_BUILD_EXAMPLES)
+  add_executable(vsqlitepp_example examples/sqlite_wrapper.cpp)
+  target_link_libraries(vsqlitepp_example PRIVATE vsqlite::vsqlitepp)
+  install(TARGETS vsqlitepp_example RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
 
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/" 
-        DESTINATION "include" 
-        COMPONENT dev 
-        FILES_MATCHING PATTERN "*.hpp"
-        PATTERN "private" EXCLUDE)
+install(TARGETS vsqlitepp
+  EXPORT vsqliteppTargets
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  FILES_MATCHING PATTERN "*.hpp"
+  PATTERN "private" EXCLUDE
+)
+
+install(FILES NEWS COPYING README README.md VERSION TODO ChangeLog AUTHORS
+  DESTINATION "${CMAKE_INSTALL_DOCDIR}"
+)
+
+set(VSQLITEPP_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/vsqlitepp" CACHE STRING "Directory for CMake package configuration files")
+
+install(EXPORT vsqliteppTargets
+  FILE vsqliteppTargets.cmake
+  NAMESPACE vsqlite::
+  DESTINATION "${VSQLITEPP_INSTALL_CMAKEDIR}"
+)
+
+configure_package_config_file(
+  cmake/vsqliteppConfig.cmake.in
+  "${CMAKE_CURRENT_BINARY_DIR}/vsqliteppConfig.cmake"
+  INSTALL_DESTINATION "${VSQLITEPP_INSTALL_CMAKEDIR}"
+)
+
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/vsqliteppConfigVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/vsqliteppConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/vsqliteppConfigVersion.cmake"
+  DESTINATION "${VSQLITEPP_INSTALL_CMAKEDIR}"
+)
+
+set(CPACK_PACKAGE_NAME "vsqlitepp")
+set(CPACK_PACKAGE_VENDOR "virtuosic bytes")
+set(CPACK_PACKAGE_CONTACT "Vinzenz Feenstra <vinzenz.feenstra@gmail.com>")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "VSQLite++ - a portable SQLite3 wrapper for C++")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_GENERATOR "TGZ;TXZ;ZIP")
+
+include(CPack)

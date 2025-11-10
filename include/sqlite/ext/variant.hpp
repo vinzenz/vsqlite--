@@ -32,11 +32,11 @@
 #ifndef GUARD_SQLITE_EXT_VARIANT_HPP_INCLUDED
 #define GUARD_SQLITE_EXT_VARIANT_HPP_INCLUDED
 
-#include <boost/variant.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/cstdint.hpp>
-#include <vector>
+#include <cstdint>
+#include <memory>
 #include <string>
+#include <variant>
+#include <vector>
 
 namespace sqlite{
 
@@ -51,13 +51,13 @@ namespace sqlite{
 
     struct unknown_t{};
     struct null_t{};
-    typedef std::vector<boost::uint8_t> blob_t;
-    typedef boost::shared_ptr<blob_t> blob_ref_t;
+    typedef std::vector<std::uint8_t> blob_t;
+    typedef std::shared_ptr<blob_t> blob_ref_t;
 
-    typedef boost::variant<
+    typedef std::variant<
             unknown_t,
             int,
-            boost::int64_t,
+            std::int64_t,
             long double,
             std::string,
             null_t,

@@ -32,8 +32,7 @@
 #ifndef GUARD_SQLITE_COMMAND_HPP_INCLUDED
 #define GUARD_SQLITE_COMMAND_HPP_INCLUDED
 
-#include <boost/cstdint.hpp>
-#include <boost/noncopyable.hpp>
+#include <cstdint>
 #include <sqlite/connection.hpp>
 #include <vector>
 
@@ -54,7 +53,7 @@ namespace sqlite{
     /** \brief \a command is the base class of all sql command classes
       * An object of this class is not copyable
       */
-    struct command : boost::noncopyable{
+    struct command {
         /** \brief \a command constructor
           * \param con takes a reference to the database connection type
           *        \a connection
@@ -64,6 +63,8 @@ namespace sqlite{
           *        used to replace the placeholders
           */
         command(connection & con, std::string const & sql);
+        command(command const &) = delete;
+        command & operator=(command const &) = delete;
 
         /** \brief \a command destructor
           */
@@ -99,7 +100,7 @@ namespace sqlite{
           * \param idx 1 based index of the placeholder within the sql statement
           * \param v 64-Bit integer value which should replace the placeholder
           */
-        void bind(int idx, boost::int64_t v);
+        void bind(int idx, std::int64_t v);
 
         /** \brief binds the double v to the given 1 based index
           * \param idx 1 based index of the placeholder within the sql statement
@@ -143,12 +144,12 @@ namespace sqlite{
           */
         command & operator % (int p);
 
-        /** \brief replacement for void command::bind(int idx,boost::int64_t);
+        /** \brief replacement for void command::bind(int idx,std::int64_t);
           * Indexes are given automatically first call uses 1 as index, second 2
           * and so on
           * \param p should be a 64-Bit integer
           */
-        command & operator % (boost::int64_t p);
+        command & operator % (std::int64_t p);
 
         /** \brief replacement for void command::bind(int idx,double);
           * Indexes are given automatically first call uses 1 as index, second 2
@@ -191,4 +192,3 @@ namespace sqlite{
 }
 
 #endif //GUARD_SQLITE_COMMAND_HPP_INCLUDED
-

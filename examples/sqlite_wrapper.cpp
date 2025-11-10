@@ -60,7 +60,7 @@ int main()
 
         sqlite::query q(con,"SELECT * from test;");
 
-        boost::shared_ptr<sqlite::result> res = q.get_result();
+        sqlite::result_type res = q.get_result();
         while(res->next_row()) {
             std::cout << res->get_int(0) << "|" << res->get_string(1) << std::endl;
         }
@@ -76,7 +76,7 @@ int main()
 
         sqlite::query q_memory(con_memory, "SELECT * FROM test;");
 
-        boost::shared_ptr<sqlite::result> res2 = q_memory.get_result();
+        sqlite::result_type res2 = q_memory.get_result();
         while(res2->next_row()) {
             std::cout << res2->get_int(0) << "|" << res2->get_string(1) << std::endl;
         }
@@ -91,4 +91,3 @@ int main()
     }
 	return 0;
 }
-

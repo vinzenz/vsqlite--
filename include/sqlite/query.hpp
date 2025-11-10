@@ -32,7 +32,7 @@
 #ifndef GUARD_SQLITE_QUERY_HPP_INCLUDED
 #define GUARD_SQLITE_QUERY_HPP_INCLUDED
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <sqlite/command.hpp>
 #include <sqlite/result.hpp>
 
@@ -54,12 +54,12 @@ namespace sqlite{
         virtual ~query();
 
         /** \brief executes the sql command
-          * \return result_type which is boost::shared_ptr<result>
+          * \return result_type which is std::shared_ptr<result>
           */
         result_type emit_result();
 
         /** \brief returns the results (needs a previous emit() call)
-          * \return result_type which is boost::shared_ptr<result>
+          * \return result_type which is std::shared_ptr<result>
           */
         result_type get_result();
     private:
@@ -70,4 +70,3 @@ namespace sqlite{
 }
 
 #endif //GUARD_SQLITE_QUERY_HPP_INCLUDED
-

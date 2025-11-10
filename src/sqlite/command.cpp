@@ -114,7 +114,7 @@ namespace sqlite{
             throw database_exception_code(sqlite3_errmsg(get_handle()), err);
     }
 
-    void command::bind(int idx, boost::int64_t v){
+    void command::bind(int idx, std::int64_t v){
         access_check();
         int err = sqlite3_bind_int64(stmt,idx,v);
         if(err != SQLITE_OK)
@@ -165,7 +165,7 @@ namespace sqlite{
         return *this;
     }
 
-    command & command::operator % (boost::int64_t v){
+    command & command::operator % (std::int64_t v){
         bind(++last_arg_idx,v);
         return *this;
     }

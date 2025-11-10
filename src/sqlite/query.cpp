@@ -29,9 +29,9 @@
  POSSIBILITY OF SUCH DAMAGE.
 
 ##############################################################################*/
+#include <memory>
 #include <sqlite/private/result_construct_params_private.hpp>
 #include <sqlite/query.hpp>
-#include <boost/bind.hpp>
 #include <sqlite3.h>
 
 namespace sqlite{
@@ -43,28 +43,28 @@ namespace sqlite{
     query::~query(){
     }
 
-    boost::shared_ptr<result> query::emit_result(){
+    std::shared_ptr<result> query::emit_result(){
         bool ended = !step();
-        result_construct_params_private * p = new result_construct_params_private();
-        p->access_check = boost::bind(&query::access_check,this);
-        p->step         = boost::bind(&query::step,this);
-        p->db           = sqlite3_db_handle(stmt);
-        p->row_count    = sqlite3_changes(p->db);
-        p->statement    = stmt;
-        p->ended        = ended;
-        return boost::shared_ptr<result>(new result(result::construct_params(p)));
+        auto params = std::make_shared<result_construct_params_private>();
+        params->access_check = [this]() { access_check(); };
+        params->step         = [this]() -> bool { return step(); };
+        params->db           = sqlite3_db_handle(stmt);
+        params->row_count    = sqlite3_changes(params->db);
+        params->statement    = stmt;
+        params->ended        = ended;
+        return std::shared_ptr<result>(new result(params));
     }
 
-    boost::shared_ptr<result> query::get_result(){
+    std::shared_ptr<result> query::get_result(){
         access_check();
-        result_construct_params_private * p = new result_construct_params_private();
-        p->access_check = boost::bind(&query::access_check,this);
-        p->step         = boost::bind(&query::step,this);
-        p->db           = sqlite3_db_handle(stmt);
-        p->row_count    = sqlite3_changes(p->db);
-        p->statement    = stmt;
-        p->ended        = false;
-        return boost::shared_ptr<result>(new result(result::construct_params(p)));
+        auto params = std::make_shared<result_construct_params_private>();
+        params->access_check = [this]() { access_check(); };
+        params->step         = [this]() -> bool { return step(); };
+        params->db           = sqlite3_db_handle(stmt);
+        params->row_count    = sqlite3_changes(params->db);
+        params->statement    = stmt;
+        params->ended        = false;
+        return std::shared_ptr<result>(new result(params));
     }
     void query::access_check(){
         command::access_check();
@@ -73,4 +73,3 @@ namespace sqlite{
         return command::step();
     }
 }
-

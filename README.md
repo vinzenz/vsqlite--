@@ -23,7 +23,7 @@ License: BSD-3
 - Mac OS X
 
 # Dependencies
-- Boost Libraries [ http://www.boost.org ] >= 1.33
+- A C++20-capable compiler (GCC 11+, Clang 14+, MSVC 19.30+)
 - libsqlite3
 
 
@@ -32,3 +32,15 @@ Additional notices:
 - Please let me know if you want to suggest features
 - Contributions are welcome
 - Proposals for Design Improvement are welcome
+
+## Building
+
+```bash
+cmake -S . -B build -DBUILD_SHARED_LIBS=ON -DVSQLITE_BUILD_EXAMPLES=ON
+cmake --build build -j$(nproc)
+cmake --build build --target vsqlitepp_example
+ctest --test-dir build --output-on-failure
+cmake --install build --prefix /usr/local
+```
+
+Use `-DVSQLITE_BUILD_EXAMPLES=OFF` on headless build farms and set `-DCMAKE_INSTALL_PREFIX` (or a toolchain file) to match your packaging target. The install step publishes headers, the `vsqlitepp` shared/static library, and the generated `vsqlite::vsqlitepp` package config so downstream projects can `find_package(vsqlitepp CONFIG REQUIRED)`.
