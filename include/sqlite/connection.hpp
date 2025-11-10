@@ -32,7 +32,9 @@
 #ifndef GUARD_SQLITE_CONNECTION_HPP_INCLUDED
 #define GUARD_SQLITE_CONNECTION_HPP_INCLUDED
 #include <cstdint>
+#include <memory>
 #include <string>
+#include <sqlite/filesystem_adapter.hpp>
 struct sqlite3;
 
 namespace sqlite{
@@ -57,6 +59,7 @@ namespace sqlite{
           *           If the file does not exist a new database will be created
           */
         connection(std::string const & db);
+        connection(std::string const & db, filesystem_adapter_ptr fs);
         connection(connection const &) = delete;
         connection & operator=(connection const &) = delete;
 
@@ -74,6 +77,7 @@ namespace sqlite{
           * specified, a database_exception will be thrown.
           */
         connection(std::string const & db, sqlite::open_mode open_mode);
+        connection(std::string const & db, sqlite::open_mode open_mode, filesystem_adapter_ptr fs);
 
         /** \brief destructor closes the database automatically
           *
@@ -111,6 +115,7 @@ namespace sqlite{
         void open_with_flags(std::string const & db, int flags);
     private:
         sqlite3 * handle;
+        filesystem_adapter_ptr filesystem;
     };
 }
 #endif //GUARD_SQLITE_CONNECTION_HPP_INCLUDED
