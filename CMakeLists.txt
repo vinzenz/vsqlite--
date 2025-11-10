@@ -8,6 +8,8 @@ project(VSQLite++
   LANGUAGES CXX
 )
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(VSQLITE_BUILD_EXAMPLES "Build the sqlite wrapper example" ON)
 option(VSQLITE_BUILD_TESTS "Build unit tests" OFF)
