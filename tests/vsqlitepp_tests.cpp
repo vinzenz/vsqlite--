@@ -3,10 +3,12 @@
 #include <sqlite/backup.hpp>
 #include <sqlite/command.hpp>
 #include <sqlite/connection.hpp>
+#include <sqlite/connection_pool.hpp>
 #include <sqlite/database_exception.hpp>
 #include <sqlite/execute.hpp>
 #include <sqlite/query.hpp>
 #include <sqlite/savepoint.hpp>
+#include <sqlite/threading.hpp>
 #include <sqlite/transaction.hpp>
 #include <sqlite/view.hpp>
 
@@ -16,10 +18,12 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <random>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 #include <variant>
 
@@ -269,6 +273,45 @@ TEST(ConnectionTest, AlwaysCreateRejectsDirectories) {
                  sqlite::database_exception);
     std::error_code ec;
     std::filesystem::remove_all(dir, ec);
+}
+
+TEST(ThreadingTest, ConfigureSerializedMode) {
+    ASSERT_TRUE(sqlite::configure_threading(sqlite::threading_mode::serialized));
+    EXPECT_EQ(sqlite::current_threading_mode(), sqlite::threading_mode::serialized);
+}
+
+TEST(ConnectionPoolTest, BlocksUntilConnectionReturns) {
+    TempFile file("pool_db");
+    {
+        sqlite::connection setup(file.string());
+        sqlite::execute(setup, "CREATE TABLE logs(id INTEGER PRIMARY KEY AUTOINCREMENT, tag TEXT);", true);
+    }
+
+    sqlite::connection_pool pool(2, sqlite::connection_pool::make_factory(file.string()));
+    auto lease1 = pool.acquire();
+    auto lease2 = pool.acquire();
+
+    std::atomic<bool> worker_acquired{false};
+    std::thread worker([&]() {
+        auto lease3 = pool.acquire();
+        sqlite::command cmd(*lease3, "INSERT INTO logs(tag) VALUES (?);");
+        cmd % std::string("worker");
+        cmd.emit();
+        worker_acquired = true;
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_FALSE(worker_acquired.load());
+    lease1 = {};
+    worker.join();
+    EXPECT_TRUE(worker_acquired.load());
+    EXPECT_LE(pool.created_count(), pool.capacity());
+
+    sqlite::connection reader(file.string());
+    sqlite::query q(reader, "SELECT COUNT(*) FROM logs;");
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get_int(0), 1);
 }
 
 TEST(CommandQueryTest, BindsAndRetrievesData) {

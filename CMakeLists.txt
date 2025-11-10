@@ -40,11 +40,13 @@ target_sources(vsqlitepp
     src/sqlite/command.cpp
     src/sqlite/connection.cpp
     src/sqlite/execute.cpp
-    src/sqlite/query.cpp
-    src/sqlite/result.cpp
-    src/sqlite/savepoint.cpp
-    src/sqlite/transaction.cpp
-    src/sqlite/view.cpp
+  src/sqlite/query.cpp
+  src/sqlite/result.cpp
+  src/sqlite/savepoint.cpp
+  src/sqlite/transaction.cpp
+  src/sqlite/view.cpp
+  src/sqlite/threading.cpp
+  src/sqlite/connection_pool.cpp
 )
 
 target_include_directories(vsqlitepp

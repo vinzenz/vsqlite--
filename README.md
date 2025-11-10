@@ -44,3 +44,29 @@ cmake --install build --prefix /usr/local
 ```
 
 Use `-DVSQLITE_BUILD_EXAMPLES=OFF` on headless build farms and set `-DCMAKE_INSTALL_PREFIX` (or a toolchain file) to match your packaging target. The install step publishes headers, the `vsqlitepp` shared/static library, and the generated `vsqlite::vsqlitepp` package config so downstream projects can `find_package(vsqlitepp CONFIG REQUIRED)`.
+
+## Threading & Pooling
+
+Configure SQLite's global threading mode before opening connections:
+
+```cpp
+#include <sqlite/threading.hpp>
+
+sqlite::configure_threading(sqlite::threading_mode::serialized);
+```
+
+Connections are still not shareable across threads. To fan out work, create a `sqlite::connection_pool` and lease connections when needed:
+
+```cpp
+#include <sqlite/connection_pool.hpp>
+
+sqlite::connection_pool pool(
+    4,
+    sqlite::connection_pool::make_factory("my.db")
+);
+
+auto lease = pool.acquire();
+sqlite::command cmd(*lease, "INSERT INTO log(msg) VALUES (?);");
+cmd % std::string("hello from worker");
+cmd.emit();
+```
