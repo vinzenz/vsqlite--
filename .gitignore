@@ -13,6 +13,7 @@ Makefile.in
 /m4/
 /missing
 /stamp-h?
+/website
 /build
 .deps/
 .dirstamp
