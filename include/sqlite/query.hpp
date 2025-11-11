@@ -32,6 +32,13 @@
 #ifndef GUARD_SQLITE_QUERY_HPP_INCLUDED
 #define GUARD_SQLITE_QUERY_HPP_INCLUDED
 
+#include <iterator>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <vector>
 #include <memory>
 #include <sqlite/command.hpp>
 #include <sqlite/result.hpp>
@@ -41,7 +48,8 @@
  * @brief Prepared-statement helper for SELECTs that produces `sqlite::result` cursors.
  *
  * The `sqlite::query` class inherits `sqlite::command` so you can bind parameters with the same
- * interface and then pull rows incrementally via `emit_result()` / `get_result()`.
+ * interface and then enumerate rows via `each()` (range-based for) or by manually consuming a
+ * `sqlite::result` from `get_result()`.
  */
 namespace sqlite {
 inline namespace v2 {
@@ -61,15 +69,103 @@ inline namespace v2 {
           */
         virtual ~query();
 
-        /** \brief executes the sql command
+        class result_range {
+        public:
+            struct column_cache {
+                std::vector<std::string> names;
+                std::unordered_map<std::string, int> lookup;
+                int index_of(std::string_view name) const;
+            };
+
+            class row_view {
+            public:
+                row_view() = default;
+                row_view(result * res, std::shared_ptr<column_cache> cache)
+                    : res_(res)
+                    , cache_(std::move(cache)) {}
+
+                bool valid() const noexcept { return res_ != nullptr; }
+
+                result & raw() const {
+                    if(!res_) {
+                        throw std::runtime_error("row_view is not bound to a row");
+                    }
+                    return *res_;
+                }
+
+                template <typename T>
+                T get(std::string_view name) const {
+                    return raw().get<T>(column(name));
+                }
+
+                template <typename T>
+                T get(int idx) const {
+                    return raw().get<T>(idx);
+                }
+
+                template <typename T>
+                T operator[](std::string_view name) const {
+                    return get<T>(name);
+                }
+
+            private:
+                int column(std::string_view name) const;
+
+                result * res_ = nullptr;
+                std::shared_ptr<column_cache> cache_;
+            };
+
+            class iterator {
+            public:
+                using iterator_category = std::input_iterator_tag;
+                using value_type = row_view;
+                using difference_type = std::ptrdiff_t;
+                using pointer = row_view *;
+                using reference = row_view &;
+
+                iterator();
+                iterator(result_type res,
+                         std::shared_ptr<column_cache> cache,
+                         bool end);
+                reference operator*() const;
+                pointer operator->() const;
+                iterator & operator++();
+                iterator operator++(int);
+                bool operator==(iterator const & other) const;
+                bool operator!=(iterator const & other) const;
+            private:
+                void advance();
+                void prime_cache();
+                result_type result_;
+                bool end_ = true;
+                std::shared_ptr<column_cache> cache_;
+                row_view current_;
+            };
+
+            result_range();
+            explicit result_range(result_type res);
+
+            iterator begin();
+            iterator end() const;
+
+        private:
+            result_type result_;
+            bool begin_called_ = false;
+            std::shared_ptr<column_cache> cache_;
+        };
+
+        /** \brief executes the sql command (deprecated, prefer each())
           * \return result_type which is std::shared_ptr<result>
           */
-        result_type emit_result();
+        VSQLITE_DEPRECATED result_type emit_result();
 
         /** \brief returns the results (needs a previous emit() call)
           * \return result_type which is std::shared_ptr<result>
           */
         result_type get_result();
+
+        /** \brief Returns a range view for range-based for loops. */
+        result_range each();
     private:
         friend struct result;
         void access_check();

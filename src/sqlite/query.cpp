@@ -30,6 +30,8 @@
 
 ##############################################################################*/
 #include <memory>
+#include <utility>
+#include <stdexcept>
 #include <sqlite/private/result_construct_params_private.hpp>
 #include <sqlite/query.hpp>
 #include <sqlite3.h>
@@ -67,6 +69,124 @@ inline namespace v2 {
         params->ended        = false;
         return std::shared_ptr<result>(new result(params));
     }
+
+    query::result_range query::each() {
+        return result_range(get_result());
+    }
+
+    query::result_range::result_range() = default;
+
+    query::result_range::result_range(result_type res)
+        : result_(std::move(res))
+        , cache_(result_ ? std::make_shared<column_cache>() : nullptr) {}
+
+    query::result_range::iterator::iterator() = default;
+
+    query::result_range::iterator::iterator(result_type res,
+                                            std::shared_ptr<column_cache> cache,
+                                            bool end)
+        : result_(std::move(res))
+        , end_(end)
+        , cache_(std::move(cache)) {
+        if(result_ && !end_) {
+            prime_cache();
+            advance();
+        }
+    }
+
+    void query::result_range::iterator::prime_cache() {
+        if(!result_ || !cache_) {
+            return;
+        }
+        if(!cache_->lookup.empty()) {
+            return;
+        }
+        int columns = result_->get_column_count();
+        cache_->names.reserve(columns);
+        for(int i = 0; i < columns; ++i) {
+            auto name = result_->get_column_name(i);
+            cache_->lookup.emplace(name, i);
+            cache_->names.push_back(name);
+        }
+    }
+
+    void query::result_range::iterator::advance() {
+        if(!result_) {
+            end_ = true;
+            current_ = row_view();
+            return;
+        }
+        if(!result_->next_row()) {
+            result_.reset();
+            end_ = true;
+            current_ = row_view();
+        }
+        else {
+            end_ = false;
+            current_ = row_view(result_.get(), cache_);
+        }
+    }
+
+    query::result_range::iterator::reference query::result_range::iterator::operator*() const {
+        return const_cast<row_view &>(current_);
+    }
+
+    query::result_range::iterator::pointer query::result_range::iterator::operator->() const {
+        return const_cast<row_view *>(&current_);
+    }
+
+    query::result_range::iterator & query::result_range::iterator::operator++() {
+        advance();
+        return *this;
+    }
+
+    query::result_range::iterator query::result_range::iterator::operator++(int) {
+        auto tmp = *this;
+        advance();
+        return tmp;
+    }
+
+    bool query::result_range::iterator::operator==(iterator const & other) const {
+        if(end_ && other.end_) {
+            return true;
+        }
+        return result_ == other.result_ && end_ == other.end_;
+    }
+
+    bool query::result_range::iterator::operator!=(iterator const & other) const {
+        return !(*this == other);
+    }
+
+    query::result_range::iterator query::result_range::begin() {
+        if(begin_called_ || !result_) {
+            return iterator();
+        }
+        begin_called_ = true;
+        if(!cache_) {
+            cache_ = std::make_shared<column_cache>();
+        }
+        return iterator(result_, cache_, false);
+    }
+
+    query::result_range::iterator query::result_range::end() const {
+        return iterator();
+    }
+
+    int query::result_range::column_cache::index_of(std::string_view name) const {
+        auto it = lookup.find(std::string(name));
+        if(it == lookup.end()) {
+            throw std::out_of_range("no such column name");
+        }
+        return it->second;
+    }
+
+    int query::result_range::row_view::column(std::string_view name) const {
+        if(!cache_) {
+            throw std::runtime_error("column cache is not initialized");
+        }
+        return cache_->index_of(name);
+    }
+
     void query::access_check(){
         command::access_check();
     }
