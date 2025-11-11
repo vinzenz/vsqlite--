@@ -1,5 +1,6 @@
 #include "test_common.hpp"
-
+#include <iostream>
+#include <format>
 #include <sqlite/connection.hpp>
 #include <sqlite/execute.hpp>
 #include <sqlite/json_fts.hpp>
@@ -42,8 +43,7 @@ TEST(JsonFtsHelpersTest, FtsRankFunction) {
 
     sqlite::execute(conn, "INSERT INTO docs(body) VALUES ('hello world'), ('hello sqlite');", true);
     try {
-        sqlite::query q(conn,
-                        "SELECT fts_rank(matchinfo(docs)) FROM docs WHERE docs MATCH 'hello';");
+        sqlite::query q(conn, "SELECT fts_rank(docs) FROM docs WHERE docs MATCH 'hello';");
         auto res = q.get_result();
         ASSERT_TRUE(res->next_row());
         EXPECT_GE(res->get<double>(0), 0.0);
