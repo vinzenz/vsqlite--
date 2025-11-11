@@ -12,11 +12,6 @@ License: BSD-3
 
 [![Join the chat at https://gitter.im/vinzenz/vsqlite--](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/vinzenz/vsqlite--?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-# Supported Compilers
-- g++ 4.x
-- MSVC 2005-2013
-- Clang 3.x
-
 # Operating Systems
 - Linux
 - Windows
@@ -44,6 +39,26 @@ cmake --install build --prefix /usr/local
 ```
 
 Use `-DVSQLITE_BUILD_EXAMPLES=OFF` on headless build farms and set `-DCMAKE_INSTALL_PREFIX` (or a toolchain file) to match your packaging target. The install step publishes headers, the `vsqlitepp` shared/static library, and the generated `vsqlite::vsqlitepp` package config so downstream projects can `find_package(vsqlitepp CONFIG REQUIRED)`.
+
+## Fetching with CMake FetchContent
+
+`vsqlite++` can be embedded directly in another CMake project via `FetchContent` because it exports the `vsqlite::vsqlitepp` target and keeps include paths relative to the build tree. Make sure your project requests CMake 3.21+ (matching this repo) and that SQLite3 is discoverable (`find_package(SQLite3 REQUIRED)` inside vsqlite++ still runs).
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+  vsqlitepp
+  GIT_REPOSITORY https://github.com/vinzenz/vsqlite--
+  GIT_TAG v${VSQLITEPP_VERSION} # or a commit hash
+)
+set(VSQLITE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(VSQLITE_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(vsqlitepp)
+
+target_link_libraries(my_app PRIVATE vsqlite::vsqlitepp)
+```
+
+If you need SQLite as well, provide `SQLite::SQLite3` yourself (system package or another `FetchContent`) before linking against `vsqlite::vsqlitepp`.
 
 ## Threading & Pooling
 
