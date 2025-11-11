@@ -12,7 +12,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(VSQLITE_BUILD_EXAMPLES "Build the sqlite wrapper example" ON)
-option(VSQLITE_BUILD_TESTS "Build unit tests" OFF)
+include(CTest)
+
+option(VSQLITE_BUILD_TESTS "Build unit tests" ${BUILD_TESTING})
 option(VSQLITE_ENABLE_COVERAGE "Enable code coverage instrumentation" OFF)
 
 set(VSQLITEPP_SOVERSION "${PROJECT_VERSION_MAJOR}" CACHE STRING "Shared object version to use")
@@ -137,7 +139,6 @@ install(FILES
 )
 
 if(VSQLITE_BUILD_TESTS)
-  include(CTest)
   enable_testing()
   include(FetchContent)
   FetchContent_Declare(
