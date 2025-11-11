@@ -112,6 +112,10 @@ inline namespace v2 {
         sqlite3_reset(stmt);
     }
 
+    void command::reset_statement() {
+        sqlite3_reset(stmt);
+    }
+
     void command::prepare() {
         private_accessor::acccess_check(m_con);
         bool schema_change = is_schema_changing_statement(m_sql);
@@ -153,7 +157,9 @@ inline namespace v2 {
     }
 
     bool command::operator()() {
-        return step();
+        bool result = step();
+        last_arg_idx = 0;
+        return result;
     }
 
     void command::bind(int idx) {

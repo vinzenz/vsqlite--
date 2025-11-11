@@ -97,6 +97,7 @@ inline namespace v2 {
         /** \brief clear is used if you'd like to reuse a command object
          */
         void clear();
+        void reset_statement();
 
         /** \brief emit executes the sql command
          * If you have used placeholders you must have replaced all
@@ -111,16 +112,20 @@ inline namespace v2 {
 
         /** \brief Binds all supplied arguments (if any) and executes the statement.
          *
-         * The overload clears previous bindings before binding the forwarded parameters via
-         * <code>operator%</code>, then calls <code>step()</code>. Invoking it without parameters
-         * behaves like the legacy nullary overload.
+         * Existing bindings (set via <code>operator%</code> or <code>bind</code>) are preserved so
+         * you can pre-bind a subset before forwarding the remaining arguments. Once the statement
+         * executes, the positional index resets so the next invocation starts from the first
+         * placeholder again.
          */
         template <typename... Args> bool operator()(Args &&...args) {
             if constexpr (sizeof...(Args) == 0) {
-                return step();
+                return operator()();
             }
+            reset_statement();
             ((void)(*this % std::forward<Args>(args)), ...);
-            return step();
+            auto result = step();
+            last_arg_idx = 0;
+            return result;
         }
 
         /** \brief binds NULL to the given 1 based index
