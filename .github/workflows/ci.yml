@@ -20,6 +20,8 @@ jobs:
 
     env:
       CMAKE_GENERATOR: Ninja
+      CXX: g++-13
+      CC: gcc-13
 
     steps:
       - name: Checkout
@@ -28,13 +30,15 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build libsqlite3-dev
+          sudo apt-get install -y ninja-build libsqlite3-dev gcc-13 g++-13
 
       - name: Configure
         run: |
           cmake -S . -B build -G "${CMAKE_GENERATOR}" \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DVSQLITE_BUILD_EXAMPLES=ON
+            -DVSQLITE_BUILD_EXAMPLES=ON \
+            -DCMAKE_CXX_COMPILER=${{ env.CXX }} \
+            -DCMAKE_C_COMPILER=${{ env.CC }}
 
       - name: Build
         run: cmake --build build --config ${{ matrix.build_type }}
