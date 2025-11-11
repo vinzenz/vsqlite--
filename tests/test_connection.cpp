@@ -17,7 +17,7 @@ TEST(ConnectionTest, OpenModesAndLastInsertId) {
         sqlite::execute(conn, "CREATE TABLE sample(id INTEGER PRIMARY KEY, name TEXT);", true);
         sqlite::command insert(conn, "INSERT INTO sample(name) VALUES (?);");
         insert % std::string("alpha");
-        insert.emit();
+        insert.step_once();
         EXPECT_GT(conn.get_last_insert_rowid(), 0);
     }
 

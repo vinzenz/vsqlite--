@@ -73,8 +73,9 @@ inline namespace v2 {
             std::shared_ptr<connection> shared() const;
 
         private:
+            struct shared_state;
             void release();
-            connection_pool *pool_ = nullptr;
+            std::shared_ptr<shared_state> state_;
             std::shared_ptr<connection> connection_;
         };
 

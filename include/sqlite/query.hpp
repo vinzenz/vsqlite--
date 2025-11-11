@@ -157,7 +157,7 @@ inline namespace v2 {
          */
         VSQLITE_DEPRECATED result_type emit_result();
 
-        /** \brief returns the results (needs a previous emit() call)
+        /** \brief returns the results (needs a previous step_once() call)
          * \return result_type which is std::shared_ptr<result>
          */
         result_type get_result();

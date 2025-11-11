@@ -5,21 +5,33 @@
 namespace sqlite {
 inline namespace v2 {
 
-    connection_pool::lease::lease(connection_pool *pool, std::shared_ptr<connection> conn) :
-        pool_(pool), connection_(std::move(conn)) {}
+    struct connection_pool::lease::shared_state {
+        connection_pool *pool = nullptr;
+        std::shared_ptr<connection> resource;
 
-    connection_pool::lease::lease(lease &&other) noexcept {
-        pool_       = other.pool_;
-        connection_ = std::move(other.connection_);
-        other.pool_ = nullptr;
+        ~shared_state() {
+            if (pool && resource) {
+                pool->release(std::move(resource));
+            }
+        }
+    };
+
+    connection_pool::lease::lease(connection_pool *pool, std::shared_ptr<connection> conn) {
+        if (pool && conn) {
+            state_             = std::make_shared<shared_state>();
+            state_->pool       = pool;
+            state_->resource   = std::move(conn);
+            connection_        = std::shared_ptr<connection>(state_, state_->resource.get());
+        }
     }
+
+    connection_pool::lease::lease(lease &&other) noexcept = default;
 
     connection_pool::lease &connection_pool::lease::operator=(lease &&other) noexcept {
         if (this != &other) {
             release();
-            pool_       = other.pool_;
+            state_      = std::move(other.state_);
             connection_ = std::move(other.connection_);
-            other.pool_ = nullptr;
         }
         return *this;
     }
@@ -29,10 +41,8 @@ inline namespace v2 {
     }
 
     void connection_pool::lease::release() {
-        if (pool_ && connection_) {
-            pool_->release(std::move(connection_));
-        }
-        pool_ = nullptr;
+        connection_.reset();
+        state_.reset();
     }
 
     connection &connection_pool::lease::operator*() const {

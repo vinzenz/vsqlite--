@@ -15,11 +15,11 @@ TEST(TransactionTest, TransactionAndSavepoint) {
         sqlite::transaction txn(conn, sqlite::transaction_type::exclusive);
         sqlite::command insert(conn, "INSERT INTO items(value) VALUES (?);");
         insert % std::string("temporary");
-        insert.emit();
+        insert.step_once();
         sqlite::savepoint sp(conn, "sp1");
         sqlite::command insert2(conn, "INSERT INTO items(value) VALUES (?);");
         insert2 % std::string("rollback");
-        insert2.emit();
+        insert2.step_once();
         sp.rollback();
         sp.release();
         txn.rollback();
@@ -30,7 +30,7 @@ TEST(TransactionTest, TransactionAndSavepoint) {
         sqlite::transaction txn(conn, sqlite::transaction_type::immediate);
         sqlite::command insert(conn, "INSERT INTO items(value) VALUES (?);");
         insert % std::string("keep");
-        insert.emit();
+        insert.step_once();
         txn.commit();
     }
     EXPECT_EQ(count_rows(conn, "items"), 1);

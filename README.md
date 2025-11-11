@@ -68,7 +68,7 @@ sqlite::connection_pool pool(
 auto lease = pool.acquire();
 sqlite::command cmd(*lease, "INSERT INTO log(msg) VALUES (?);");
 cmd % std::string("hello from worker");
-cmd.emit();
+cmd.step_once();
 ```
 
 ## User-Defined SQL Functions
@@ -107,7 +107,7 @@ sqlite::command insert(conn, "INSERT INTO events(id, happened, note) VALUES (?, 
 insert % 1
        % std::chrono::system_clock::now()
        % std::optional<std::string>("hello");
-insert.emit();
+insert.step_once();
 
 sqlite::query q(conn, "SELECT id, happened, note FROM events;");
 auto row = q.get_result();

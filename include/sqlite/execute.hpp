@@ -39,7 +39,7 @@
  * @brief Simple helper derived from `sqlite::command` for fire-and-forget statements.
  *
  * Creating an `sqlite::execute` object optionally runs the SQL immediately and keeps the prepared
- * statement alive for repeated calls to `emit()` or `operator()`.
+ * statement alive for repeated calls to `step_once()` or `operator()`.
  */
 namespace sqlite {
 inline namespace v2 {
@@ -54,7 +54,7 @@ inline namespace v2 {
          * \param sql the SQL statement which should be executed
          * \param immediately if it is true the sql command will be immediately
          *        executed if it is false the command will be executed after an
-         *        emit or operator() call
+         *        step_once or operator() call
          */
         execute(connection &con, std::string const &sql, bool immediately = false);
 

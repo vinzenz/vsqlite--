@@ -117,10 +117,13 @@ inline namespace v2 {
         }
 
         /**
-         * @deprecated This reflects sqlite3_changes() and therefore the count of rows written,
-         *             not the total rows returned by a SELECT.
+         * @brief Returns the number of rows affected by the statement.
+         *
+         * Mirrors `sqlite3_changes()` and therefore only applies to INSERT, UPDATE, or DELETE
+         * statements. To count the rows returned by a SELECT, issue a separate
+         * <code>SELECT COUNT(*) ...</code> query.
          */
-        VSQLITE_DEPRECATED int get_row_count();
+        int get_changes();
 
         /**
          * @brief Returns the number of columns exposed by the current statement.
@@ -243,7 +246,6 @@ inline namespace v2 {
     private:
         construct_params m_params;
         int m_columns;
-        int m_row_count;
     };
 
     /// Shared-pointer alias used by legacy APIs that transfer result ownership.

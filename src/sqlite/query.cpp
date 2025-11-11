@@ -48,7 +48,7 @@ inline namespace v2 {
         params->access_check = [this]() { access_check(); };
         params->step         = [this]() -> bool { return step(); };
         params->db           = sqlite3_db_handle(stmt);
-        params->row_count    = sqlite3_changes(params->db);
+        params->changes      = sqlite3_changes(params->db);
         params->statement    = stmt;
         params->ended        = ended;
         return std::shared_ptr<result>(new result(params));
@@ -60,7 +60,7 @@ inline namespace v2 {
         params->access_check = [this]() { access_check(); };
         params->step         = [this]() -> bool { return step(); };
         params->db           = sqlite3_db_handle(stmt);
-        params->row_count    = sqlite3_changes(params->db);
+        params->changes      = sqlite3_changes(params->db);
         params->statement    = stmt;
         params->ended        = false;
         return std::shared_ptr<result>(new result(params));

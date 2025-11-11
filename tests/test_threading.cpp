@@ -5,4 +5,7 @@
 TEST(ThreadingTest, ConfigureSerializedMode) {
     EXPECT_TRUE(sqlite::configure_threading(sqlite::threading_mode::serialized));
     EXPECT_EQ(sqlite::current_threading_mode(), sqlite::threading_mode::serialized);
+    EXPECT_TRUE(sqlite::configure_threading(sqlite::threading_mode::serialized));
+    EXPECT_FALSE(sqlite::configure_threading(sqlite::threading_mode::single_thread));
+    EXPECT_EQ(sqlite::current_threading_mode(), sqlite::threading_mode::serialized);
 }

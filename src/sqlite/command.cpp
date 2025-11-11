@@ -136,7 +136,7 @@ inline namespace v2 {
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
-    bool command::emit() {
+    bool command::step_once() {
         return step();
     }
 

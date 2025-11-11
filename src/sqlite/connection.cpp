@@ -285,7 +285,7 @@ inline namespace v2 {
         validate_db_path(db, false, filesystem);
         command cmd(*this, std::format("ATTACH DATABASE ? AS {};", quote_identifier(alias)));
         cmd % db;
-        cmd.emit();
+        cmd.step_once();
     }
 
     void connection::detach(std::string const &alias) {
@@ -303,8 +303,7 @@ inline namespace v2 {
     }
 
     void connection::configure_statement_cache(statement_cache_config const &cfg) {
-        cache_.clear(handle);
-        cache_ = statement_cache(cfg);
+        cache_.reset(cfg);
     }
 
     statement_cache_config connection::statement_cache_settings() const {

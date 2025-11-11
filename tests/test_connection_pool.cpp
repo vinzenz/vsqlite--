@@ -21,3 +21,20 @@ TEST(ConnectionPoolTest, BlocksUntilConnectionReturns) {
     first = {};
     fut.wait();
 }
+
+TEST(ConnectionPoolTest, ReturnsConnectionAfterSharedAlias) {
+    auto factory = sqlite::connection_pool::make_factory(":memory:");
+    sqlite::connection_pool pool(1, factory);
+
+    auto lease  = pool.acquire();
+    auto shared = lease.shared();
+    EXPECT_EQ(pool.idle_count(), 0u);
+
+    lease = {};
+    EXPECT_EQ(pool.idle_count(), 0u);
+
+    sqlite::execute(*shared, "SELECT 1;", true);
+
+    shared.reset();
+    EXPECT_EQ(pool.idle_count(), 1u);
+}

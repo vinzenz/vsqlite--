@@ -43,7 +43,7 @@ inline namespace v2 {
     struct result_construct_params_private {
         sqlite3 *db;
         sqlite3_stmt *statement;
-        int row_count;
+        int changes;
         std::function<void()> access_check;
         std::function<bool()> step;
         bool ended;

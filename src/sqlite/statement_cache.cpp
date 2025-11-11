@@ -43,6 +43,7 @@ inline namespace v2 {
         if (!config_.enabled || config_.capacity == 0) {
             return nullptr;
         }
+        std::lock_guard<std::mutex> lock(mutex_);
         auto it = map_.find(std::string(sql));
         if (it == map_.end()) {
             return nullptr;
@@ -66,6 +67,7 @@ inline namespace v2 {
             sqlite3_finalize(stmt);
             return;
         }
+        std::lock_guard<std::mutex> lock(mutex_);
         auto key = std::string(sql);
         if (map_.find(key) != map_.end()) {
             sqlite3_finalize(stmt);
@@ -82,11 +84,22 @@ inline namespace v2 {
     }
 
     void statement_cache::clear(sqlite3 *) {
+        std::lock_guard<std::mutex> lock(mutex_);
         for (auto &node : lru_) {
             sqlite3_finalize(node.stmt);
         }
         lru_.clear();
         map_.clear();
+    }
+
+    void statement_cache::reset(statement_cache_config cfg) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (auto &node : lru_) {
+            sqlite3_finalize(node.stmt);
+        }
+        lru_.clear();
+        map_.clear();
+        config_ = std::move(cfg);
     }
 } // namespace v2
 } // namespace sqlite

@@ -27,5 +27,5 @@ TEST(FunctionTest, OptionalAndBlobArguments) {
     sqlite::command insert(conn, "SELECT blob_size(?);");
     std::vector<unsigned char> data{1, 2, 3};
     insert % data;
-    EXPECT_TRUE(insert.emit());
+    EXPECT_TRUE(insert.step_once());
 }

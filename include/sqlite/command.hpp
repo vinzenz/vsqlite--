@@ -99,13 +99,13 @@ inline namespace v2 {
         void clear();
         void reset_statement();
 
-        /** \brief emit executes the sql command
+        /** \brief step_once executes the sql command a single time.
          * If you have used placeholders you must have replaced all
          * placeholders
          */
-        bool emit();
+        bool step_once();
 
-        /** \brief works exactly like the method \a command::emit
+        /** \brief works exactly like @ref command::step_once
          *
          */
         bool operator()();

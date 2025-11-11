@@ -54,7 +54,7 @@ int main() {
 
         ins % sqlite::nil % "Test";
 
-        ins.emit();
+        ins.step_once();
 
         sqlite::query q(con, "SELECT * from test;");
 

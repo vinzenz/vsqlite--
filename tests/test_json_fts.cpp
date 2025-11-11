@@ -19,7 +19,7 @@ TEST(JsonFtsHelpersTest, JsonContainsHelper) {
     sqlite::execute(conn, "CREATE TABLE docs(payload JSON);", true);
     sqlite::command insert(conn, "INSERT INTO docs(payload) VALUES (?);");
     insert % std::string(R"({"tags":["vsqlite","cpp"]})");
-    insert.emit();
+    insert.step_once();
 
     sqlite::query q(conn, "SELECT json_contains_value(payload, '$.tags[0]', 'vsqlite') FROM docs;");
     auto res = q.get_result();

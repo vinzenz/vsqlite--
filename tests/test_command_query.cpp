@@ -30,7 +30,7 @@ TEST(CommandQueryTest, BindsAndRetrievesData) {
     insert.bind(4, 3.14);
     insert.bind(5, std::span<const unsigned char>(blob));
     insert.bind(6);
-    insert.emit();
+    insert.step_once();
     insert.clear();
 
     std::string_view world_view("world_view");
@@ -104,7 +104,7 @@ TEST(CommandQueryTest, TypeSafeBindingAndTupleGet) {
     insert % now;
     insert % std::optional<std::string>("typed");
     insert % std::optional<int>();
-    insert.emit();
+    insert.step_once();
 
     sqlite::query q(conn, "SELECT id, happened, note, flag FROM events;");
     auto res = q.get_result();
@@ -203,13 +203,13 @@ TEST(CommandQueryTest, QueryEachBindsVariadicArguments) {
     sqlite::execute(conn, "CREATE TABLE notes(id INTEGER PRIMARY KEY, tag TEXT, body TEXT);", true);
     sqlite::execute insert(conn, "INSERT INTO notes(tag, body) VALUES(?, ?);");
     insert % "docs" % "first";
-    insert.emit();
+    insert.step_once();
     insert.clear();
     insert % "code" % "second";
-    insert.emit();
+    insert.step_once();
     insert.clear();
     insert % "docs" % "third";
-    insert.emit();
+    insert.step_once();
 
     sqlite::query q(conn, "SELECT body FROM notes WHERE tag = ? ORDER BY id;");
     std::vector<std::string> bodies;
@@ -227,11 +227,11 @@ TEST(CommandQueryTest, QueryEachSupportsMixedBinding) {
     sqlite::execute insert(conn, "INSERT INTO audit(level, message, tag) VALUES(?, ?, ?);");
     insert % "info" % "boot";
     insert % "system";
-    insert.emit();
+    insert.step_once();
     insert.clear();
     insert % "warn" % "slow";
     insert % "ui";
-    insert.emit();
+    insert.step_once();
     insert.clear();
 
     sqlite::query q(conn, "SELECT message FROM audit WHERE level = ? AND tag = ?;");

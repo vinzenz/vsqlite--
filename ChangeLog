@@ -339,7 +339,7 @@ commit bce01dcbbeb530bfa33a1779bfce0c043ab1ceb6
 Author: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
 Date:   Fri Dec 21 12:42:19 2012 +0100
 
-    Exposing step bool result to operator() and emit()
+    Exposing step bool result to operator() and step_once()
     
     Signed-off-by: Vinzenz Feenstra <vinzenz.feenstra@gmail.com>
 

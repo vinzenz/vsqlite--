@@ -36,6 +36,7 @@
 #include <cstddef>
 #include <list>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -68,6 +69,7 @@ inline namespace v2 {
         sqlite3_stmt *acquire(sqlite3 *db, std::string_view sql);
         void release(std::string_view sql, sqlite3_stmt *stmt);
         void clear(sqlite3 *db);
+        void reset(statement_cache_config cfg);
         statement_cache_config config() const noexcept {
             return config_;
         }
@@ -84,6 +86,7 @@ inline namespace v2 {
         statement_cache_config config_;
         lru_list lru_;
         std::unordered_map<std::string, iterator> map_;
+        mutable std::mutex mutex_;
     };
 } // namespace v2
 } // namespace sqlite

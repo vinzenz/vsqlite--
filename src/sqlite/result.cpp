@@ -54,8 +54,7 @@ inline namespace v2 {
 
     result::result(construct_params p) : m_params(p) {
         m_params->access_check();
-        m_columns   = sqlite3_column_count(m_params->statement);
-        m_row_count = m_params->row_count;
+        m_columns = sqlite3_column_count(m_params->statement);
     }
 
     result::~result() {}
@@ -206,8 +205,8 @@ inline namespace v2 {
             throw std::out_of_range("no such column index");
     }
 
-    int result::get_row_count() {
-        return m_params->row_count;
+    int result::get_changes() {
+        return m_params->changes;
     }
 
     int result::get_column_count() {

@@ -19,10 +19,10 @@ TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
     sqlite::transaction txn(conn, sqlite::transaction_type::immediate);
     sqlite::command insert(conn, "INSERT INTO docs(body) VALUES (?);");
     insert % std::string("a");
-    insert.emit();
+    insert.step_once();
     auto snap = txn.take_snapshot();
     insert % std::string("b");
-    insert.emit();
+    insert.step_once();
     txn.commit();
 
     sqlite::transaction read(conn, sqlite::transaction_type::deferred);
@@ -43,10 +43,10 @@ TEST(SnapshotTest, SavepointSnapshotControlsScope) {
     sqlite::savepoint sp(conn, "sp");
     sqlite::command insert(conn, "INSERT INTO docs(body) VALUES (?);");
     insert % std::string("alpha");
-    insert.emit();
+    insert.step_once();
     auto snap = sp.take_snapshot();
     insert % std::string("beta");
-    insert.emit();
+    insert.step_once();
     sp.rollback();
 
     sqlite::query q(conn, "SELECT COUNT(*) FROM docs;");

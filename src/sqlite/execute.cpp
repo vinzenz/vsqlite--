@@ -36,7 +36,7 @@ inline namespace v2 {
     execute::execute(connection &con, std::string const &sql, bool immediately) :
         command(con, sql) {
         if (immediately)
-            emit();
+            step_once();
     }
 
     execute::~execute() {}

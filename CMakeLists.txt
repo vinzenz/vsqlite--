@@ -153,6 +153,7 @@ if(VSQLITE_BUILD_TESTS)
     tests/test_command_query.cpp
     tests/test_common.hpp
     tests/test_connection.cpp
+    tests/test_connection_thread_safety.cpp
     tests/test_connection_pool.cpp
     tests/test_function.cpp
     tests/test_json_fts.cpp
