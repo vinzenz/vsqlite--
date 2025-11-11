@@ -147,8 +147,24 @@ if(VSQLITE_BUILD_TESTS)
   )
   FetchContent_MakeAvailable(googletest)
 
+  set(VSQLITE_TEST_SOURCES
+    tests/test_backup.cpp
+    tests/test_command_query.cpp
+    tests/test_common.hpp
+    tests/test_connection.cpp
+    tests/test_connection_pool.cpp
+    tests/test_function.cpp
+    tests/test_json_fts.cpp
+    tests/test_serialization.cpp
+    tests/test_session.cpp
+    tests/test_snapshot.cpp
+    tests/test_statement_cache.cpp
+    tests/test_threading.cpp
+    tests/test_transaction.cpp
+    tests/test_view.cpp
+  )
   add_executable(vsqlitepp_tests
-    tests/vsqlitepp_tests.cpp
+    ${VSQLITE_TEST_SOURCES}
   )
   target_link_libraries(vsqlitepp_tests
     PRIVATE
