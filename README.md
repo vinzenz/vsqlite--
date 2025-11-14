@@ -18,7 +18,7 @@ License: BSD-3
 - Mac OS X
 
 # Dependencies
-- A C++20-capable compiler (GCC 11+, Clang 14+, MSVC 19.30+)
+- A C++20-capable compiler (GCC 13+, Clang 14+, MSVC 19.30+)
 - libsqlite3
 
 
