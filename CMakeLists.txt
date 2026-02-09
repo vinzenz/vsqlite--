@@ -76,7 +76,7 @@ if(TARGET SQLite::SQLite3)
   set(VSQLITEPP_SQLITE_TARGET SQLite::SQLite3)
 else()
   set(VSQLITEPP_SQLITE_TARGET ${SQLITE3_LIBRARIES})
-  target_include_directories(vsqlitepp PUBLIC ${SQLITE3_INCLUDE_DIRS})
+  target_include_directories(vsqlitepp PRIVATE ${SQLITE3_INCLUDE_DIRS})
 endif()
 
 target_link_libraries(vsqlitepp PUBLIC ${VSQLITEPP_SQLITE_TARGET})
