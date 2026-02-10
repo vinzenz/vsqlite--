@@ -107,7 +107,9 @@ void validate_db_path(std::string const &db, bool require_exists,
     ensure_parent_directory_safe(path, db, fs);
     auto entry     = fs->status(path);
     auto not_found = std::make_error_code(std::errc::no_such_file_or_directory);
-    if (entry.error && entry.error != not_found) {
+    // Compare values; categories are different (system vs. general) on MSVC so operator== would
+    // consider them non-equal.
+    if (entry.error && entry.error.value() != not_found.value()) {
         throw sqlite::database_system_error("Failed to inspect database '" + db + "'",
                                             entry.error.value());
     }
