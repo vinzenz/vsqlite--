@@ -40,10 +40,7 @@
 #include <sqlite/connection.hpp>
 #include <sqlite/filesystem_adapter.hpp>
 #include <sqlite3.h>
-
-#ifndef SQLITE_OPEN_NOFOLLOW
-#define SQLITE_OPEN_NOFOLLOW 0x08000000
-#endif
+#include <iostream>
 
 namespace {
 bool is_special_database(std::string_view db) {
@@ -128,7 +125,10 @@ void validate_db_path(std::string const &db, bool require_exists,
 }
 
 int make_open_flags(bool readonly, bool allow_create) {
-    int flags = SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_NOFOLLOW;
+    int flags = SQLITE_OPEN_FULLMUTEX;
+#ifndef VSQLITE_ALLOW_FOLLOW_SYMLINKS
+    flags |= SQLITE_OPEN_NOFOLLOW;
+#endif
     if (readonly) {
         flags |= SQLITE_OPEN_READONLY;
     } else {
@@ -257,6 +257,7 @@ inline namespace v2 {
         int err      = sqlite3_open_v2(db.c_str(), &tmp, flags, nullptr);
         if (err != SQLITE_OK) {
             std::string message = tmp ? sqlite3_errmsg(tmp) : "Could not open database";
+
             if (tmp) {
                 sqlite3_close(tmp);
             }

@@ -28,3 +28,7 @@ Makefile.in
 
 # The example
 /vsqlitepp_example
+
+.cache
+out
+compile_commands.json

@@ -48,7 +48,10 @@ jobs:
 
       - name: Configure
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DVSQLITE_BUILD_EXAMPLES=ON
+          # On modern macOS /var/ is a symlink. By default the library doesn't allow following symlinks.
+          # The tests uses std::filesystem::temp_directory_path() which returns a path in /var, causing
+          # tests to fail so we explicitly allow it.
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DVSQLITE_BUILD_EXAMPLES=ON -DVSQLITE_ALLOW_FOLLOW_SYMLINKS=ON
         shell: bash
 
       - name: Build
