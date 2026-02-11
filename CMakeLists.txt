@@ -12,6 +12,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(VSQLITE_BUILD_EXAMPLES "Build the sqlite wrapper example" ON)
+option(VSQLITE_ALLOW_FOLLOW_SYMLINKS "When on, allow SQLite to follow symlinks when opening databases" ON)
+
 include(CTest)
 
 option(VSQLITE_BUILD_TESTS "Build unit tests" ${BUILD_TESTING})
@@ -93,6 +95,11 @@ if(VSQLITE_BUILD_EXAMPLES)
   target_link_libraries(vsqlitepp_example PRIVATE vsqlite::vsqlitepp)
   install(TARGETS vsqlitepp_example RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
+
+if(VSQLITE_ALLOW_FOLLOW_SYMLINKS)
+  target_compile_definitions(vsqlitepp PRIVATE VSQLITE_ALLOW_FOLLOW_SYMLINKS=1)
+endif()
+
 
 install(TARGETS vsqlitepp
   EXPORT vsqliteppTargets
