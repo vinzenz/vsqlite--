@@ -97,7 +97,7 @@ if(VSQLITE_BUILD_EXAMPLES)
 endif()
 
 if(VSQLITE_ALLOW_FOLLOW_SYMLINKS)
-  target_compile_options(vsqlitepp PRIVATE VSQLITE_ALLOW_FOLLOW_SYMLINKS=1)
+  target_compile_definitions(vsqlitepp PRIVATE VSQLITE_ALLOW_FOLLOW_SYMLINKS=1)
 endif()
 
 
