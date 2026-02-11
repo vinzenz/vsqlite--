@@ -12,7 +12,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(VSQLITE_BUILD_EXAMPLES "Build the sqlite wrapper example" ON)
-option(VSQLITE_ALLOW_FOLLOW_SYMLINKS "When on, allow SQLite to follow symlinks when opening databases" OFF)
+option(VSQLITE_ALLOW_FOLLOW_SYMLINKS "When on, allow SQLite to follow symlinks when opening databases" ON)
 
 include(CTest)
 
