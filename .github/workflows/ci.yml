@@ -36,7 +36,15 @@ jobs:
       - name: Install dependencies (Windows)
         if: matrix.os == 'windows-2025'
         run: |
-          choco install ninja sqlite
+          choco install ninja
+
+      - name: Install dependencies (Windows)
+        if: matrix.os == 'windows-2025'
+        shell: bash
+        run: |
+          choco install ninja
+          curl https://www.sqlite.org/2026/sqlite-amalgamation-3510200.zip -o sqlite.zip
+          unzip
 
       - name: Configure
         run: |
@@ -47,4 +55,4 @@ jobs:
         run: cmake --build build --config ${{ matrix.build_type }}
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure --build-config ${{ matrix.build_type }}
+        run: ctest --test-dir build --verbose --build-config ${{ matrix.build_type }}
