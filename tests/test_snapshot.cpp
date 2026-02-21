@@ -17,7 +17,6 @@ TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
     sqlite::connection writer(db.string());
     sqlite::enable_wal(writer);
     sqlite::connection reader(db.string());
-    sqlite::enable_wal(reader);
     dump_sqlite_diagnostics(writer, "SnapshotTest.TransactionSnapshotProvidesHistoricalReads");
     sqlite::execute(writer, "CREATE TABLE docs(id INTEGER PRIMARY KEY, body TEXT);", true);
 
@@ -65,7 +64,6 @@ TEST(SnapshotTest, SavepointSnapshotControlsScope) {
     sqlite::connection writer(db.string());
     sqlite::enable_wal(writer);
     sqlite::connection reader(db.string());
-    sqlite::enable_wal(reader);
     dump_sqlite_diagnostics(writer, "SnapshotTest.SavepointSnapshotControlsScope");
     sqlite::execute(writer, "CREATE TABLE docs(id INTEGER PRIMARY KEY, body TEXT);", true);
 
