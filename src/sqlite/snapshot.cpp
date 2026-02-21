@@ -89,9 +89,24 @@ std::string journal_sql(sqlite::wal_mode mode) {
     return std::string(sqlite::to_string(mode));
 }
 
-std::string format_snapshot_error(char const *zMsg, std::string_view schema) {
-    std::string msg = zMsg ? std::string(zMsg) : std::string("Snapshot operation failed");
-    msg.append(" [schema=").append(schema).push_back(']');
+std::string format_snapshot_error(sqlite3 *db, int rc, std::string_view schema) {
+    std::string msg;
+    if (db) {
+        auto const *zMsg = sqlite3_errmsg(db);
+        if (zMsg && *zMsg) {
+            msg.assign(zMsg);
+        }
+    }
+    if (msg.empty()) {
+        msg = "Snapshot operation failed";
+    }
+    msg.append(" (rc=").append(std::to_string(rc)).append(", errstr=");
+    auto const *zErrStr = sqlite3_errstr(rc);
+    msg.append(zErrStr ? zErrStr : "unknown");
+    if (db) {
+        msg.append(", xrc=").append(std::to_string(sqlite3_extended_errcode(db)));
+    }
+    msg.append(") [schema=").append(schema).push_back(']');
     return msg;
 }
 
@@ -159,12 +174,12 @@ inline namespace v2 {
     snapshot snapshot::take(connection &con, std::string_view schema) {
         ensure_snapshot_available();
         auto normalized       = normalize_schema(schema);
+        auto *db              = to_handle(con);
         sqlite3_snapshot *raw = nullptr;
         auto get_fn           = snapshot_symbols().get;
-        int rc = get_fn ? get_fn(to_handle(con), normalized.c_str(), &raw) : SQLITE_ERROR;
+        int rc                = get_fn ? get_fn(db, normalized.c_str(), &raw) : SQLITE_ERROR;
         if (rc != SQLITE_OK) {
-            throw database_exception_code(
-                format_snapshot_error(sqlite3_errmsg(to_handle(con)), normalized), rc);
+            throw database_exception_code(format_snapshot_error(db, rc, normalized), rc);
         }
         return snapshot(raw);
     }
@@ -176,13 +191,13 @@ inline namespace v2 {
         }
         auto normalized = normalize_schema(schema);
         auto open_fn    = snapshot_symbols().open;
-        int rc = open_fn ? open_fn(to_handle(con), normalized.c_str(), handle_) : SQLITE_ERROR;
+        auto *db        = to_handle(con);
+        int rc          = open_fn ? open_fn(db, normalized.c_str(), handle_) : SQLITE_ERROR;
         if (rc == SQLITE_BUSY) {
             throw database_exception("Snapshot is too old and cannot be opened.");
         }
         if (rc != SQLITE_OK) {
-            throw database_exception_code(
-                format_snapshot_error(sqlite3_errmsg(to_handle(con)), normalized), rc);
+            throw database_exception_code(format_snapshot_error(db, rc, normalized), rc);
         }
     }
 
