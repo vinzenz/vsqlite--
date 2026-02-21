@@ -9,6 +9,14 @@
 
 using namespace testhelpers;
 
+namespace {
+void prime_snapshot_connection(sqlite::connection &conn) {
+    sqlite::query q(conn, "PRAGMA application_id;");
+    auto res = q.get_result();
+    res->next_row();
+}
+} // namespace
+
 TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
     if (!sqlite::snapshots_supported()) {
         GTEST_SKIP() << "SQLite snapshot APIs not available in this build.";
@@ -16,7 +24,6 @@ TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
     TempFile db("snapshot_txn");
     sqlite::connection writer(db.string());
     sqlite::enable_wal(writer);
-    sqlite::connection reader(db.string());
     dump_sqlite_diagnostics(writer, "SnapshotTest.TransactionSnapshotProvidesHistoricalReads");
     sqlite::execute(writer, "CREATE TABLE docs(id INTEGER PRIMARY KEY, body TEXT);", true);
 
@@ -29,10 +36,15 @@ TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
         txn.commit();
     }
 
+    sqlite::connection reader_snapshot(db.string());
+    sqlite::connection reader_open(db.string());
+    prime_snapshot_connection(reader_snapshot);
+    prime_snapshot_connection(reader_open);
+
     sqlite::snapshot snap;
     {
-        sqlite::transaction read(reader, sqlite::transaction_type::deferred);
-        sqlite::query q(reader, "SELECT COUNT(*) FROM docs;");
+        sqlite::transaction read(reader_snapshot, sqlite::transaction_type::deferred);
+        sqlite::query q(reader_snapshot, "SELECT COUNT(*) FROM docs;");
         auto res = q.get_result();
         ASSERT_TRUE(res->next_row());
         EXPECT_EQ(res->get<int>(0), 1);
@@ -50,9 +62,9 @@ TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
 
     dump_table_info(writer, "docs");
 
-    sqlite::transaction read(reader, sqlite::transaction_type::deferred);
-    snap.open(reader);
-    sqlite::query q(reader, "SELECT COUNT(*) FROM docs;");
+    sqlite::transaction read(reader_open, sqlite::transaction_type::deferred);
+    snap.open(reader_open);
+    sqlite::query q(reader_open, "SELECT COUNT(*) FROM docs;");
     auto res = q.get_result();
     ASSERT_TRUE(res->next_row());
     EXPECT_EQ(res->get<int>(0), 1);
@@ -65,7 +77,6 @@ TEST(SnapshotTest, SavepointSnapshotControlsScope) {
     TempFile db("snapshot_savepoint");
     sqlite::connection writer(db.string());
     sqlite::enable_wal(writer);
-    sqlite::connection reader(db.string());
     dump_sqlite_diagnostics(writer, "SnapshotTest.SavepointSnapshotControlsScope");
     sqlite::execute(writer, "CREATE TABLE docs(id INTEGER PRIMARY KEY, body TEXT);", true);
 
@@ -78,10 +89,15 @@ TEST(SnapshotTest, SavepointSnapshotControlsScope) {
         txn.commit();
     }
 
+    sqlite::connection reader_snapshot(db.string());
+    sqlite::connection reader_open(db.string());
+    prime_snapshot_connection(reader_snapshot);
+    prime_snapshot_connection(reader_open);
+
     sqlite::snapshot snap;
     {
-        sqlite::savepoint sp(reader, "sp");
-        sqlite::query prime(reader, "SELECT COUNT(*) FROM docs;");
+        sqlite::savepoint sp(reader_snapshot, "sp");
+        sqlite::query prime(reader_snapshot, "SELECT COUNT(*) FROM docs;");
         auto prime_res = prime.get_result();
         ASSERT_TRUE(prime_res->next_row());
         snap = sp.take_snapshot();
@@ -98,9 +114,9 @@ TEST(SnapshotTest, SavepointSnapshotControlsScope) {
 
     dump_table_info(writer, "docs");
 
-    sqlite::savepoint sp(reader, "sp_read");
+    sqlite::savepoint sp(reader_open, "sp_read");
     sp.open_snapshot(snap);
-    sqlite::query check(reader, "SELECT COUNT(*) FROM docs;");
+    sqlite::query check(reader_open, "SELECT COUNT(*) FROM docs;");
     auto snap_res = check.get_result();
     ASSERT_TRUE(snap_res->next_row());
     EXPECT_EQ(snap_res->get<int>(0), 1);
