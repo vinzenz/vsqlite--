@@ -38,17 +38,9 @@ jobs:
         run: |
           choco install ninja
 
-      - name: Install dependencies (Windows)
-        if: matrix.os == 'windows-2025'
-        shell: bash
-        run: |
-          choco install ninja
-          curl https://www.sqlite.org/2026/sqlite-amalgamation-3510200.zip -o sqlite.zip
-          unzip
-
       - name: Configure
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DVSQLITE_BUILD_EXAMPLES=ON
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DVSQLITE_BUILD_EXAMPLES=ON -DVSQLITE_BUNDLED_SQLITE=ON
         shell: bash
 
       - name: Build
