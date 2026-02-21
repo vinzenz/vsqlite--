@@ -25,6 +25,7 @@ TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
         sqlite::transaction txn(writer, sqlite::transaction_type::immediate);
         insert % std::string("a");
         insert.step_once();
+        insert.clear();
         txn.commit();
     }
 
@@ -43,6 +44,7 @@ TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
         sqlite::transaction txn(writer, sqlite::transaction_type::immediate);
         insert % std::string("b");
         insert.step_once();
+        insert.clear();
         txn.commit();
     }
 
@@ -72,6 +74,7 @@ TEST(SnapshotTest, SavepointSnapshotControlsScope) {
         sqlite::transaction txn(writer, sqlite::transaction_type::immediate);
         insert % std::string("alpha");
         insert.step_once();
+        insert.clear();
         txn.commit();
     }
 
@@ -89,6 +92,7 @@ TEST(SnapshotTest, SavepointSnapshotControlsScope) {
         sqlite::transaction txn(writer, sqlite::transaction_type::immediate);
         insert % std::string("beta");
         insert.step_once();
+        insert.clear();
         txn.commit();
     }
 
