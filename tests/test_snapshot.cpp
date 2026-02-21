@@ -13,7 +13,9 @@ TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
     if (!sqlite::snapshots_supported()) {
         GTEST_SKIP() << "SQLite snapshot APIs not available in this build.";
     }
-    sqlite::connection conn(":memory:");
+    TempFile db("snapshot_txn");
+    sqlite::connection conn(db.string());
+    sqlite::enable_wal(conn);
     dump_sqlite_diagnostics(conn, "SnapshotTest.TransactionSnapshotProvidesHistoricalReads");
     sqlite::execute(conn, "CREATE TABLE docs(id INTEGER PRIMARY KEY, body TEXT);", true);
 
@@ -40,7 +42,9 @@ TEST(SnapshotTest, SavepointSnapshotControlsScope) {
     if (!sqlite::snapshots_supported()) {
         GTEST_SKIP() << "SQLite snapshot APIs not available in this build.";
     }
-    sqlite::connection conn(":memory:");
+    TempFile db("snapshot_savepoint");
+    sqlite::connection conn(db.string());
+    sqlite::enable_wal(conn);
     dump_sqlite_diagnostics(conn, "SnapshotTest.SavepointSnapshotControlsScope");
     sqlite::execute(conn, "CREATE TABLE docs(id INTEGER PRIMARY KEY, body TEXT);", true);
 
