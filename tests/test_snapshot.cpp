@@ -9,14 +9,6 @@
 
 using namespace testhelpers;
 
-namespace {
-void prime_snapshot_connection(sqlite::connection &conn) {
-    sqlite::query q(conn, "PRAGMA application_id;");
-    auto res = q.get_result();
-    res->next_row();
-}
-} // namespace
-
 TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
     if (!sqlite::snapshots_supported()) {
         GTEST_SKIP() << "SQLite snapshot APIs not available in this build.";
@@ -38,8 +30,6 @@ TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
 
     sqlite::connection reader_snapshot(db.string());
     sqlite::connection reader_open(db.string());
-    prime_snapshot_connection(reader_snapshot);
-    prime_snapshot_connection(reader_open);
 
     sqlite::snapshot snap;
     {
@@ -63,9 +53,6 @@ TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
     dump_table_info(writer, "docs");
 
     sqlite::transaction read(reader_open, sqlite::transaction_type::deferred);
-    sqlite::query open_prime(reader_open, "SELECT COUNT(*) FROM docs;");
-    auto open_prime_res = open_prime.get_result();
-    ASSERT_TRUE(open_prime_res->next_row());
     snap.open(reader_open);
     sqlite::query q(reader_open, "SELECT COUNT(*) FROM docs;");
     auto res = q.get_result();
@@ -94,8 +81,6 @@ TEST(SnapshotTest, SavepointSnapshotControlsScope) {
 
     sqlite::connection reader_snapshot(db.string());
     sqlite::connection reader_open(db.string());
-    prime_snapshot_connection(reader_snapshot);
-    prime_snapshot_connection(reader_open);
 
     sqlite::snapshot snap;
     {
@@ -118,9 +103,6 @@ TEST(SnapshotTest, SavepointSnapshotControlsScope) {
     dump_table_info(writer, "docs");
 
     sqlite::savepoint sp(reader_open, "sp_read");
-    sqlite::query open_prime(reader_open, "SELECT COUNT(*) FROM docs;");
-    auto open_prime_res = open_prime.get_result();
-    ASSERT_TRUE(open_prime_res->next_row());
     sp.open_snapshot(snap);
     sqlite::query check(reader_open, "SELECT COUNT(*) FROM docs;");
     auto snap_res = check.get_result();
