@@ -44,7 +44,11 @@ if(VSQLITE_BUNDLED_SQLITE)
   FetchContent_MakeAvailable(sqlite3_amalgamation)
 
   add_library(sqlite3 STATIC "${sqlite3_amalgamation_SOURCE_DIR}/sqlite3.c")
-  target_include_directories(sqlite3 PUBLIC "${sqlite3_amalgamation_SOURCE_DIR}")
+  target_include_directories(sqlite3
+    PUBLIC
+      $<BUILD_INTERFACE:${sqlite3_amalgamation_SOURCE_DIR}>
+      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  )
   target_compile_definitions(sqlite3
     PRIVATE
       SQLITE_ENABLE_FTS5
@@ -147,6 +151,11 @@ if(VSQLITE_BUNDLED_SQLITE)
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+  install(FILES
+    "${sqlite3_amalgamation_SOURCE_DIR}/sqlite3.h"
+    "${sqlite3_amalgamation_SOURCE_DIR}/sqlite3ext.h"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   )
 endif()
 
