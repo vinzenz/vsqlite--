@@ -198,6 +198,9 @@ install(FILES
 
 if(VSQLITE_BUILD_TESTS)
   enable_testing()
+  set(VSQLITE_OLD_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+  set(BUILD_SHARED_LIBS OFF)
+  set(INSTALL_GTEST OFF)
   include(FetchContent)
   FetchContent_Declare(
     googletest
@@ -205,6 +208,7 @@ if(VSQLITE_BUILD_TESTS)
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
   )
   FetchContent_MakeAvailable(googletest)
+  set(BUILD_SHARED_LIBS ${VSQLITE_OLD_BUILD_SHARED_LIBS})
 
   set(VSQLITE_TEST_SOURCES
     tests/test_backup.cpp
