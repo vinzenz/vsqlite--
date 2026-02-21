@@ -44,6 +44,7 @@ if(VSQLITE_BUNDLED_SQLITE)
   FetchContent_MakeAvailable(sqlite3_amalgamation)
 
   add_library(sqlite3 STATIC "${sqlite3_amalgamation_SOURCE_DIR}/sqlite3.c")
+  set_target_properties(sqlite3 PROPERTIES POSITION_INDEPENDENT_CODE ON)
   target_include_directories(sqlite3
     PUBLIC
       $<BUILD_INTERFACE:${sqlite3_amalgamation_SOURCE_DIR}>
