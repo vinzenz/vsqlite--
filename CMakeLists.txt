@@ -19,6 +19,12 @@ include(CTest)
 option(VSQLITE_BUILD_TESTS "Build unit tests" ${BUILD_TESTING})
 option(VSQLITE_ENABLE_COVERAGE "Enable code coverage instrumentation" OFF)
 
+set(VSQLITE_BUNDLED_SQLITE_DEFAULT OFF)
+if(VSQLITE_BUILD_TESTS)
+  set(VSQLITE_BUNDLED_SQLITE_DEFAULT ON)
+endif()
+option(VSQLITE_BUNDLED_SQLITE "Build and link bundled SQLite3" ${VSQLITE_BUNDLED_SQLITE_DEFAULT})
+
 set(VSQLITEPP_SOVERSION "${PROJECT_VERSION_MAJOR}" CACHE STRING "Shared object version to use")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -26,7 +32,32 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-find_package(SQLite3 REQUIRED)
+if(VSQLITE_BUNDLED_SQLITE)
+  enable_language(C)
+  include(FetchContent)
+  FetchContent_Declare(
+    sqlite3_amalgamation
+    URL https://www.sqlite.org/2026/sqlite-amalgamation-3510200.zip
+    URL_HASH SHA3_256=9a9dd4ee89c1ee996c9942ff4fe2234a520cfe725787e88a1b17051ebf6c370b
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+  )
+  FetchContent_MakeAvailable(sqlite3_amalgamation)
+
+  add_library(sqlite3 STATIC "${sqlite3_amalgamation_SOURCE_DIR}/sqlite3.c")
+  target_include_directories(sqlite3 PUBLIC "${sqlite3_amalgamation_SOURCE_DIR}")
+  target_compile_definitions(sqlite3
+    PRIVATE
+      SQLITE_ENABLE_FTS5
+      SQLITE_ENABLE_JSON1
+      SQLITE_ENABLE_SESSION
+      SQLITE_ENABLE_SNAPSHOT
+      SQLITE_ENABLE_PREUPDATE_HOOK
+      SQLITE_THREADSAFE=1
+  )
+  add_library(SQLite::SQLite3 ALIAS sqlite3)
+else()
+  find_package(SQLite3 REQUIRED)
+endif()
 
 if(VSQLITE_ENABLE_COVERAGE)
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
