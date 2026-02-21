@@ -63,6 +63,9 @@ TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
     dump_table_info(writer, "docs");
 
     sqlite::transaction read(reader_open, sqlite::transaction_type::deferred);
+    sqlite::query open_prime(reader_open, "SELECT COUNT(*) FROM docs;");
+    auto open_prime_res = open_prime.get_result();
+    ASSERT_TRUE(open_prime_res->next_row());
     snap.open(reader_open);
     sqlite::query q(reader_open, "SELECT COUNT(*) FROM docs;");
     auto res = q.get_result();
@@ -115,6 +118,9 @@ TEST(SnapshotTest, SavepointSnapshotControlsScope) {
     dump_table_info(writer, "docs");
 
     sqlite::savepoint sp(reader_open, "sp_read");
+    sqlite::query open_prime(reader_open, "SELECT COUNT(*) FROM docs;");
+    auto open_prime_res = open_prime.get_result();
+    ASSERT_TRUE(open_prime_res->next_row());
     sp.open_snapshot(snap);
     sqlite::query check(reader_open, "SELECT COUNT(*) FROM docs;");
     auto snap_res = check.get_result();
