@@ -38,7 +38,7 @@ if(VSQLITE_BUNDLED_SQLITE)
   FetchContent_Declare(
     sqlite3_amalgamation
     URL https://www.sqlite.org/2026/sqlite-amalgamation-3510200.zip
-    URL_HASH SHA3_256=9a9dd4ee89c1ee996c9942ff4fe2234a520cfe725787e88a1b17051ebf6c370b
+    URL_HASH SHA3_256=9a9dd4eef7a97809bfacd84a7db5080a5c0eff7aaf1fc1aca20a6dc9a0c26f96
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
   )
   FetchContent_MakeAvailable(sqlite3_amalgamation)
