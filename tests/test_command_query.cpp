@@ -15,6 +15,7 @@ using namespace testhelpers;
 
 TEST(CommandQueryTest, BindsAndRetrievesData) {
     sqlite::connection conn(":memory:");
+    dump_sqlite_diagnostics(conn, "CommandQueryTest.BindsAndRetrievesData");
     sqlite::execute(conn,
                     "CREATE TABLE sample(id INTEGER PRIMARY KEY, ival INTEGER, lval INTEGER, note "
                     "TEXT, amount REAL, data BLOB, nullable TEXT);",
@@ -37,6 +38,8 @@ TEST(CommandQueryTest, BindsAndRetrievesData) {
     insert % 7 % static_cast<std::int64_t>(9007199254740993LL) % world_view % 2.71 %
         std::span<const unsigned char>(blob_view_data) % std::string("value");
     insert();
+
+    dump_table_info(conn, "sample");
 
     sqlite::query q(conn,
                     "SELECT id, ival, lval, note, amount, data, nullable FROM sample ORDER BY id;");

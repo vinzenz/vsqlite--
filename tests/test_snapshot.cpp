@@ -14,6 +14,7 @@ TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
         GTEST_SKIP() << "SQLite snapshot APIs not available in this build.";
     }
     sqlite::connection conn(":memory:");
+    dump_sqlite_diagnostics(conn, "SnapshotTest.TransactionSnapshotProvidesHistoricalReads");
     sqlite::execute(conn, "CREATE TABLE docs(id INTEGER PRIMARY KEY, body TEXT);", true);
 
     sqlite::transaction txn(conn, sqlite::transaction_type::immediate);
@@ -24,6 +25,8 @@ TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
     insert % std::string("b");
     insert.step_once();
     txn.commit();
+
+    dump_table_info(conn, "docs");
 
     sqlite::transaction read(conn, sqlite::transaction_type::deferred);
     snap.open(conn);
@@ -38,6 +41,7 @@ TEST(SnapshotTest, SavepointSnapshotControlsScope) {
         GTEST_SKIP() << "SQLite snapshot APIs not available in this build.";
     }
     sqlite::connection conn(":memory:");
+    dump_sqlite_diagnostics(conn, "SnapshotTest.SavepointSnapshotControlsScope");
     sqlite::execute(conn, "CREATE TABLE docs(id INTEGER PRIMARY KEY, body TEXT);", true);
 
     sqlite::savepoint sp(conn, "sp");
@@ -48,6 +52,8 @@ TEST(SnapshotTest, SavepointSnapshotControlsScope) {
     insert % std::string("beta");
     insert.step_once();
     sp.rollback();
+
+    dump_table_info(conn, "docs");
 
     sqlite::query q(conn, "SELECT COUNT(*) FROM docs;");
     auto res = q.get_result();
