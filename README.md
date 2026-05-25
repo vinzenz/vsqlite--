@@ -86,6 +86,10 @@ cmd % std::string("hello from worker");
 cmd.step_once();
 ```
 
+`connection_pool::lease::shared()` returns an aliasing `std::shared_ptr<sqlite::connection>` for
+cases where a connection has to cross an API boundary. If that alias outlives the pool, the
+connection is closed normally instead of being returned to a destroyed pool.
+
 ## User-Defined SQL Functions
 
 Register portable SQL functions directly from C++ lambdas via `sqlite::create_function` (from `#include <sqlite/function.hpp>`). Arguments map to lambda parameters (including `std::optional<T>` for nullable inputs) while return values are written back automatically:
@@ -135,6 +139,15 @@ auto [id, stamp, note] = row->get_tuple<
 ```
 
 Bindings use microseconds for chrono values, unwrap `std::optional` automatically (binding `NULL` when empty), and tuple helpers validate column counts to keep mismatches from slipping through at runtime.
+
+Use `command::clear()` when reusing a command for a new set of parameters; it resets the statement
+and clears all previous bindings. Use `reset_statement()` only when you intentionally want to keep
+existing bindings for another execution.
+
+`query::get_result()` returns a cursor that keeps the prepared statement alive even if the `query`
+object is destroyed first. The owning `sqlite::connection` must still outlive active commands and
+results. `result::get_column_decltype()` mirrors SQLite and returns an empty string for computed
+expressions or other columns where SQLite reports no declared type.
 
 ## Snapshots, WAL & WAL2
 
