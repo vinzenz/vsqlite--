@@ -69,7 +69,8 @@ inline namespace v2 {
 
     std::string result::get_column_decltype(int idx) {
         access_check(idx);
-        return sqlite3_column_decltype(m_params->statement, idx);
+        auto *decltype_name = sqlite3_column_decltype(m_params->statement, idx);
+        return decltype_name ? decltype_name : "";
     }
 
     type result::get_column_type(int idx) {

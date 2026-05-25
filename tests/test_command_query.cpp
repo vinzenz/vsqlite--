@@ -263,3 +263,31 @@ TEST(CommandQueryTest, ResultCanOutliveQueryObject) {
     EXPECT_EQ(res->get<std::string>(1), "kept");
     EXPECT_FALSE(res->next_row());
 }
+
+TEST(CommandQueryTest, ExpressionDecltypeReturnsEmptyString) {
+    sqlite::connection conn(":memory:");
+    sqlite::query q(conn, "SELECT 1 + 1;");
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get_column_decltype(0), "");
+}
+
+TEST(CommandQueryTest, ClearRemovesPreviousBindings) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE clear_bindings(id INTEGER, note TEXT NOT NULL);", true);
+
+    sqlite::command insert(conn, "INSERT INTO clear_bindings(id, note) VALUES(?, ?);");
+    insert % 1 % "first";
+    insert.step_once();
+    insert.clear();
+
+    insert % 2;
+    EXPECT_THROW(insert.step_once(), sqlite::database_exception);
+
+    sqlite::query q(conn, "SELECT id, note FROM clear_bindings;");
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 1);
+    EXPECT_EQ(res->get<std::string>(1), "first");
+    EXPECT_FALSE(res->next_row());
+}

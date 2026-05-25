@@ -118,13 +118,21 @@ inline namespace v2 {
     }
 
     void command::clear() {
-        sqlite3_reset(stmt);
+        access_check();
+        int err = sqlite3_reset(stmt);
+        if (err != SQLITE_OK)
+            throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
+        err = sqlite3_clear_bindings(stmt);
+        if (err != SQLITE_OK)
+            throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
         last_arg_idx = 0;
-        sqlite3_reset(stmt);
     }
 
     void command::reset_statement() {
-        sqlite3_reset(stmt);
+        access_check();
+        int err = sqlite3_reset(stmt);
+        if (err != SQLITE_OK)
+            throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     void command::prepare() {
