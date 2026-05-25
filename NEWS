@@ -1,0 +1,6 @@
+# vsqlite++ 0.4.1
+
+- Hardened `sqlite::result` and `sqlite::connection_pool` lifetime handling.
+- Fixed command clearing to remove retained SQLite parameter bindings.
+- Made expression column declared-type lookup return an empty string when SQLite reports no type.
+- Improved bundled SQLite build/test behavior and snapshot test robustness.
