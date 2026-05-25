@@ -246,3 +246,20 @@ TEST(CommandQueryTest, QueryEachSupportsMixedBinding) {
     ASSERT_EQ(messages.size(), 1u);
     EXPECT_EQ(messages[0], "slow");
 }
+
+TEST(CommandQueryTest, ResultCanOutliveQueryObject) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE retained(id INTEGER, note TEXT);", true);
+    sqlite::execute(conn, "INSERT INTO retained VALUES(1, 'kept');", true);
+
+    sqlite::result_type res;
+    {
+        sqlite::query q(conn, "SELECT id, note FROM retained;");
+        res = q.get_result();
+    }
+
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 1);
+    EXPECT_EQ(res->get<std::string>(1), "kept");
+    EXPECT_FALSE(res->next_row());
+}

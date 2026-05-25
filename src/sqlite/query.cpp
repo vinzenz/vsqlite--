@@ -32,6 +32,7 @@
 #include <memory>
 #include <utility>
 #include <stdexcept>
+#include <sqlite/database_exception.hpp>
 #include <sqlite/private/result_construct_params_private.hpp>
 #include <sqlite/query.hpp>
 #include <sqlite3.h>
@@ -42,26 +43,60 @@ inline namespace v2 {
 
     query::~query() {}
 
+    namespace {
+        bool step_result(sqlite3 *db, sqlite3_stmt *statement, std::string const &sql) {
+            int err = sqlite3_step(statement);
+            switch (err) {
+            case SQLITE_ROW:
+                return true;
+            case SQLITE_DONE:
+                return false;
+            case SQLITE_MISUSE:
+                throw database_misuse_exception_code(sqlite3_errmsg(db), err, sql);
+            default:
+                throw database_exception_code(sqlite3_errmsg(db), err, sql);
+            }
+        }
+    } // namespace
+
     std::shared_ptr<result> query::emit_result() {
-        bool ended           = !step();
+        auto owner           = shared_statement();
+        sqlite3 *db          = sqlite3_db_handle(stmt);
+        auto sql             = sql_text();
+        bool ended           = !step_result(db, stmt, sql);
         auto params          = std::make_shared<result_construct_params_private>();
-        params->access_check = [this]() { access_check(); };
-        params->step         = [this]() -> bool { return step(); };
-        params->db           = sqlite3_db_handle(stmt);
+        params->access_check = [owner]() {
+            if (!owner) {
+                throw database_exception("query result statement is no longer valid");
+            }
+        };
+        params->step = [db, statement = stmt, sql]() -> bool { return step_result(db, statement, sql); };
+        params->db           = db;
         params->changes      = sqlite3_changes(params->db);
         params->statement    = stmt;
+        params->statement_owner = std::move(owner);
+        params->sql          = std::move(sql);
         params->ended        = ended;
         return std::shared_ptr<result>(new result(params));
     }
 
     std::shared_ptr<result> query::get_result() {
         access_check();
+        auto owner           = shared_statement();
+        sqlite3 *db          = sqlite3_db_handle(stmt);
+        auto sql             = sql_text();
         auto params          = std::make_shared<result_construct_params_private>();
-        params->access_check = [this]() { access_check(); };
-        params->step         = [this]() -> bool { return step(); };
-        params->db           = sqlite3_db_handle(stmt);
+        params->access_check = [owner]() {
+            if (!owner) {
+                throw database_exception("query result statement is no longer valid");
+            }
+        };
+        params->step = [db, statement = stmt, sql]() -> bool { return step_result(db, statement, sql); };
+        params->db           = db;
         params->changes      = sqlite3_changes(params->db);
         params->statement    = stmt;
+        params->statement_owner = std::move(owner);
+        params->sql          = std::move(sql);
         params->ended        = false;
         return std::shared_ptr<result>(new result(params));
     }

@@ -33,6 +33,8 @@ VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
 #define GUARD_SQLITE_RESULT_CONSTRUCT_PARAMS_PRIVATE_HPP_INCLUDED
 
 #include <functional>
+#include <memory>
+#include <string>
 
 struct sqlite3;
 struct sqlite3_stmt;
@@ -43,6 +45,8 @@ inline namespace v2 {
     struct result_construct_params_private {
         sqlite3 *db;
         sqlite3_stmt *statement;
+        std::shared_ptr<void> statement_owner;
+        std::string sql;
         int changes;
         std::function<void()> access_check;
         std::function<bool()> step;

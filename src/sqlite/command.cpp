@@ -86,6 +86,24 @@ inline namespace v2 {
         prepare();
     }
 
+    struct command::statement_handle {
+        connection *con = nullptr;
+        std::string sql;
+        sqlite3_stmt *stmt = nullptr;
+        bool cacheable = false;
+
+        ~statement_handle() {
+            if (!stmt) {
+                return;
+            }
+            if (cacheable && con) {
+                private_accessor::release_cached_statement(*con, sql, stmt);
+            } else {
+                sqlite3_finalize(stmt);
+            }
+        }
+    };
+
     command::~command() {
         try {
             finalize();
@@ -95,15 +113,8 @@ inline namespace v2 {
 
     void command::finalize() {
         access_check();
-        if (!stmt) {
-            return;
-        }
-        if (is_schema_changing_statement(m_sql)) {
-            sqlite3_finalize(stmt);
-        } else {
-            private_accessor::release_cached_statement(m_con, m_sql, stmt);
-        }
-        stmt = 0;
+        stmt = nullptr;
+        stmt_owner_.reset();
     }
 
     void command::clear() {
@@ -124,16 +135,24 @@ inline namespace v2 {
         }
         if (stmt)
             finalize();
-        if (!schema_change) {
-            stmt = private_accessor::acquire_cached_statement(m_con, m_sql);
-            if (stmt) {
+        bool cacheable = !schema_change;
+        if (cacheable) {
+            auto *cached = private_accessor::acquire_cached_statement(m_con, m_sql);
+            if (cached) {
+                stmt_owner_ = std::make_shared<statement_handle>(
+                    statement_handle{&m_con, m_sql, cached, true});
+                stmt = cached;
                 return;
             }
         }
         const char *tail = 0;
-        int err          = sqlite3_prepare_v2(get_handle(), m_sql.c_str(), -1, &stmt, &tail);
+        sqlite3_stmt *prepared = nullptr;
+        int err = sqlite3_prepare_v2(get_handle(), m_sql.c_str(), -1, &prepared, &tail);
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
+        stmt_owner_ = std::make_shared<statement_handle>(
+            statement_handle{&m_con, m_sql, prepared, cacheable});
+        stmt = prepared;
     }
 
     bool command::step_once() {
@@ -300,6 +319,14 @@ inline namespace v2 {
 
     struct sqlite3 *command::get_handle() {
         return private_accessor::get_handle(m_con);
+    }
+
+    std::shared_ptr<command::statement_handle> command::shared_statement() const {
+        return stmt_owner_;
+    }
+
+    std::string const &command::sql_text() const noexcept {
+        return m_sql;
     }
 } // namespace v2
 } // namespace sqlite

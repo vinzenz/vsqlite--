@@ -35,6 +35,7 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
@@ -78,6 +79,8 @@ inline namespace v2 {
      * An object of this class is not copyable
      */
     struct command {
+        struct statement_handle;
+
         /** \brief \a command constructor
          * \param con takes a reference to the database connection type
          *        \a connection
@@ -260,6 +263,8 @@ inline namespace v2 {
         void access_check() const;
         bool step();
         struct sqlite3 *get_handle();
+        std::string const &sql_text() const noexcept;
+        std::shared_ptr<statement_handle> shared_statement() const;
 
     private:
         void prepare();
@@ -274,6 +279,7 @@ inline namespace v2 {
         sqlite3_stmt *stmt;
 
     private:
+        std::shared_ptr<statement_handle> stmt_owner_;
         int last_arg_idx;
     };
 
