@@ -53,6 +53,8 @@ inline namespace v2 {
 
     /// Thread-safe pool for leasing reusable SQLite connections.
     class connection_pool {
+        struct pool_state;
+
     public:
         using connection_factory = std::function<std::shared_ptr<connection>()>;
 
@@ -111,12 +113,7 @@ inline namespace v2 {
         friend class lease;
         void release(std::shared_ptr<connection> conn);
 
-        connection_factory factory_;
-        std::size_t capacity_;
-        std::size_t created_ = 0;
-        mutable std::mutex mutex_;
-        std::condition_variable cv_;
-        std::vector<std::shared_ptr<connection>> idle_;
+        std::shared_ptr<pool_state> state_;
     };
 
 } // namespace v2

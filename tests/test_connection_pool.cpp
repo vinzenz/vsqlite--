@@ -38,3 +38,17 @@ TEST(ConnectionPoolTest, ReturnsConnectionAfterSharedAlias) {
     shared.reset();
     EXPECT_EQ(pool.idle_count(), 1u);
 }
+
+TEST(ConnectionPoolTest, SharedAliasCanOutlivePool) {
+    std::shared_ptr<sqlite::connection> shared;
+    {
+        auto factory = sqlite::connection_pool::make_factory(":memory:");
+        sqlite::connection_pool pool(1, factory);
+        auto lease = pool.acquire();
+        shared     = lease.shared();
+    }
+
+    ASSERT_NE(shared, nullptr);
+    EXPECT_NO_THROW(sqlite::execute(*shared, "SELECT 1;", true));
+    EXPECT_NO_THROW(shared.reset());
+}

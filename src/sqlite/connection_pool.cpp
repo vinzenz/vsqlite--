@@ -5,13 +5,30 @@
 namespace sqlite {
 inline namespace v2 {
 
+    struct connection_pool::pool_state {
+        connection_factory factory;
+        std::size_t capacity = 0;
+        std::size_t created = 0;
+        mutable std::mutex mutex;
+        std::condition_variable cv;
+        std::vector<std::shared_ptr<connection>> idle;
+
+        void release(std::shared_ptr<connection> conn) {
+            std::lock_guard<std::mutex> lock(mutex);
+            idle.push_back(std::move(conn));
+            cv.notify_one();
+        }
+    };
+
     struct connection_pool::lease::shared_state {
-        connection_pool *pool = nullptr;
+        std::weak_ptr<pool_state> pool;
         std::shared_ptr<connection> resource;
 
         ~shared_state() {
-            if (pool && resource) {
-                pool->release(std::move(resource));
+            if (resource) {
+                if (auto state = pool.lock()) {
+                    state->release(std::move(resource));
+                }
             }
         }
     };
@@ -19,7 +36,7 @@ inline namespace v2 {
     connection_pool::lease::lease(connection_pool *pool, std::shared_ptr<connection> conn) {
         if (pool && conn) {
             state_             = std::make_shared<shared_state>();
-            state_->pool       = pool;
+            state_->pool       = pool->state_;
             state_->resource   = std::move(conn);
             connection_        = std::shared_ptr<connection>(state_, state_->resource.get());
         }
@@ -58,13 +75,15 @@ inline namespace v2 {
     }
 
     connection_pool::connection_pool(std::size_t capacity, connection_factory factory) :
-        factory_(std::move(factory)), capacity_(capacity) {
-        if (capacity_ == 0) {
+        state_(std::make_shared<pool_state>()) {
+        if (capacity == 0) {
             throw database_exception("connection_pool capacity must be greater than zero");
         }
-        if (!factory_) {
+        if (!factory) {
             throw database_exception("connection_pool requires a valid factory");
         }
+        state_->factory  = std::move(factory);
+        state_->capacity = capacity;
     }
 
     connection_pool::connection_factory
@@ -80,31 +99,32 @@ inline namespace v2 {
     connection_pool::lease connection_pool::acquire() {
         std::shared_ptr<connection> conn;
         bool needs_creation = false;
+        auto state = state_;
 
         {
-            std::unique_lock<std::mutex> lock(mutex_);
+            std::unique_lock<std::mutex> lock(state->mutex);
             while (true) {
-                if (!idle_.empty()) {
-                    conn = std::move(idle_.back());
-                    idle_.pop_back();
+                if (!state->idle.empty()) {
+                    conn = std::move(state->idle.back());
+                    state->idle.pop_back();
                     break;
                 }
-                if (created_ < capacity_) {
-                    ++created_;
+                if (state->created < state->capacity) {
+                    ++state->created;
                     needs_creation = true;
                     break;
                 }
-                cv_.wait(lock);
+                state->cv.wait(lock);
             }
         }
 
         if (needs_creation) {
             try {
-                conn = factory_();
+                conn = state->factory();
             } catch (...) {
-                std::lock_guard<std::mutex> guard(mutex_);
-                --created_;
-                cv_.notify_one();
+                std::lock_guard<std::mutex> guard(state->mutex);
+                --state->created;
+                state->cv.notify_one();
                 throw;
             }
         }
@@ -113,23 +133,21 @@ inline namespace v2 {
     }
 
     void connection_pool::release(std::shared_ptr<connection> conn) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        idle_.push_back(std::move(conn));
-        cv_.notify_one();
+        state_->release(std::move(conn));
     }
 
     std::size_t connection_pool::capacity() const {
-        return capacity_;
+        return state_->capacity;
     }
 
     std::size_t connection_pool::idle_count() const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return idle_.size();
+        std::lock_guard<std::mutex> lock(state_->mutex);
+        return state_->idle.size();
     }
 
     std::size_t connection_pool::created_count() const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return created_;
+        std::lock_guard<std::mutex> lock(state_->mutex);
+        return state_->created;
     }
 
 } // namespace v2
