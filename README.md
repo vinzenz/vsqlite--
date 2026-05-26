@@ -40,9 +40,11 @@ cmake --install build --prefix /usr/local
 
 Use `-DVSQLITE_BUILD_EXAMPLES=OFF` on headless build farms and set `-DCMAKE_INSTALL_PREFIX` (or a toolchain file) to match your packaging target. The install step publishes headers, the `vsqlitepp` shared/static library, and the generated `vsqlite::vsqlitepp` package config so downstream projects can `find_package(vsqlitepp CONFIG REQUIRED)`.
 
-## Fetching with CMake FetchContent
+## FetchContent and CPM.cmake
 
-`vsqlite++` can be embedded directly in another CMake project via `FetchContent` because it exports the `vsqlite::vsqlitepp` target and keeps include paths relative to the build tree. Make sure your project requests CMake 3.21+ (matching this repo) and that SQLite3 is discoverable (`find_package(SQLite3 REQUIRED)` inside vsqlite++ still runs).
+`vsqlite++` can be embedded directly in another CMake project because it exports the `vsqlite::vsqlitepp` target and keeps include paths relative to the build tree. When included as a subproject, examples, tests, and install rules default to `OFF`.
+
+With CMake `FetchContent`:
 
 ```cmake
 include(FetchContent)
@@ -51,14 +53,24 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/vinzenz/vsqlite--
   GIT_TAG v${VSQLITEPP_VERSION} # or a commit hash
 )
-set(VSQLITE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(VSQLITE_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(vsqlitepp)
 
 target_link_libraries(my_app PRIVATE vsqlite::vsqlitepp)
 ```
 
-If you need SQLite as well, provide `SQLite::SQLite3` yourself (system package or another `FetchContent`) before linking against `vsqlite::vsqlitepp`.
+With CPM.cmake:
+
+```cmake
+CPMAddPackage(
+  NAME vsqlitepp
+  GITHUB_REPOSITORY vinzenz/vsqlite--
+  GIT_TAG v${VSQLITEPP_VERSION} # or a commit hash
+)
+
+target_link_libraries(my_app PRIVATE vsqlite::vsqlitepp)
+```
+
+By default, `vsqlite++` uses `find_package(SQLite3 REQUIRED)`. If you want SQLite to be fetched and built with the wrapper, set `VSQLITE_BUNDLED_SQLITE=ON` before adding the dependency.
 
 ## vcpkg Overlay Port
 
