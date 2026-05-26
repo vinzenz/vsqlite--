@@ -87,6 +87,16 @@ find_package(vsqlitepp CONFIG REQUIRED)
 target_link_libraries(my_app PRIVATE vsqlite::vsqlitepp)
 ```
 
+## Release Packages
+
+Release tags matching `v*` build and attach native Linux packages to the GitHub release:
+
+- Debian packages via CPack's DEB generator.
+- RPM packages via CPack's RPM generator.
+- Arch Linux pacman packages from `packaging/arch/PKGBUILD`.
+
+The generated packages install the CMake package config, headers, documentation, and shared library under `/usr` and link against the distribution SQLite package.
+
 ## Threading & Pooling
 
 Configure SQLite's global threading mode before opening connections:

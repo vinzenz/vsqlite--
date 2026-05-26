@@ -1,0 +1,113 @@
+name: Release Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  cpack-linux:
+    name: CPack DEB and RPM
+    runs-on: ubuntu-24.04
+    env:
+      CC: gcc-13
+      CXX: g++-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev gcc-13 g++-13 libsqlite3-dev ninja-build rpm
+
+      - name: Configure
+        run: |
+          cmake -S . -B build/package -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DBUILD_SHARED_LIBS=ON \
+            -DVSQLITE_BUILD_EXAMPLES=OFF \
+            -DVSQLITE_BUILD_TESTS=OFF \
+            -DVSQLITE_BUNDLED_SQLITE=OFF
+
+      - name: Build
+        run: cmake --build build/package
+
+      - name: Package
+        working-directory: build/package
+        run: |
+          cpack -G DEB
+          cpack -G RPM
+          cpack -G TGZ
+          cpack -G TXZ
+          cpack -G ZIP
+          mkdir -p "${GITHUB_WORKSPACE}/dist"
+          find . -maxdepth 1 -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.tar.gz' -o -name '*.tar.xz' -o -name '*.zip' \) \
+            -exec cp {} "${GITHUB_WORKSPACE}/dist/" \;
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpack-linux
+          path: dist/*
+
+  arch-linux:
+    name: Arch Linux package
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build package
+        run: |
+          version="$(cat VERSION)"
+          mkdir -p dist build/arch
+          git archive --format=tar.gz --prefix="vsqlitepp-${version}/" \
+            -o "build/arch/vsqlitepp-${version}.tar.gz" HEAD
+          cp packaging/arch/PKGBUILD build/arch/PKGBUILD
+          sed -i "s/^pkgver=.*/pkgver=${version}/" build/arch/PKGBUILD
+          docker run --rm -v "${GITHUB_WORKSPACE}/build/arch:/pkgbuild" archlinux:base-devel bash -lc '
+            pacman -Sy --noconfirm --needed sudo
+            useradd -m builder
+            chown -R builder:builder /pkgbuild
+            echo "builder ALL=(ALL) NOPASSWD: ALL" >/etc/sudoers.d/builder
+            chmod 0440 /etc/sudoers.d/builder
+            cd /pkgbuild
+            sudo -u builder makepkg --syncdeps --noconfirm
+          '
+          cp build/arch/*.pkg.tar.* dist/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-linux
+          path: dist/*.pkg.tar.*
+
+  publish:
+    name: Upload to GitHub release
+    runs-on: ubuntu-24.04
+    needs:
+      - cpack-linux
+      - arch-linux
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          gh release view "${TAG_NAME}" >/dev/null 2>&1 || \
+            gh release create "${TAG_NAME}" --title "${TAG_NAME}" --notes "Release ${TAG_NAME}"
+          gh release upload "${TAG_NAME}" dist/* --clobber
