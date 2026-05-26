@@ -60,6 +60,21 @@ target_link_libraries(my_app PRIVATE vsqlite::vsqlitepp)
 
 If you need SQLite as well, provide `SQLite::SQLite3` yourself (system package or another `FetchContent`) before linking against `vsqlite::vsqlitepp`.
 
+## vcpkg Overlay Port
+
+This repository includes a vcpkg overlay port under `packaging/vcpkg`. Until `vsqlitepp` is available from the curated registry, install it with:
+
+```bash
+vcpkg install vsqlitepp --overlay-ports=packaging/vcpkg
+```
+
+Then consume it from CMake through the vcpkg toolchain:
+
+```cmake
+find_package(vsqlitepp CONFIG REQUIRED)
+target_link_libraries(my_app PRIVATE vsqlite::vsqlitepp)
+```
+
 ## Threading & Pooling
 
 Configure SQLite's global threading mode before opening connections:
