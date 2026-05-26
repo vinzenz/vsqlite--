@@ -1,0 +1,70 @@
+name: Package Consumers
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  cmake-consumers:
+    name: CMake consumers
+    runs-on: ubuntu-24.04
+    env:
+      CC: gcc-13
+      CXX: g++-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl gcc-13 g++-13 libsqlite3-dev ninja-build
+
+      - name: Build and install vsqlitepp
+        run: |
+          cmake -S . -B build/install -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="${RUNNER_TEMP}/vsqlitepp-install" \
+            -DVSQLITE_BUILD_EXAMPLES=OFF \
+            -DVSQLITE_BUILD_TESTS=OFF \
+            -DVSQLITE_BUNDLED_SQLITE=OFF
+          cmake --build build/install
+          cmake --install build/install
+
+      - name: Test installed package consumer
+        run: |
+          cmake -S tests/package_consumers/install -B build/consumer-install -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="${RUNNER_TEMP}/vsqlitepp-install"
+          cmake --build build/consumer-install
+          ./build/consumer-install/vsqlitepp_install_consumer
+
+      - name: Test FetchContent consumer
+        run: |
+          cmake -S tests/package_consumers/fetchcontent -B build/consumer-fetchcontent -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DVSQLITEPP_SOURCE_DIR="${GITHUB_WORKSPACE}" \
+            -DVSQLITE_BUILD_EXAMPLES=OFF \
+            -DVSQLITE_BUILD_TESTS=OFF \
+            -DVSQLITE_BUNDLED_SQLITE=OFF
+          cmake --build build/consumer-fetchcontent
+          ./build/consumer-fetchcontent/vsqlitepp_fetchcontent_consumer
+
+      - name: Test CPM.cmake consumer
+        run: |
+          mkdir -p "${RUNNER_TEMP}/cpm"
+          curl -fsSL https://github.com/cpm-cmake/CPM.cmake/releases/latest/download/CPM.cmake \
+            -o "${RUNNER_TEMP}/cpm/CPM.cmake"
+          cmake -S tests/package_consumers/cpm -B build/consumer-cpm -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCPM_SOURCE_CACHE="${RUNNER_TEMP}/cpm" \
+            -DVSQLITEPP_SOURCE_DIR="${GITHUB_WORKSPACE}" \
+            -DVSQLITE_BUILD_EXAMPLES=OFF \
+            -DVSQLITE_BUILD_TESTS=OFF \
+            -DVSQLITE_BUNDLED_SQLITE=OFF
+          cmake --build build/consumer-cpm
+          ./build/consumer-cpm/vsqlitepp_cpm_consumer
