@@ -11,12 +11,20 @@ project(VSQLite++
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
-option(VSQLITE_BUILD_EXAMPLES "Build the sqlite wrapper example" ON)
 option(VSQLITE_ALLOW_FOLLOW_SYMLINKS "When on, allow SQLite to follow symlinks when opening databases" ON)
 
-include(CTest)
+set(VSQLITE_IS_TOP_LEVEL ${PROJECT_IS_TOP_LEVEL})
 
-option(VSQLITE_BUILD_TESTS "Build unit tests" ${BUILD_TESTING})
+option(VSQLITE_BUILD_EXAMPLES "Build the sqlite wrapper example" ${VSQLITE_IS_TOP_LEVEL})
+option(VSQLITE_ENABLE_INSTALL "Install VSQLite++ targets and package configuration" ${VSQLITE_IS_TOP_LEVEL})
+
+if(VSQLITE_IS_TOP_LEVEL)
+  include(CTest)
+  set(VSQLITE_BUILD_TESTS_DEFAULT ${BUILD_TESTING})
+else()
+  set(VSQLITE_BUILD_TESTS_DEFAULT OFF)
+endif()
+option(VSQLITE_BUILD_TESTS "Build unit tests" ${VSQLITE_BUILD_TESTS_DEFAULT})
 option(VSQLITE_ENABLE_COVERAGE "Enable code coverage instrumentation" OFF)
 
 set(VSQLITE_BUNDLED_SQLITE_DEFAULT OFF)
@@ -129,7 +137,9 @@ set_target_properties(vsqlitepp
 if(VSQLITE_BUILD_EXAMPLES)
   add_executable(vsqlitepp_example examples/sqlite_wrapper.cpp)
   target_link_libraries(vsqlitepp_example PRIVATE vsqlite::vsqlitepp)
-  install(TARGETS vsqlitepp_example RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+  if(VSQLITE_ENABLE_INSTALL)
+    install(TARGETS vsqlitepp_example RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+  endif()
 endif()
 
 if(VSQLITE_ALLOW_FOLLOW_SYMLINKS)
@@ -137,64 +147,66 @@ if(VSQLITE_ALLOW_FOLLOW_SYMLINKS)
 endif()
 
 
-install(TARGETS vsqlitepp
-  EXPORT vsqliteppTargets
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
-
-if(VSQLITE_BUNDLED_SQLITE)
-  install(TARGETS sqlite3
+if(VSQLITE_ENABLE_INSTALL)
+  install(TARGETS vsqlitepp
     EXPORT vsqliteppTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
-  install(FILES
-    "${sqlite3_amalgamation_SOURCE_DIR}/sqlite3.h"
-    "${sqlite3_amalgamation_SOURCE_DIR}/sqlite3ext.h"
+
+  if(VSQLITE_BUNDLED_SQLITE)
+    install(TARGETS sqlite3
+      EXPORT vsqliteppTargets
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+      INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+    install(FILES
+      "${sqlite3_amalgamation_SOURCE_DIR}/sqlite3.h"
+      "${sqlite3_amalgamation_SOURCE_DIR}/sqlite3ext.h"
+      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    )
+  endif()
+
+  install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/"
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    FILES_MATCHING PATTERN "*.hpp"
+    PATTERN "private" EXCLUDE
+  )
+
+  install(FILES NEWS COPYING README README.md VERSION TODO ChangeLog AUTHORS
+    DESTINATION "${CMAKE_INSTALL_DOCDIR}"
+  )
+
+  set(VSQLITEPP_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/vsqlitepp" CACHE STRING "Directory for CMake package configuration files")
+
+  install(EXPORT vsqliteppTargets
+    FILE vsqliteppTargets.cmake
+    NAMESPACE vsqlite::
+    DESTINATION "${VSQLITEPP_INSTALL_CMAKEDIR}"
+  )
+
+  configure_package_config_file(
+    cmake/vsqliteppConfig.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/vsqliteppConfig.cmake"
+    INSTALL_DESTINATION "${VSQLITEPP_INSTALL_CMAKEDIR}"
+  )
+
+  write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/vsqliteppConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+  )
+
+  install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/vsqliteppConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/vsqliteppConfigVersion.cmake"
+    DESTINATION "${VSQLITEPP_INSTALL_CMAKEDIR}"
   )
 endif()
-
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/"
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-  FILES_MATCHING PATTERN "*.hpp"
-  PATTERN "private" EXCLUDE
-)
-
-install(FILES NEWS COPYING README README.md VERSION TODO ChangeLog AUTHORS
-  DESTINATION "${CMAKE_INSTALL_DOCDIR}"
-)
-
-set(VSQLITEPP_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/vsqlitepp" CACHE STRING "Directory for CMake package configuration files")
-
-install(EXPORT vsqliteppTargets
-  FILE vsqliteppTargets.cmake
-  NAMESPACE vsqlite::
-  DESTINATION "${VSQLITEPP_INSTALL_CMAKEDIR}"
-)
-
-configure_package_config_file(
-  cmake/vsqliteppConfig.cmake.in
-  "${CMAKE_CURRENT_BINARY_DIR}/vsqliteppConfig.cmake"
-  INSTALL_DESTINATION "${VSQLITEPP_INSTALL_CMAKEDIR}"
-)
-
-write_basic_package_version_file(
-  "${CMAKE_CURRENT_BINARY_DIR}/vsqliteppConfigVersion.cmake"
-  VERSION ${PROJECT_VERSION}
-  COMPATIBILITY SameMajorVersion
-)
-
-install(FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/vsqliteppConfig.cmake"
-  "${CMAKE_CURRENT_BINARY_DIR}/vsqliteppConfigVersion.cmake"
-  DESTINATION "${VSQLITEPP_INSTALL_CMAKEDIR}"
-)
 
 if(VSQLITE_BUILD_TESTS)
   enable_testing()
