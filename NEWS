@@ -1,3 +1,8 @@
+# vsqlite++ 0.4.2
+
+- Fixed a statement ownership regression in 0.4.1 that finalized prepared statements immediately
+  after preparation and caused test/runtime crashes.
+
 # vsqlite++ 0.4.1
 
 - Hardened `sqlite::result` and `sqlite::connection_pool` lifetime handling.
