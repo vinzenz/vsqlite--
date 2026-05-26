@@ -1,0 +1,70 @@
+name: Package Managers
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  conan:
+    name: Conan package
+    runs-on: ubuntu-24.04
+    env:
+      CC: gcc-13
+      CXX: g++-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-13 g++-13 python3-pip
+          python3 -m pip install --user conan
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+
+      - name: Create package
+        run: |
+          conan profile detect --force
+          conan create . --build=missing -s compiler.cppstd=20
+
+  vcpkg:
+    name: vcpkg overlay port
+    runs-on: ubuntu-24.04
+    env:
+      CC: gcc-13
+      CXX: g++-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl gcc-13 g++-13 git ninja-build tar unzip zip
+
+      - name: Bootstrap vcpkg
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg "${RUNNER_TEMP}/vcpkg"
+          "${RUNNER_TEMP}/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+
+      - name: Install overlay port
+        run: |
+          "${RUNNER_TEMP}/vcpkg/vcpkg" install vsqlitepp \
+            --overlay-ports="${GITHUB_WORKSPACE}/packaging/vcpkg" \
+            --x-install-root="${RUNNER_TEMP}/vcpkg-installed" \
+            --triplet=x64-linux
+
+      - name: Test vcpkg consumer
+        run: |
+          cmake -S tests/package_consumers/install -B build/consumer-vcpkg -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="${RUNNER_TEMP}/vcpkg/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_INSTALLED_DIR="${RUNNER_TEMP}/vcpkg-installed" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux
+          cmake --build build/consumer-vcpkg
+          ./build/consumer-vcpkg/vsqlitepp_install_consumer
