@@ -43,15 +43,19 @@ inline namespace v2 {
     }
 
     void backup::finish() {
-        if (!m_pBackup) {
+        // sqlite3_backup_finish() releases the backup regardless of its return
+        // code, so the handle has to be dropped before it is used again - even
+        // if reporting the result ends up throwing.
+        sqlite3_backup *pBackup = m_pBackup;
+        m_pBackup               = NULL;
+        if (!pBackup) {
             return;
         }
 
-        int err = sqlite3_backup_finish(m_pBackup);
+        int err = sqlite3_backup_finish(pBackup);
         if (err != SQLITE_OK) {
             throw database_exception_code(sqlite3_errmsg(get_to_handle()), err);
         }
-        m_pBackup = NULL;
     }
 
     sqlite3 *backup::get_to_handle() const {
