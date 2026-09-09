@@ -1,5 +1,6 @@
 [![Build Status](https://travis-ci.org/vinzenz/vsqlite--.png?branch=master)](https://travis-ci.org/vinzenz/vsqlite--)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/1976/badge.svg)](https://scan.coverity.com/projects/1976)
+[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/vinzenz/vsqlite--?utm_source=oss&utm_medium=github&utm_campaign=vinzenz%2Fvsqlite--&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)](https://coderabbit.ai)
 
 VSQLite++ - A welldesigned and portable SQLite3 Wrapper for C++
 (C) 2006-2014 by virtuosic bytes  - vinzenz.feenstra@gmail.com
