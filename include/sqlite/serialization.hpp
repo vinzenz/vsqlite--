@@ -54,6 +54,12 @@ inline namespace v2 {
     /**
      * @brief Copies the complete database image for @p schema into a byte vector.
      *
+     * The returned vector always owns its bytes. When @p flags contains
+     * `SQLITE_SERIALIZE_NOCOPY`, SQLite returns its own in-memory image without making a
+     * copy; those bytes are copied into the result and the buffer remains owned by the
+     * connection. Because no allocation is made in that case, an exception is thrown when
+     * no contiguous in-memory image exists (e.g. for a file-backed database).
+     *
      * @param con Open connection whose schema should be serialized.
      * @param schema Logical database name (e.g. `"main"` or `"temp"`).
      * @param flags Optional SQLite serialization flags.
