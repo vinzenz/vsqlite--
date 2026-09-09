@@ -60,8 +60,13 @@ inline namespace v2 {
 
         /** \brief destructor
          *
+         * Releases the savepoint if it is still considered active. Cleanup is
+         * best-effort and never throws: if the savepoint was already
+         * invalidated outside of this object (e.g. by an enclosing
+         * transaction's commit or rollback), the failing release is silently
+         * ignored. Call \c release() explicitly to get error reporting.
          */
-        ~savepoint();
+        ~savepoint() noexcept;
 
         /** \brief Releases a previously created savepoint
          *

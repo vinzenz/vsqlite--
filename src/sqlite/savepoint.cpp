@@ -42,9 +42,15 @@ inline namespace v2 {
         m_isActive = true;
     }
 
-    savepoint::~savepoint() {
-        if (m_isActive)
-            release();
+    savepoint::~savepoint() noexcept {
+        if (m_isActive) {
+            try {
+                release();
+            } catch (...) {
+                // Destructors can't surface the error; best effort only.
+                // Call release() explicitly to get error reporting.
+            }
+        }
     }
 
     void savepoint::release() {
