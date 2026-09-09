@@ -99,10 +99,20 @@ inline namespace v2 {
         auto fn             = serialization_symbols().serialize;
         unsigned char *blob = fn ? fn(get_handle(con), normalized.c_str(), &size, flags) : nullptr;
         if (!blob) {
+            if (flags & SQLITE_SERIALIZE_NOCOPY) {
+                throw database_exception(
+                    "Failed to serialize database image: no contiguous in-memory image "
+                    "available for SQLITE_SERIALIZE_NOCOPY.");
+            }
             throw database_exception("Failed to serialize database image.");
         }
         std::vector<unsigned char> out(blob, blob + size);
-        sqlite3_free(blob);
+        // With SQLITE_SERIALIZE_NOCOPY the returned buffer is the connection's own
+        // storage and stays owned by SQLite — freeing it would corrupt the live
+        // database and cause a double free when the connection is closed.
+        if ((flags & SQLITE_SERIALIZE_NOCOPY) == 0) {
+            sqlite3_free(blob);
+        }
         return out;
     }
 
