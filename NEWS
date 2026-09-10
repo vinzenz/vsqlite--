@@ -1,3 +1,13 @@
+# vsqlite++ Unreleased
+
+- Fixed a crash (SIGSEGV) when applying a changeset or patchset containing conflicting changes:
+  the null conflict handler passed to `sqlite3changeset_apply` is replaced by a default abort
+  policy, so conflicts now raise `sqlite::database_exception` and roll back partial application.
+- Added conflict resolution support to `sqlite::apply_changeset` and `sqlite::apply_patchset`:
+  a fixed `conflict_policy` (`omit`, `replace`, `abort`) or a custom `conflict_handler` receiving
+  a `changeset_conflict` descriptor. Exceptions thrown by a handler are caught at the SQLite C
+  boundary, abort the application, and are rethrown to the caller.
+
 # vsqlite++ 0.4.2
 
 - Fixed a statement ownership regression in 0.4.1 that finalized prepared statements immediately
