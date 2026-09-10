@@ -59,6 +59,12 @@ inline namespace v2 {
      * Further it has to be passed to all classes since it represents the
      * connection to the database and contains the internal needed handle, so
      * you can see a connection object as handle to the database
+     *
+     * A database name starting with "file:" is interpreted as a SQLite URI
+     * (see https://www.sqlite.org/uri.html), e.g.
+     * "file:name?mode=memory&cache=shared" opens a shared in-memory database.
+     * Any other name is used as a literal filename.
+     *
      * An object of this class is not copyable
      */
     struct connection {
@@ -98,7 +104,12 @@ inline namespace v2 {
          * the object of this class. It is possible to attach up to 10 times
          * the same database file with different aliases
          * \param db database filename of the database should be attached
+         *           following the same rules as the connection constructors
          * \param database_alias alias which should be used
+         *
+         * \remarks SQLite interprets "file:" URIs in ATTACH only when the
+         * connection itself was opened from a "file:" URI (or when URI
+         * support is enabled globally in SQLite).
          */
         void attach(std::string const &db, std::string const &database_alias);
 
