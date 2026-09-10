@@ -214,6 +214,8 @@ extern "C" int conflict_trampoline(void *ctx, int reason, sqlite3_changeset_iter
             if (context->iter_op(iter, &table, &columns, &op, &indirect) == SQLITE_OK) {
                 conflict.operation = map_operation(op);
                 if (table) {
+                    // Copy: SQLite points zTab into internal storage that is invalid
+                    // once sqlite3changeset_apply returns.
                     conflict.table = table;
                 }
             }

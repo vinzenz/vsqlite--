@@ -114,13 +114,16 @@ inline namespace v2 {
     };
 
     /// Describes a conflict encountered while applying a changeset or patchset.
+    ///
+    /// The descriptor owns its members, so handlers may store or copy it freely - nothing
+    /// points into SQLite-internal storage that is invalidated after the handler returns.
     struct changeset_conflict {
         /// Why the change conflicted.
         changeset_conflict_type type;
         /// The operation recorded for the conflicting change.
         changeset_operation operation;
         /// Name of the affected table (empty when unavailable).
-        std::string_view table;
+        std::string table;
 
         /// Returns true when conflict_policy::replace is a valid response to this conflict.
         bool replace_supported() const noexcept {
