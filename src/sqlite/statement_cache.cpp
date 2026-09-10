@@ -73,6 +73,15 @@ inline namespace v2 {
             sqlite3_finalize(stmt);
             return;
         }
+        // A statement parked at SQLITE_ROW keeps its implicit read transaction open and
+        // would block writers on other connections until the next checkout or eviction.
+        // Rewind it and drop leftover bindings before retaining it.
+        if (sqlite3_reset(stmt) != SQLITE_OK) {
+            // The statement's last evaluation failed; it must not be retained.
+            sqlite3_finalize(stmt);
+            return;
+        }
+        sqlite3_clear_bindings(stmt);
         if (lru_.size() >= config_.capacity) {
             auto &back = lru_.back();
             sqlite3_finalize(back.stmt);
