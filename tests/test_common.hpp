@@ -168,10 +168,16 @@ inline void dump_table_info(sqlite::connection &con, std::string_view table) {
     }
 }
 
-inline std::string unique_memory_uri() {
+inline std::string unique_memory_uri(bool absolute = false) {
     static std::atomic<uint64_t> counter{0};
     std::ostringstream oss;
-    oss << "file:memdb_" << counter++ << "?mode=memory&cache=shared";
+    oss << "file:";
+    if (absolute) {
+        oss << (test_root() / ("memdb_" + std::to_string(counter++))).string();
+    } else {
+        oss << "memdb_" << counter++;
+    }
+    oss << "?mode=memory&cache=shared";
     return oss.str();
 }
 

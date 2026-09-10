@@ -30,6 +30,7 @@
  POSSIBILITY OF SUCH DAMAGE.
 
 ##############################################################################*/
+#include <algorithm>
 #include <filesystem>
 #include <format>
 #include <string_view>
@@ -43,20 +44,122 @@
 #include <iostream>
 
 namespace {
-bool is_special_database(std::string_view db) {
-    if (db == ":memory:") {
-        return true;
+// Classification of a database name handed to connection::open() or attach().
+struct database_name_info {
+    bool is_uri = false; ///< the name is a "file:" URI
+    bool memory = false; ///< the database lives in memory only
+    std::string path;    ///< filesystem path (percent-decoded for URIs); empty
+                         ///< when the database has no file on disk
+};
+
+// SQLite interprets a database name as a URI exactly when it starts with
+// "file:" and URI interpretation is enabled (see make_open_flags()).
+bool is_uri_database(std::string_view db) {
+    return db.rfind("file:", 0) == 0;
+}
+
+int hex_digit_value(char c) {
+    if (c >= '0' && c <= '9') {
+        return c - '0';
     }
-    if (db.rfind("file:", 0) == 0) {
-        auto query_pos = db.find('?');
-        if (query_pos != std::string_view::npos) {
-            auto params = db.substr(query_pos + 1);
-            if (params.find("mode=memory") != std::string_view::npos) {
-                return true;
+    if (c >= 'a' && c <= 'f') {
+        return c - 'a' + 10;
+    }
+    if (c >= 'A' && c <= 'F') {
+        return c - 'A' + 10;
+    }
+    return -1;
+}
+
+// Decodes %HH escapes the way SQLite does: a "%00" escape ends the component,
+// and a '%' not followed by two hex digits is kept literal.
+std::string percent_decode(std::string_view text) {
+    std::string decoded;
+    decoded.reserve(text.size());
+    for (std::size_t i = 0; i < text.size(); ++i) {
+        if (text[i] == '%' && i + 2 < text.size()) {
+            int high = hex_digit_value(text[i + 1]);
+            int low  = hex_digit_value(text[i + 2]);
+            if (high >= 0 && low >= 0) {
+                char octet = static_cast<char>((high << 4) | low);
+                if (octet == '\0') {
+                    break;
+                }
+                decoded.push_back(octet);
+                i += 2;
+                continue;
             }
         }
+        decoded.push_back(text[i]);
     }
-    return false;
+    return decoded;
+}
+
+// Splits a database name the same way sqlite3_open_v2() does for URIs, so that
+// in-memory detection and path validation agree with what SQLite will make of
+// the name.
+database_name_info classify_database_name(std::string_view db) {
+    database_name_info info;
+    if (db == ":memory:") {
+        info.memory = true;
+        return info;
+    }
+    if (!is_uri_database(db)) {
+        return info;
+    }
+    info.is_uri = true;
+    std::string_view rest = db.substr(5);
+
+    // Optional authority: SQLite accepts an empty one or "localhost" only and
+    // rejects anything else when opening.
+    if (rest.size() >= 2 && rest[0] == '/' && rest[1] == '/') {
+        rest.remove_prefix(2);
+        auto authority_end = std::min(rest.find('/'), rest.size());
+        auto authority     = rest.substr(0, authority_end);
+        if (!authority.empty() && authority != "localhost") {
+            return info;
+        }
+        rest.remove_prefix(authority_end);
+    }
+
+    auto path_end = rest.find_first_of("?#");
+    info.path =
+        percent_decode(path_end == std::string_view::npos ? rest : rest.substr(0, path_end));
+    if (info.path == ":memory:") {
+        info.memory = true; // "file::memory:" names an in-memory database
+        return info;
+    }
+    if (path_end == std::string_view::npos || rest[path_end] != '?') {
+        return info; // no query component
+    }
+
+    // The query is made of &-separated name[=value] pairs; both parts are
+    // percent-decoded. SQLite applies the parameters in order, so a repeated
+    // "mode" parameter overrules the earlier ones.
+    std::string_view query = rest.substr(path_end + 1);
+    auto fragment          = query.find('#');
+    if (fragment != std::string_view::npos) {
+        query = query.substr(0, fragment);
+    }
+
+    std::string mode;
+    bool has_mode         = false;
+    std::size_t param_pos = 0;
+    while (param_pos < query.size()) {
+        auto next  = query.find('&', param_pos);
+        auto param = query.substr(param_pos,
+                                  next == std::string_view::npos ? next : next - param_pos);
+        param_pos  = next == std::string_view::npos ? query.size() : next + 1;
+        auto equals = param.find('=');
+        if (percent_decode(param.substr(0, equals)) != "mode") {
+            continue;
+        }
+        has_mode = true;
+        mode     = equals == std::string_view::npos ? std::string()
+                                                    : percent_decode(param.substr(equals + 1));
+    }
+    info.memory = has_mode && mode == "memory";
+    return info;
 }
 
 std::string describe_path(std::filesystem::path const &path) {
@@ -94,13 +197,17 @@ void ensure_parent_directory_safe(std::filesystem::path const &path, std::string
 
 void validate_db_path(std::string const &db, bool require_exists,
                       sqlite::filesystem_adapter_ptr const &fs) {
-    if (is_special_database(db)) {
+    auto info = classify_database_name(db);
+    if (info.memory) {
         return;
+    }
+    if (info.is_uri && info.path.empty()) {
+        return; // a "file:" URI without a path opens a temporary database
     }
     if (db.empty()) {
         throw sqlite::database_exception("Database path must not be empty.");
     }
-    std::filesystem::path path(db);
+    std::filesystem::path path(info.is_uri ? info.path : db);
     ensure_parent_directory_safe(path, db, fs);
     auto entry     = fs->status(path);
     auto not_found = std::make_error_code(std::errc::no_such_file_or_directory);
@@ -126,6 +233,12 @@ void validate_db_path(std::string const &db, bool require_exists,
 
 int make_open_flags(bool readonly, bool allow_create) {
     int flags = SQLITE_OPEN_FULLMUTEX;
+    // Names starting with "file:" are SQLite URIs (e.g. a named in-memory
+    // database "file:name?mode=memory&cache=shared"). SQLite only applies URI
+    // interpretation to those names and passes every other name through
+    // literally, so ordinary filenames behave exactly as before. This also
+    // makes ATTACH honor "file:" URIs on connections opened from such a URI.
+    flags |= SQLITE_OPEN_URI;
 #ifndef VSQLITE_ALLOW_FOLLOW_SYMLINKS
     flags |= SQLITE_OPEN_NOFOLLOW;
 #endif
@@ -196,8 +309,11 @@ inline namespace v2 {
     }
 
     void connection::open(std::string const &db, sqlite::open_mode open_mode) {
-        bool special = is_special_database(db);
-        if (!special) {
+        auto info = classify_database_name(db);
+        // In-memory databases and "file:" URIs without a path never touch the
+        // disk, so they need neither path validation nor an existing file.
+        bool disk_backed = !info.memory && !(info.is_uri && info.path.empty());
+        if (disk_backed) {
             validate_db_path(db,
                              open_mode == sqlite::open_mode::open_existing ||
                                  open_mode == sqlite::open_mode::open_readonly,
@@ -205,28 +321,29 @@ inline namespace v2 {
         }
 
         std::filesystem::path disk_path =
-            special ? std::filesystem::path() : std::filesystem::path(db);
+            disk_backed ? std::filesystem::path(info.is_uri ? info.path : db)
+                        : std::filesystem::path();
         std::error_code ec;
-        bool exists = special ? false : std::filesystem::exists(disk_path, ec);
-        if (ec && !special) {
+        bool exists = disk_backed ? std::filesystem::exists(disk_path, ec) : false;
+        if (disk_backed && ec) {
             throw database_system_error("Failed to inspect database '" + db + "'", ec.value());
         }
 
         switch (open_mode) {
         case sqlite::open_mode::open_readonly:
-            if (!exists && !special) {
+            if (disk_backed && !exists) {
                 throw database_exception("Read-only database '" + db + "' does not exist");
             }
             open_with_flags(db, make_open_flags(true, false));
             return;
         case sqlite::open_mode::open_existing:
-            if (!exists && !special) {
+            if (disk_backed && !exists) {
                 throw database_exception("Database '" + db + "' does not exist");
             }
             open_with_flags(db, make_open_flags(false, false));
             return;
         case sqlite::open_mode::always_create:
-            if (exists && !special) {
+            if (exists) {
                 auto entry = filesystem->status(disk_path);
                 if (entry.error) {
                     throw database_system_error("Failed to inspect existing database '" + db + "'",

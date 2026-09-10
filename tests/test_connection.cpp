@@ -149,6 +149,101 @@ TEST(ConnectionTest, SpecialMemoryUri) {
     auto uri = unique_memory_uri();
     sqlite::connection conn(uri);
     sqlite::execute(conn, "CREATE TABLE IF NOT EXISTS memtest(id INTEGER);", true);
+    // A named memory URI must never materialize as a file on disk.
+    std::error_code ec;
+    EXPECT_FALSE(std::filesystem::exists(std::filesystem::path(uri), ec));
+}
+
+TEST(ConnectionTest, NamedMemoryUriSharingAcrossConnections) {
+    auto uri = unique_memory_uri();
+    sqlite::connection first(uri);
+    sqlite::execute(first, "CREATE TABLE memtest(id INTEGER);", true);
+    sqlite::execute(first, "INSERT INTO memtest VALUES (42);", true);
+
+    std::error_code ec;
+    EXPECT_FALSE(std::filesystem::exists(std::filesystem::path(uri), ec));
+
+    {
+        sqlite::connection second(uri);
+        EXPECT_EQ(count_rows(second, "memtest"), 1);
+        sqlite::execute(second, "INSERT INTO memtest VALUES (43);", true);
+    }
+    // The database must stay alive while at least one connection remains open.
+    EXPECT_EQ(count_rows(first, "memtest"), 2);
+    EXPECT_FALSE(std::filesystem::exists(std::filesystem::path(uri), ec));
+}
+
+TEST(ConnectionTest, MemoryUriRequiresExactModeParameter) {
+    TempFile file("uri_not_memory");
+    // "?xmode=memory" is not a mode parameter: the URI names a real file.
+    {
+        sqlite::connection conn("file:" + file.path.string() + "?xmode=memory");
+        sqlite::execute(conn, "CREATE TABLE diskcheck(id INTEGER);", true);
+    }
+    EXPECT_TRUE(std::filesystem::exists(file.path));
+
+    // Unknown mode values are rejected by SQLite when opening.
+    EXPECT_THROW(sqlite::connection bad("file:" + file.path.string() + "?mode=bogus"),
+                 sqlite::database_exception);
+}
+
+TEST(ConnectionTest, PercentEncodedMemoryParameter) {
+    static std::atomic<uint64_t> counter{0};
+    auto name = (test_root() / ("encoded_mem_" + std::to_string(counter++))).string();
+    // "%6d" decodes to 'm', so the effective mode parameter is "memory".
+    std::string uri = "file:" + name + "?mode=%6demory&cache=shared";
+    sqlite::connection conn(uri);
+    sqlite::execute(conn, "CREATE TABLE memtest(id INTEGER);", true);
+
+    std::error_code ec;
+    EXPECT_FALSE(std::filesystem::exists(name, ec));
+}
+
+TEST(ConnectionTest, MemoryUriNeedsNoExistingDirectory) {
+    auto missing = test_root() / "no_such_parent_dir" / "mem.db";
+    std::error_code ec;
+    std::filesystem::remove_all(missing.parent_path(), ec);
+    // With mode=memory the path is a pure database name: no directory checks.
+    sqlite::connection conn("file:" + missing.string() + "?mode=memory");
+    sqlite::execute(conn, "CREATE TABLE memtest(id INTEGER);", true);
+    EXPECT_FALSE(std::filesystem::exists(missing, ec));
+}
+
+TEST(ConnectionTest, FileUriPathIsValidated) {
+    auto missing = test_root() / "no_such_parent_dir" / "db.sqlite";
+    std::error_code ec;
+    std::filesystem::remove_all(missing.parent_path(), ec);
+    // Without mode=memory the URI path is validated like any other path.
+    EXPECT_THROW(sqlite::connection conn("file:" + missing.string()),
+                 sqlite::database_exception);
+
+    TempFile file("uri_existing");
+    {
+        sqlite::connection conn("file:" + file.path.string());
+        sqlite::execute(conn, "CREATE TABLE t(id INTEGER);", true);
+    }
+    sqlite::connection readonly("file:" + file.path.string(), sqlite::open_mode::open_readonly);
+    EXPECT_NO_THROW(sqlite::execute(readonly, "SELECT COUNT(*) FROM t;", true));
+
+    TempFile absent("uri_missing");
+    std::filesystem::remove(absent.path, ec);
+    EXPECT_THROW(sqlite::connection fail("file:" + absent.path.string(),
+                                         sqlite::open_mode::open_existing),
+                 sqlite::database_exception);
+}
+
+TEST(ConnectionTest, AttachMemoryUri) {
+    sqlite::connection main(unique_memory_uri());
+    sqlite::execute(main, "CREATE TABLE base(id INTEGER);", true);
+
+    auto uri = unique_memory_uri();
+    ASSERT_NO_THROW(main.attach(uri, "mem"));
+    EXPECT_NO_THROW(sqlite::execute(main, "CREATE TABLE mem.attached(id INTEGER);", true));
+    EXPECT_NO_THROW(sqlite::execute(main, "INSERT INTO mem.attached VALUES (1);", true));
+
+    std::error_code ec;
+    EXPECT_FALSE(std::filesystem::exists(std::filesystem::path(uri), ec));
+    EXPECT_NO_THROW(main.detach("mem"));
 }
 
 TEST(ConnectionTest, AlwaysCreateRejectsSymlinkTargets) {

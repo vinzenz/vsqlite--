@@ -1,3 +1,11 @@
+# vsqlite++ (unreleased)
+
+- Fixed named in-memory database URIs (`file:name?mode=memory&cache=shared`) being
+  created as ordinary files on disk instead of living in memory.
+- Database names starting with `file:` are now interpreted as SQLite URIs: path
+  validation uses the decoded URI path and the `mode=memory` query parameter is
+  matched strictly. All other names keep being treated as literal filenames.
+
 # vsqlite++ 0.4.2
 
 - Fixed a statement ownership regression in 0.4.1 that finalized prepared statements immediately
