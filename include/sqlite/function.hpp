@@ -468,16 +468,18 @@ inline namespace v2 {
         std::string name_buffer(name);
         auto text_rep = detail::compose_text_rep(options);
 
+        // Hand ownership to SQLite before checking the result: its xDestroy callback runs
+        // on failed registration, on replacement, and on connection close alike.
+        auto *holder_ptr = holder.release();
+
         int rc = sqlite3_create_function_v2(handle, name_buffer.c_str(), arity, text_rep,
-                                            holder.get(), &detail::function_entry<callable_t>,
+                                            holder_ptr, &detail::function_entry<callable_t>,
                                             nullptr, nullptr, &detail::destroy_holder<callable_t>);
 
         if (rc != SQLITE_OK) {
             auto err = sqlite3_errmsg(handle);
             throw database_exception_code(err ? err : detail::make_function_error(name), rc);
         }
-
-        holder.release();
     }
 
 } // namespace v2
