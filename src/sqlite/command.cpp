@@ -252,7 +252,7 @@ inline namespace v2 {
         access_check();
         char const *dummy = nullptr;
         auto ptr          = text_or_dummy(v, dummy);
-        int err = sqlite3_bind_text(stmt, idx, ptr, static_cast<int>(v.size()), SQLITE_TRANSIENT);
+        int err = sqlite3_bind_text(stmt, idx, ptr, static_cast<int>(v.size()), SQLITE_STATIC);
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
