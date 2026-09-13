@@ -238,11 +238,11 @@ inline namespace v2 {
     }
 
     std::vector<unsigned char> session::changeset() {
-        return collect(false);
+        return collect(true);
     }
 
     std::vector<unsigned char> session::patchset() {
-        return collect(true);
+        return collect(false);
     }
 
     void *session::native_handle() const noexcept {
