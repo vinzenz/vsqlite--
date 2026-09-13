@@ -97,7 +97,7 @@ inline namespace v2 {
         switch (get_column_type(idx)) {
         case sqlite::integer: {
             std::int64_t i = get_int64(idx);
-            if (i > std::numeric_limits<int>::max() || i < std::numeric_limits<int>::min()) {
+            if (i > std::numeric_limits<int>::max()) {
                 v = i;
             } else {
                 v = int(i);
