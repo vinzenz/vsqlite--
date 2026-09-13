@@ -1,6 +1,7 @@
 #include "test_common.hpp"
 
 #include <stdexcept>
+#include <type_traits>
 
 #include <sqlite/command.hpp>
 #include <sqlite/connection.hpp>
@@ -105,4 +106,25 @@ TEST(TransactionTest, ExplicitReleaseStillReportsFailure) {
     txn.rollback();
     // Unlike the destructor, an explicit release() must surface the failure.
     EXPECT_THROW(sp.release(), std::exception);
+}
+
+TEST(TransactionTest, GuardsAreNotCopyableOrMovable) {
+    // Copying a guard would duplicate responsibility for a single SQL scope:
+    // destroying the copy would end the original's transaction or savepoint.
+    static_assert(!std::is_copy_constructible_v<sqlite::transaction>,
+                  "transaction owns a SQL scope and must not be copyable");
+    static_assert(!std::is_copy_assignable_v<sqlite::transaction>,
+                  "transaction owns a SQL scope and must not be copy-assignable");
+    static_assert(!std::is_copy_constructible_v<sqlite::savepoint>,
+                  "savepoint owns a SQL scope and must not be copyable");
+    static_assert(!std::is_copy_assignable_v<sqlite::savepoint>,
+                  "savepoint owns a SQL scope and must not be copy-assignable");
+    // Ownership of a live SQL scope cannot be transferred either; destruction
+    // of a moved-from guard must never end the moved-to scope.
+    static_assert(!std::is_move_constructible_v<sqlite::transaction> &&
+                      !std::is_move_assignable_v<sqlite::transaction>,
+                  "transaction scope ownership cannot be transferred");
+    static_assert(!std::is_move_constructible_v<sqlite::savepoint> &&
+                      !std::is_move_assignable_v<sqlite::savepoint>,
+                  "savepoint scope ownership cannot be transferred");
 }

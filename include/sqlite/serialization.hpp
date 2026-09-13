@@ -71,10 +71,15 @@ inline namespace v2 {
     /**
      * @brief Replaces the contents of @p schema with the supplied serialized image.
      *
+     * The image is copied into a buffer whose ownership passes to SQLite, so the caller's
+     * @p image may be released or reused as soon as the call returns.
+     *
      * @param con Connection that should host the deserialized database.
      * @param image Serialized bytes previously produced by @ref serialize or another SQLite source.
      * @param schema Logical database name.
-     * @param read_only When true the connection treats the schema as immutable.
+     * @param read_only When true the connection treats the schema as immutable and write
+     *                 attempts fail. Otherwise the database is permitted to grow beyond the
+     *                 original image size, with SQLite reallocating its buffer on demand.
      */
     void deserialize(connection &con, std::span<const unsigned char> image,
                      std::string_view schema = "main", bool read_only = false);

@@ -74,6 +74,8 @@ inline namespace v2 {
          * \param type define the transaction type
          */
         transaction(connection &con, transaction_type type = transaction_type::undefined);
+        transaction(transaction const &)            = delete;
+        transaction &operator=(transaction const &) = delete;
 
         /** \brief destructor
          *

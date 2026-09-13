@@ -236,8 +236,9 @@ int make_open_flags(bool readonly, bool allow_create) {
     // Names starting with "file:" are SQLite URIs (e.g. a named in-memory
     // database "file:name?mode=memory&cache=shared"). SQLite only applies URI
     // interpretation to those names and passes every other name through
-    // literally, so ordinary filenames behave exactly as before. This also
-    // makes ATTACH honor "file:" URIs on connections opened from such a URI.
+    // literally, so ordinary filenames behave exactly as before. ATTACH
+    // follows the same URI rules because the flag applies to the whole
+    // connection.
     flags |= SQLITE_OPEN_URI;
 #ifndef VSQLITE_ALLOW_FOLLOW_SYMLINKS
     flags |= SQLITE_OPEN_NOFOLLOW;

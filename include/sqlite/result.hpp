@@ -108,7 +108,17 @@ inline namespace v2 {
          * @brief Resets the cursor to the beginning without re-binding parameters.
          *
          * Use this when you need to re-iterate the same result set after calling @ref next_row.
+         * The rewind takes effect immediately, so it also works on a partially consumed or
+         * already exhausted cursor. Parameter bindings are preserved.
+         *
+         * The rewind acts on the underlying prepared statement, which may be shared by other
+         * result objects created from the same @ref query; those cursors are rewound too —
+         * including exhausted ones, whose @ref end state is cleared — so they restart from the
+         * first row on their next @ref next_row call.
+         *
          * @throws std::runtime_error if the result is no longer valid.
+         * @throws database_exception when the statement reports an error, e.g. when its last
+         * evaluation failed. The cursor is still reset in that case.
          */
         void reset() {
             if (!m_params)
@@ -117,10 +127,14 @@ inline namespace v2 {
         }
 
         /**
-         * @brief Returns the number of rows affected by the statement.
+         * @brief Returns the number of rows affected by this result's statement.
          *
          * Mirrors `sqlite3_changes()` and therefore only applies to INSERT, UPDATE, or DELETE
-         * statements. To count the rows returned by a SELECT, issue a separate
+         * statements. The count is captured when the statement completes, i.e. once @ref
+         * next_row returned false, and is stored on the result so that statements executed
+         * afterwards on the same connection do not alter it. Before completion 0 is
+         * reported, since SQLite attributes no changes to a statement while it runs. To
+         * count the rows returned by a SELECT, issue a separate
          * <code>SELECT COUNT(*) ...</code> query.
          */
         int get_changes();

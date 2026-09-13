@@ -35,8 +35,6 @@ option(VSQLITE_BUNDLED_SQLITE "Build and link bundled SQLite3" ${VSQLITE_BUNDLED
 
 set(VSQLITEPP_SOVERSION "${PROJECT_VERSION_MAJOR}" CACHE STRING "Shared object version to use")
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
@@ -71,6 +69,16 @@ if(VSQLITE_BUNDLED_SQLITE)
   add_library(SQLite3::SQLite3 ALIAS sqlite3)
 else()
   find_package(SQLite3 REQUIRED)
+endif()
+
+# Newer CMake releases provide SQLite3::SQLite3 and deprecate SQLite::SQLite3,
+# older ones only provide the latter. Make both names resolve so the exported
+# targets keep working on consumers using either CMake version.
+if(NOT TARGET SQLite3::SQLite3 AND TARGET SQLite::SQLite3)
+  add_library(SQLite3::SQLite3 ALIAS SQLite::SQLite3)
+endif()
+if(NOT TARGET SQLite::SQLite3 AND TARGET SQLite3::SQLite3)
+  add_library(SQLite::SQLite3 ALIAS SQLite3::SQLite3)
 endif()
 
 if(VSQLITE_ENABLE_COVERAGE)
@@ -120,16 +128,116 @@ target_compile_options(vsqlitepp
     $<$<CXX_COMPILER_ID:MSVC>:/permissive- /W4>
 )
 
-if(TARGET SQLite3::SQLite3)
-  set(VSQLITEPP_SQLITE_TARGET SQLite3::SQLite3)
-elseif(TARGET SQLite::SQLite3)
-  set(VSQLITEPP_SQLITE_TARGET SQLite::SQLite3)
+# Link the SQLite target by name so exported targets stay relocatable:
+# consumers re-resolve the dependency instead of keeping a build-machine path.
+target_link_libraries(vsqlitepp PUBLIC SQLite3::SQLite3)
+
+# Detection of the optional SQLite APIs used by the session, snapshot, and
+# serialization wrappers.
+#
+# When the build system verified that the selected SQLite implementation provides
+# an API group, the wrapper resolves those functions through direct references
+# (VSQLITE_HAVE_SQLITE3_*), which work for static and shared linking alike. APIs
+# that could not be confirmed fall back to a runtime lookup in the address space
+# of the running process, so implementations that only expose them dynamically
+# keep working.
+include(CheckSourceCompiles)
+
+# Links a probe program that references @p symbol_name against the selected SQLite
+# library and stores a truthy result in @p out_var when the reference resolved.
+function(vsqlitepp_link_check_symbol symbol_name out_var)
+  set(CMAKE_REQUIRED_QUIET ON)
+  set(CMAKE_REQUIRED_LIBRARIES SQLite3::SQLite3)
+  check_source_compiles(CXX "
+    extern \"C\" void ${symbol_name}();
+    int main() { ${symbol_name}(); return 0; }
+  " ${out_var})
+endfunction()
+
+if(VSQLITE_BUNDLED_SQLITE)
+  # The bundled SQLite is compiled with all optional APIs enabled above.
+  set(VSQLITEPP_HAVE_SQLITE3_SESSION TRUE)
+  set(VSQLITEPP_HAVE_SQLITE3_SNAPSHOT TRUE)
+  set(VSQLITEPP_HAVE_SQLITE3_SERIALIZE TRUE)
 else()
-  set(VSQLITEPP_SQLITE_TARGET ${SQLITE3_LIBRARIES})
-  target_include_directories(vsqlitepp PRIVATE ${SQLITE3_INCLUDE_DIRS})
+  set(VSQLITEPP_HAVE_SQLITE3_SESSION FALSE)
+  set(VSQLITEPP_HAVE_SQLITE3_SNAPSHOT FALSE)
+  set(VSQLITEPP_HAVE_SQLITE3_SERIALIZE FALSE)
+  # The probe results are cached; invalidate them when the selected SQLite
+  # implementation changes so an existing build directory re-detects. The target
+  # name is constant, so the identity includes the imported library location,
+  # which does change when the underlying library is swapped.
+  set(VSQLITEPP_SQLITE_IDENTITY "SQLite3::SQLite3")
+  if(TARGET SQLite3::SQLite3)
+    get_target_property(sqlite_imported_location SQLite3::SQLite3 IMPORTED_LOCATION)
+    if(sqlite_imported_location)
+      string(APPEND VSQLITEPP_SQLITE_IDENTITY "@" "${sqlite_imported_location}")
+    endif()
+  endif()
+  if(NOT "${VSQLITEPP_LINKCHECK_TARGET}" STREQUAL "${VSQLITEPP_SQLITE_IDENTITY}")
+    foreach(cached_check IN ITEMS
+        VSQLITEPP_LINKCHECK_SANITY
+        VSQLITEPP_LINKCHECK_SESSION
+        VSQLITEPP_LINKCHECK_SNAPSHOT
+        VSQLITEPP_LINKCHECK_SERIALIZE
+      )
+      unset(${cached_check} CACHE)
+    endforeach()
+    set(VSQLITEPP_LINKCHECK_TARGET "${VSQLITEPP_SQLITE_IDENTITY}"
+      CACHE INTERNAL "SQLite implementation used by the last optional API probes" FORCE)
+  endif()
+  if(CMAKE_TRY_COMPILE_TARGET_TYPE STREQUAL "STATIC_LIBRARY")
+    # The probes cannot link a real program with this toolchain, so their
+    # results would not prove anything. Keep the runtime-only detection.
+    message(WARNING
+      "Configure-time checks cannot verify symbol availability for this "
+      "toolchain (try-compile builds static libraries only). Using runtime-only "
+      "detection of the optional session, snapshot, and serialization APIs."
+    )
+  else()
+    # Sanity check: the remaining checks only make sense when linking against the
+    # selected SQLite library works at configure time at all. Otherwise keep the
+    # pre-existing runtime-only detection instead of failing the configuration.
+    vsqlitepp_link_check_symbol(sqlite3_open VSQLITEPP_LINKCHECK_SANITY)
+    if(VSQLITEPP_LINKCHECK_SANITY)
+      vsqlitepp_link_check_symbol(sqlite3session_create VSQLITEPP_LINKCHECK_SESSION)
+      vsqlitepp_link_check_symbol(sqlite3_snapshot_get VSQLITEPP_LINKCHECK_SNAPSHOT)
+      vsqlitepp_link_check_symbol(sqlite3_serialize VSQLITEPP_LINKCHECK_SERIALIZE)
+      if(VSQLITEPP_LINKCHECK_SESSION)
+        set(VSQLITEPP_HAVE_SQLITE3_SESSION TRUE)
+      endif()
+      if(VSQLITEPP_LINKCHECK_SNAPSHOT)
+        set(VSQLITEPP_HAVE_SQLITE3_SNAPSHOT TRUE)
+      endif()
+      if(VSQLITEPP_LINKCHECK_SERIALIZE)
+        set(VSQLITEPP_HAVE_SQLITE3_SERIALIZE TRUE)
+      endif()
+    else()
+      message(WARNING
+        "Could not link a configure-time check against the selected SQLite library. "
+        "Falling back to runtime-only detection of the optional session, snapshot, and "
+        "serialization APIs."
+      )
+    endif()
+  endif()
 endif()
 
-target_link_libraries(vsqlitepp PUBLIC ${VSQLITEPP_SQLITE_TARGET})
+foreach(optional_api IN ITEMS SESSION SNAPSHOT SERIALIZE)
+  if(VSQLITEPP_HAVE_SQLITE3_${optional_api})
+    target_compile_definitions(vsqlitepp PRIVATE VSQLITE_HAVE_SQLITE3_${optional_api}=1)
+  endif()
+endforeach()
+
+message(STATUS "Optional SQLite APIs: session=${VSQLITEPP_HAVE_SQLITE3_SESSION}, snapshot=${VSQLITEPP_HAVE_SQLITE3_SNAPSHOT}, serialization=${VSQLITEPP_HAVE_SQLITE3_SERIALIZE}")
+
+if(VSQLITEPP_HAVE_SQLITE3_SESSION)
+  # sqlite3.h only declares the session API when these are defined; the pre-update
+  # hook is the foundation of the session module.
+  target_compile_definitions(vsqlitepp PRIVATE SQLITE_ENABLE_SESSION=1 SQLITE_ENABLE_PREUPDATE_HOOK=1)
+endif()
+if(VSQLITEPP_HAVE_SQLITE3_SNAPSHOT)
+  target_compile_definitions(vsqlitepp PRIVATE SQLITE_ENABLE_SNAPSHOT=1)
+endif()
 
 set_target_properties(vsqlitepp
   PROPERTIES
@@ -252,6 +360,21 @@ if(VSQLITE_BUILD_TESTS)
       GTest::gtest_main
   )
   add_test(NAME vsqlitepp_tests COMMAND vsqlitepp_tests)
+
+  if(NOT BUILD_SHARED_LIBS)
+    # Reproduction of GH issue #59: a consumer that statically links VSQLite++ and
+    # SQLite without exporting the executable's own symbols must keep APIs that the
+    # build confirmed available usable, and must reject the absent ones cleanly.
+    add_executable(vsqlitepp_static_link_test tests/static_link_consumer.cpp)
+    target_link_libraries(vsqlitepp_static_link_test PRIVATE vsqlite::vsqlitepp)
+    set_target_properties(vsqlitepp_static_link_test PROPERTIES ENABLE_EXPORTS FALSE)
+    if(VSQLITE_BUNDLED_SQLITE)
+      # The bundled SQLite always provides the optional APIs.
+      target_compile_definitions(vsqlitepp_static_link_test
+        PRIVATE VSQLITE_EXPECT_ALL_OPTIONAL_APIS=1)
+    endif()
+    add_test(NAME vsqlitepp_static_link_test COMMAND vsqlitepp_static_link_test)
+  endif()
 endif()
 
 set(CPACK_PACKAGE_NAME "vsqlitepp")

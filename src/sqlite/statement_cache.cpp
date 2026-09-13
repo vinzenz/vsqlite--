@@ -88,8 +88,21 @@ inline namespace v2 {
             map_.erase(back.sql);
             lru_.pop_back();
         }
-        lru_.push_front(entry{key, stmt});
-        map_[key] = lru_.begin();
+        // Insert the map node first so a failed list insertion can be rolled back: on
+        // any allocation failure the statement is left unowned and the caller finalizes
+        // it, never cached-but-unreachable or owned twice.
+        auto [it, inserted] = map_.emplace(std::move(key), lru_.end());
+        if (!inserted) {
+            sqlite3_finalize(stmt);
+            return;
+        }
+        try {
+            lru_.push_front(entry{it->first, stmt});
+        } catch (...) {
+            map_.erase(it);
+            throw;
+        }
+        it->second = lru_.begin();
     }
 
     void statement_cache::clear(sqlite3 *) {

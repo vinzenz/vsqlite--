@@ -107,9 +107,10 @@ inline namespace v2 {
          *           following the same rules as the connection constructors
          * \param database_alias alias which should be used
          *
-         * \remarks SQLite interprets "file:" URIs in ATTACH only when the
-         * connection itself was opened from a "file:" URI (or when URI
-         * support is enabled globally in SQLite).
+         * \remarks VSQLite++ opens every connection with URI support enabled,
+         * so SQLite interprets "file:" URIs in ATTACH exactly as it does for
+         * the connection constructors. All other names are treated as
+         * literal filenames.
          */
         void attach(std::string const &db, std::string const &database_alias);
 

@@ -67,10 +67,10 @@ struct serialization_api {
 serialization_api const &serialization_symbols() {
     static serialization_api api = [] {
         serialization_api loaded;
-        loaded.serialize = sqlite::detail::load_sqlite_symbol<serialization_api::serialize_fn>(
-            "sqlite3_serialize");
-        loaded.deserialize = sqlite::detail::load_sqlite_symbol<serialization_api::deserialize_fn>(
-            "sqlite3_deserialize");
+        loaded.serialize =
+            VSQLITE_SERIALIZE_SYMBOL(serialization_api::serialize_fn, sqlite3_serialize);
+        loaded.deserialize =
+            VSQLITE_SERIALIZE_SYMBOL(serialization_api::deserialize_fn, sqlite3_deserialize);
         return loaded;
     }();
     return api;
@@ -99,12 +99,14 @@ inline namespace v2 {
         auto fn             = serialization_symbols().serialize;
         unsigned char *blob = fn ? fn(get_handle(con), normalized.c_str(), &size, flags) : nullptr;
         if (!blob) {
+            // With SQLITE_SERIALIZE_NOCOPY SQLite can also return a null pointer for
+            // an unknown schema or an internal failure, so do not blame the missing
+            // contiguous image alone.
             if (flags & SQLITE_SERIALIZE_NOCOPY) {
-                throw database_exception(
-                    "Failed to serialize database image: no contiguous in-memory image "
-                    "available for SQLITE_SERIALIZE_NOCOPY.");
+                throw database_exception("Failed to serialize database image '" + normalized +
+                                         "' with SQLITE_SERIALIZE_NOCOPY.");
             }
-            throw database_exception("Failed to serialize database image.");
+            throw database_exception("Failed to serialize database image '" + normalized + "'.");
         }
         std::vector<unsigned char> out(blob, blob + size);
         // With SQLITE_SERIALIZE_NOCOPY the returned buffer is the connection's own
@@ -132,12 +134,21 @@ inline namespace v2 {
         unsigned flags = SQLITE_DESERIALIZE_FREEONCLOSE;
         if (read_only) {
             flags |= SQLITE_DESERIALIZE_READONLY;
+        } else {
+            // Without SQLITE_DESERIALIZE_RESIZEABLE the database can never grow past
+            // the image size and writes report SQLITE_FULL once the buffer is full.
+            flags |= SQLITE_DESERIALIZE_RESIZEABLE;
         }
         auto fn = serialization_symbols().deserialize;
-        int rc =
-            fn ? fn(get_handle(con), normalized.c_str(), buffer, size, size, flags) : SQLITE_ERROR;
-        if (rc != SQLITE_OK) {
+        if (!fn) {
+            // The call never happened, so the buffer is still owned by us.
             sqlite3_free(buffer);
+            throw database_exception("SQLite serialization APIs are not available in this build.");
+        }
+        // SQLITE_DESERIALIZE_FREEONCLOSE transfers ownership of buffer to SQLite: it frees the
+        // allocation on success and on failure alike, so it must not be freed here afterwards.
+        int rc = fn(get_handle(con), normalized.c_str(), buffer, size, size, flags);
+        if (rc != SQLITE_OK) {
             throw database_exception_code(sqlite3_errmsg(get_handle(con)), rc);
         }
     }

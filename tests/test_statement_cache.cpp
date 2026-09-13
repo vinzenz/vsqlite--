@@ -156,3 +156,65 @@ TEST(StatementCacheTest, StatementFailingDuringStepIsNotRetained) {
     EXPECT_NO_THROW(cmd.step_once());
     EXPECT_EQ(count_rows(conn, "t"), 2);
 }
+
+// Returning a statement to a full cache evicts the least recently used entry and keeps
+// the surviving bookkeeping consistent.
+TEST(StatementCacheTest, EvictionOnOverflowReleasesOldestStatement) {
+    sqlite::connection conn(":memory:");
+    conn.configure_statement_cache({.capacity = 2, .enabled = true});
+    {
+        sqlite::command cmd(conn, "SELECT 1;");
+        cmd.step_once();
+    }
+    {
+        sqlite::command cmd(conn, "SELECT 2;");
+        cmd.step_once();
+    }
+    {
+        sqlite::command cmd(conn, "SELECT 3;"); // Overflow: SELECT 1 must be evicted.
+        cmd.step_once();
+    }
+    EXPECT_EQ(count_open_statements(conn), 2);
+    { // The evicted SQL is prepared fresh again and the cache stays within capacity.
+        sqlite::command cmd(conn, "SELECT 1;");
+        cmd.step_once();
+    }
+    EXPECT_EQ(count_open_statements(conn), 2);
+    { // The surviving cached statements are still reusable.
+        sqlite::command cmd(conn, "SELECT 2;");
+        cmd.step_once();
+        sqlite::command cmd3(conn, "SELECT 3;");
+        cmd3.step_once();
+    }
+    EXPECT_EQ(count_open_statements(conn), 2);
+}
+
+// A mid-cursor return into a full cache must still release the read lock while evicting
+// the least recently used entry.
+TEST(StatementCacheTest, MidCursorReturnUnderCachePressureReleasesReadLock) {
+    TempFile db("statement_cache_pressure");
+    sqlite::connection reader(db.string()), writer(db.string());
+    reader.configure_statement_cache({.capacity = 1, .enabled = true});
+    sqlite::execute(writer, "CREATE TABLE t(x)", true);
+    sqlite::execute(writer, "INSERT INTO t VALUES (1)", true);
+    { // Park one unrelated statement in the reader's cache.
+        sqlite::command cmd(reader, "SELECT 99;");
+        cmd.step_once();
+    }
+    {
+        sqlite::query q(reader, "SELECT x FROM t");
+        auto res = q.get_result();
+        ASSERT_TRUE(res->next_row());
+        EXPECT_EQ(res->get<int>(0), 1);
+    } // Destroyed mid-cursor: evicts SELECT 99, resets and caches SELECT x FROM t.
+    EXPECT_EQ(count_open_statements(reader), 1);
+    EXPECT_NO_THROW(sqlite::execute(writer, "INSERT INTO t VALUES (2)", true));
+    { // Both the evicted and the reset statements keep working afterwards.
+        sqlite::command cmd(reader, "SELECT 99;");
+        cmd.step_once();
+        sqlite::query q(reader, "SELECT x FROM t");
+        auto res = q.get_result();
+        ASSERT_TRUE(res->next_row());
+        EXPECT_EQ(res->get<int>(0), 1);
+    }
+}

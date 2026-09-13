@@ -3,13 +3,20 @@
 #include <sqlite/command.hpp>
 #include <sqlite/connection.hpp>
 #include <sqlite/execute.hpp>
+#include <sqlite/function.hpp>
 #include <sqlite/json_fts.hpp>
 #include <sqlite/query.hpp>
 
+#include <algorithm>
 #include <array>
+#include <cstdint>
+#include <iterator>
+#include <numeric>
 #include <optional>
+#include <ranges>
 #include <span>
 #include <string_view>
+#include <vector>
 
 using namespace testhelpers;
 
@@ -290,4 +297,381 @@ TEST(CommandQueryTest, ClearRemovesPreviousBindings) {
     EXPECT_EQ(res->get<int>(0), 1);
     EXPECT_EQ(res->get<std::string>(1), "first");
     EXPECT_FALSE(res->next_row());
+}
+
+namespace {
+    // Shared fixture data for the postfix increment tests.
+    void fill_postfix_rows(sqlite::connection &conn) {
+        sqlite::execute(
+            conn,
+            "CREATE TABLE postfix_data(id INTEGER PRIMARY KEY, note TEXT, ratio REAL, payload BLOB, "
+            "nullable TEXT);",
+            true);
+        sqlite::command insert(
+            conn, "INSERT INTO postfix_data(note, ratio, payload, nullable) VALUES(?, ?, ?, ?);");
+        std::vector<unsigned char> blob_a{1, 2, 3};
+        std::vector<unsigned char> blob_c{9, 8, 7, 6};
+        insert % "first" % 0.25 % std::span<const unsigned char>(blob_a) % sqlite::nil;
+        insert.step_once();
+        insert.clear();
+        insert % "second" % 0.5 % sqlite::nil % "set";
+        insert.step_once();
+        insert.clear();
+        insert % "third" % 0.75 % std::span<const unsigned char>(blob_c) % sqlite::nil;
+        insert.step_once();
+    }
+} // namespace
+
+TEST(CommandQueryTest, PostfixIncrementYieldsRowBeforeAdvance) {
+    sqlite::connection conn(":memory:");
+    fill_postfix_rows(conn);
+
+    sqlite::query q(
+        conn, "SELECT id, note, ratio, payload, nullable FROM postfix_data ORDER BY id;");
+    auto rows = q.each();
+    auto it   = rows.begin();
+    auto last = rows.end();
+
+    ASSERT_NE(it, last);
+    // Regression for #63: *it++ used to observe the row after the increment.
+    EXPECT_EQ((*it++).get<int>(0), 1);
+    EXPECT_EQ((*it++).get<std::string>("note"), "second");
+    // The live iterator itself keeps observing the row it points at.
+    EXPECT_EQ(it->get<int>(0), 3);
+    // Postfix increment on the final row still yields the final row's values.
+    EXPECT_EQ((*it++).get<double>("ratio"), 0.75);
+    EXPECT_EQ(it, last);
+}
+
+TEST(CommandQueryTest, PostfixIncrementPreservesTypedRowValues) {
+    sqlite::connection conn(":memory:");
+    fill_postfix_rows(conn);
+    std::vector<unsigned char> blob_a{1, 2, 3};
+
+    sqlite::query q(
+        conn, "SELECT id, note, ratio, payload, nullable FROM postfix_data ORDER BY id;");
+    auto rows = q.each();
+    auto it   = rows.begin();
+
+    // Keep the postfix result as an owning row value and exhaust the iterator afterwards.
+    auto first = *it++;
+    ASSERT_TRUE(first.valid());
+    ++it;
+    ++it;
+    EXPECT_EQ(first.get<std::int64_t>(0), 1);
+    EXPECT_EQ(first.get<std::string_view>("note"), "first");
+    EXPECT_DOUBLE_EQ(first.get<double>("ratio"), 0.25);
+    EXPECT_EQ(first.get<std::optional<std::string>>("nullable"), std::nullopt);
+    EXPECT_EQ(first.get<std::vector<unsigned char>>("payload"), blob_a);
+    auto payload_span = first.get<std::span<const unsigned char>>("payload");
+    EXPECT_TRUE(std::equal(payload_span.begin(), payload_span.end(), blob_a.begin()));
+    // Cross-storage-class coercion is the documented exception: the snapshot keeps the original
+    // storage class instead of applying SQLite's implicit text conversion.
+    EXPECT_THROW(first.get<std::string>("ratio"), sqlite::database_exception);
+    EXPECT_THROW(first.get<int>("note"), sqlite::database_exception);
+    EXPECT_THROW(first.get<std::string>(42), std::out_of_range);
+}
+
+TEST(CommandQueryTest, PostfixIncrementOnEndIteratorIsHarmless) {
+    sqlite::connection conn(":memory:");
+    fill_postfix_rows(conn);
+
+    sqlite::query q(
+        conn, "SELECT id, note, ratio, payload, nullable FROM postfix_data ORDER BY id;");
+    auto rows = q.each();
+    auto it   = rows.begin();
+    std::advance(it, 3);
+    ASSERT_EQ(it, rows.end());
+
+    // Incrementing the end iterator again keeps it at the end and stays dereference-safe.
+    it++;
+    EXPECT_EQ(it, rows.end());
+
+    auto end_snapshot = rows.end()++;
+    EXPECT_FALSE((*end_snapshot).valid());
+    EXPECT_THROW((*end_snapshot).get<int>(0), std::runtime_error);
+}
+
+TEST(CommandQueryTest, ResultRangeIteratorSatisfiesInputIteratorRequirements) {
+    using iterator = sqlite::query::result_range::iterator;
+    static_assert(std::input_iterator<iterator>);
+    static_assert(std::sentinel_for<iterator, iterator>);
+    static_assert(std::ranges::input_range<sqlite::query::result_range>);
+
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE nums(v INTEGER);", true);
+    sqlite::execute(conn, "INSERT INTO nums VALUES(1),(2),(3),(4),(5);", true);
+
+    sqlite::query q(conn, "SELECT v FROM nums;");
+    auto rows  = q.each();
+    auto first = rows.begin();
+    auto last  = rows.end();
+    int sum    = std::accumulate(
+        first, last, 0,
+        [](int acc, sqlite::query::result_range::row_view const &row) {
+            return acc + row.get<int>(0);
+        });
+    EXPECT_EQ(sum, 15);
+
+    sqlite::query distance_query(conn, "SELECT v FROM nums;");
+    auto distance_rows = distance_query.each();
+    EXPECT_EQ(std::distance(distance_rows.begin(), distance_rows.end()), 5);
+
+    sqlite::query count_query(conn, "SELECT v FROM nums;");
+    auto count_rows = count_query.each();
+    EXPECT_EQ(std::count_if(count_rows.begin(),
+                            count_rows.end(),
+                            [](sqlite::query::result_range::row_view const &row) {
+                                return row.get<int>(0) % 2 == 0;
+                            }),
+              2);
+}
+
+TEST(CommandQueryTest, ResetRewindsPartiallyConsumedCursor) {
+    sqlite::connection conn(":memory:");
+    sqlite::query q(conn, "SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3");
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 1);
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 2);
+
+    res->reset();
+
+    // The cursor restarts from the first row instead of continuing with row 3.
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 1);
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 2);
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 3);
+    EXPECT_FALSE(res->next_row());
+    EXPECT_TRUE(res->end());
+}
+
+TEST(CommandQueryTest, ResetBeforeFirstStepRestartsQuery) {
+    sqlite::connection conn(":memory:");
+    sqlite::query q(conn, "SELECT 3 UNION ALL SELECT 4");
+    auto res = q.get_result();
+
+    res->reset();
+
+    EXPECT_FALSE(res->end());
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 3);
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 4);
+    EXPECT_FALSE(res->next_row());
+}
+
+TEST(CommandQueryTest, ResetAfterExhaustionRestartsQuery) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE restart(id INTEGER);", true);
+    sqlite::execute(conn, "INSERT INTO restart VALUES(10),(20);", true);
+    sqlite::query q(conn, "SELECT id FROM restart ORDER BY id;");
+    auto res = q.get_result();
+
+    std::vector<int> first_pass;
+    while (res->next_row()) {
+        first_pass.push_back(res->get<int>(0));
+    }
+    ASSERT_EQ(first_pass.size(), 2u);
+    EXPECT_TRUE(res->end());
+
+    // reset() must revive the cursor after SQLITE_DONE.
+    res->reset();
+    EXPECT_FALSE(res->end());
+
+    std::vector<int> second_pass;
+    while (res->next_row()) {
+        second_pass.push_back(res->get<int>(0));
+    }
+    EXPECT_EQ(second_pass, first_pass);
+    EXPECT_TRUE(res->end());
+}
+
+TEST(CommandQueryTest, ResetPreservesBoundParameters) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE bound(id INTEGER);", true);
+    sqlite::execute(conn, "INSERT INTO bound VALUES(1),(2),(3);", true);
+
+    sqlite::query q(conn, "SELECT id FROM bound WHERE id > ? ORDER BY id;");
+    q % 1;
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 2);
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 3);
+    EXPECT_FALSE(res->next_row());
+
+    res->reset();
+
+    // Bindings survive the rewind, so the same filtered rows come back.
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 2);
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 3);
+    EXPECT_FALSE(res->next_row());
+}
+
+TEST(CommandQueryTest, ResetAfterSteppingErrorReportsErrorAndKeepsCursorUsable) {
+    sqlite::connection conn(":memory:");
+    sqlite::create_function(
+        conn, "fail_once", [failed = false]() mutable -> std::int64_t {
+            if (!failed) {
+                failed = true;
+                throw sqlite::database_exception("fail_once evaluation failed");
+            }
+            return 7;
+        });
+
+    sqlite::query q(conn, "SELECT fail_once() UNION ALL SELECT 8;");
+    auto res = q.get_result();
+    EXPECT_THROW(res->next_row(), sqlite::database_exception);
+
+    // reset() reports the pending error of the failed evaluation ...
+    EXPECT_THROW(res->reset(), sqlite::database_exception);
+    // ... but the statement was still reset, so a second reset succeeds and the
+    // cursor can be iterated from the beginning.
+    res->reset();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 7);
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 8);
+    EXPECT_FALSE(res->next_row());
+}
+
+TEST(CommandQueryTest, ResetRewindsResultsSharingTheSameStatement) {
+    sqlite::connection conn(":memory:");
+    sqlite::query q(conn, "SELECT 1 UNION ALL SELECT 2");
+    auto first  = q.get_result();
+    auto second = q.get_result();
+
+    // Both results drive the same underlying prepared statement.
+    ASSERT_TRUE(first->next_row());
+    EXPECT_EQ(first->get<int>(0), 1);
+    ASSERT_TRUE(second->next_row());
+    EXPECT_EQ(second->get<int>(0), 2);
+
+    // Resetting one result rewinds the shared cursor for the other as well.
+    first->reset();
+    ASSERT_TRUE(second->next_row());
+    EXPECT_EQ(second->get<int>(0), 1);
+}
+
+TEST(CommandQueryTest, ResetRevivesExhaustedSiblingResult) {
+    sqlite::connection conn(":memory:");
+    sqlite::query q(conn, "SELECT 1 UNION ALL SELECT 2");
+    auto first  = q.get_result();
+    auto second = q.get_result();
+
+    // Exhaust the second result entirely.
+    ASSERT_TRUE(second->next_row());
+    EXPECT_EQ(second->get<int>(0), 1);
+    ASSERT_TRUE(second->next_row());
+    EXPECT_EQ(second->get<int>(0), 2);
+    EXPECT_FALSE(second->next_row());
+    EXPECT_TRUE(second->end());
+
+    // Resetting the sibling clears the exhausted result's end state too, so it
+    // restarts from the first row instead of staying unusable.
+    first->reset();
+    EXPECT_FALSE(second->end());
+    ASSERT_TRUE(second->next_row());
+    EXPECT_EQ(second->get<int>(0), 1);
+    ASSERT_TRUE(second->next_row());
+    EXPECT_EQ(second->get<int>(0), 2);
+    EXPECT_FALSE(second->next_row());
+    EXPECT_TRUE(second->end());
+}
+
+TEST(CommandQueryTest, GetChangesReportsOwnStatementAfterCompletion) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE changes_returning(x INTEGER);", true);
+    sqlite::execute(conn, "INSERT INTO changes_returning VALUES (1),(2);", true);
+    // Leave a different affected-row count on the connection.
+    sqlite::execute(conn, "UPDATE changes_returning SET x=x WHERE x=1;", true);
+
+    sqlite::query q(conn, "UPDATE changes_returning SET x=x+10 RETURNING x;");
+    auto res = q.get_result();
+    // SQLite attributes no changes to a statement while it is still running.
+    EXPECT_EQ(res->get_changes(), 0);
+    while (res->next_row()) {
+        EXPECT_EQ(res->get_changes(), 0);
+    }
+    EXPECT_EQ(res->get_changes(), 2);
+
+    // Statements executed afterwards on the same connection must not alter the count.
+    sqlite::execute(conn, "INSERT INTO changes_returning VALUES (3),(4),(5);", true);
+    EXPECT_EQ(res->get_changes(), 2);
+}
+
+TEST(CommandQueryTest, GetChangesForPlainAndZeroRowDml) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE changes_plain(id INTEGER);", true);
+    sqlite::execute(conn, "INSERT INTO changes_plain VALUES (1),(2),(3);", true);
+
+    sqlite::query update(conn, "UPDATE changes_plain SET id=id+100 WHERE id <= 2;");
+    auto update_res = update.get_result();
+    EXPECT_FALSE(update_res->next_row());
+    EXPECT_EQ(update_res->get_changes(), 2);
+
+    sqlite::query none(conn, "UPDATE changes_plain SET id=id WHERE id = -1;");
+    auto none_res = none.get_result();
+    EXPECT_FALSE(none_res->next_row());
+    EXPECT_EQ(none_res->get_changes(), 0);
+
+    sqlite::query remove(conn, "DELETE FROM changes_plain WHERE id > 100;");
+    auto remove_res = remove.get_result();
+    EXPECT_FALSE(remove_res->next_row());
+    EXPECT_EQ(remove_res->get_changes(), 2);
+}
+
+TEST(CommandQueryTest, GetChangesViaEmitResult) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE changes_emit(x INTEGER);", true);
+    sqlite::execute(conn, "INSERT INTO changes_emit VALUES (1),(2);", true);
+    sqlite::execute(conn, "UPDATE changes_emit SET x=x WHERE x=1;", true);
+
+    sqlite::query q(conn, "UPDATE changes_emit SET x=x+10 RETURNING x;");
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    auto res = q.emit_result();
+#pragma GCC diagnostic pop
+    while (res->next_row()) {
+        EXPECT_EQ(res->get_changes(), 0);
+    }
+    EXPECT_EQ(res->get_changes(), 2);
+
+    sqlite::query plain(conn, "UPDATE changes_emit SET x=x+1 WHERE x <= 12;");
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    auto plain_res = plain.emit_result();
+#pragma GCC diagnostic pop
+    EXPECT_FALSE(plain_res->next_row());
+    EXPECT_EQ(plain_res->get_changes(), 2);
+}
+
+TEST(CommandQueryTest, GetChangesReturnsToZeroAfterResetAndRecaptures) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE changes_reset(x INTEGER);", true);
+    sqlite::execute(conn, "INSERT INTO changes_reset VALUES (1),(2);", true);
+    sqlite::execute(conn, "UPDATE changes_reset SET x=x WHERE x=1;", true);
+
+    sqlite::query q(conn, "UPDATE changes_reset SET x=x WHERE x <= 2 RETURNING x;");
+    auto res     = q.get_result();
+    auto sibling = q.get_result();
+
+    while (res->next_row()) {}
+    EXPECT_EQ(res->get_changes(), 2);
+
+    // The rewind restarts the statement, so the captured count starts over for this
+    // result and for revived siblings sharing the statement.
+    res->reset();
+    EXPECT_EQ(res->get_changes(), 0);
+    EXPECT_EQ(sibling->get_changes(), 0);
+
+    while (sibling->next_row()) {}
+    EXPECT_EQ(sibling->get_changes(), 2);
+    EXPECT_EQ(res->get_changes(), 0);
 }

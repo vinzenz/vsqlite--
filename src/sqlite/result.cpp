@@ -48,7 +48,28 @@ inline namespace v2 {
         }
 
         void reset(result_construct_params_private &params) {
-            params.ended = false;
+            // Rewind the prepared statement itself; clearing the end flag alone would
+            // leave a partially consumed cursor advancing from the next row. Bindings
+            // are preserved by sqlite3_reset. The statement is reset even when the
+            // call reports the error of the last evaluation, so the cursor state is
+            // updated before that error is surfaced.
+            int err          = sqlite3_reset(params.statement);
+            params.ended     = false;
+            params.changes   = 0;
+            // Results sharing the statement keep their own ended flag; rewind theirs
+            // too so exhausted siblings revive instead of staying unusable. The
+            // statement will run again, so their captured affected-row counts also
+            // go back to 0 until the new run completes.
+            if (params.siblings) {
+                for (auto const &weak : params.siblings->live) {
+                    if (auto sibling = weak.lock()) {
+                        sibling->ended   = false;
+                        sibling->changes = 0;
+                    }
+                }
+            }
+            if (err != SQLITE_OK)
+                throw database_exception_code(sqlite3_errmsg(params.db), err, params.sql);
         }
     } // namespace detail
 
@@ -62,6 +83,12 @@ inline namespace v2 {
     bool result::next_row() {
         if (!m_params->ended) {
             m_params->ended = !m_params->step();
+            if (m_params->ended) {
+                // The statement just finished, so sqlite3_changes() now reports the
+                // rows affected by it. Snapshot the count so statements executed
+                // afterwards on the same connection cannot overwrite it.
+                m_params->changes = sqlite3_changes(m_params->db);
+            }
             return !end();
         }
         return false;
