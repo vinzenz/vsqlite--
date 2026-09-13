@@ -53,7 +53,6 @@ inline namespace v2 {
         lru_.erase(it->second);
         map_.erase(it);
         sqlite3_reset(stmt);
-        sqlite3_clear_bindings(stmt);
         sqlite3 *owner = sqlite3_db_handle(stmt);
         if (owner != db) {
             sqlite3_finalize(stmt);
