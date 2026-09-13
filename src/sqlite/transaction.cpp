@@ -98,8 +98,8 @@ inline namespace v2 {
 
     void transaction::commit() {
         ending_guard guard(m_isEnding);
-        exec("COMMIT TRANSACTION");
         m_isActive = false;
+        exec("COMMIT TRANSACTION");
     }
 
     void transaction::rollback() {
