@@ -112,3 +112,49 @@ TEST(SerializationTest, FailingDeserializeThrowsCatchablyAndRetainsNoMemory) {
     sqlite::deserialize(dest, image);
     EXPECT_EQ(testhelpers::count_rows(dest, "data"), 2);
 }
+
+TEST(SerializationTest, WritableDeserializedDatabaseGrowsBeyondImage) {
+    if (!sqlite::serialization_supported()) {
+        GTEST_SKIP() << "SQLite serialization APIs not available in this build.";
+    }
+    sqlite::connection src(":memory:");
+    sqlite::execute(src, "CREATE TABLE t(x);", true);
+    auto image = sqlite::serialize(src);
+
+    sqlite::connection dest(":memory:");
+    sqlite::deserialize(dest, image);
+
+    // The zeroblob forces the database past the page count of the source image.
+    // Without SQLITE_DESERIALIZE_RESIZEABLE this used to fail with SQLITE_FULL.
+    sqlite::execute(dest, "INSERT INTO t VALUES (zeroblob(65536));", true);
+
+    sqlite::query q(dest, "SELECT length(x) FROM t;");
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 65536);
+
+    auto grown = sqlite::serialize(dest);
+    EXPECT_GT(grown.size(), image.size());
+
+    // The grown database still round-trips into a fresh connection.
+    sqlite::connection reloaded(":memory:");
+    sqlite::deserialize(reloaded, grown);
+    EXPECT_EQ(count_rows(reloaded, "t"), 1);
+}
+
+TEST(SerializationTest, ReadOnlyDeserializedDatabaseRejectsWrites) {
+    if (!sqlite::serialization_supported()) {
+        GTEST_SKIP() << "SQLite serialization APIs not available in this build.";
+    }
+    sqlite::connection src(":memory:");
+    sqlite::execute(src, "CREATE TABLE data(id INTEGER PRIMARY KEY, value TEXT);", true);
+    sqlite::execute(src, "INSERT INTO data(value) VALUES ('one'), ('two');", true);
+    auto image = sqlite::serialize(src);
+
+    sqlite::connection dest(":memory:");
+    sqlite::deserialize(dest, image, "main", true);
+
+    EXPECT_THROW(sqlite::execute(dest, "INSERT INTO data(value) VALUES ('three');", true),
+                 sqlite::database_exception);
+    EXPECT_EQ(count_rows(dest, "data"), 2);
+}
