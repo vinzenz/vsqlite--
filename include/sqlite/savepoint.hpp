@@ -57,6 +57,8 @@ inline namespace v2 {
          * \param name alias for the savepoint
          */
         savepoint(connection &con, std::string const &name);
+        savepoint(savepoint const &)            = delete;
+        savepoint &operator=(savepoint const &) = delete;
 
         /** \brief destructor
          *
