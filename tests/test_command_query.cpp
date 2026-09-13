@@ -584,3 +584,94 @@ TEST(CommandQueryTest, ResetRevivesExhaustedSiblingResult) {
     EXPECT_FALSE(second->next_row());
     EXPECT_TRUE(second->end());
 }
+
+TEST(CommandQueryTest, GetChangesReportsOwnStatementAfterCompletion) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE changes_returning(x INTEGER);", true);
+    sqlite::execute(conn, "INSERT INTO changes_returning VALUES (1),(2);", true);
+    // Leave a different affected-row count on the connection.
+    sqlite::execute(conn, "UPDATE changes_returning SET x=x WHERE x=1;", true);
+
+    sqlite::query q(conn, "UPDATE changes_returning SET x=x+10 RETURNING x;");
+    auto res = q.get_result();
+    // SQLite attributes no changes to a statement while it is still running.
+    EXPECT_EQ(res->get_changes(), 0);
+    while (res->next_row()) {
+        EXPECT_EQ(res->get_changes(), 0);
+    }
+    EXPECT_EQ(res->get_changes(), 2);
+
+    // Statements executed afterwards on the same connection must not alter the count.
+    sqlite::execute(conn, "INSERT INTO changes_returning VALUES (3),(4),(5);", true);
+    EXPECT_EQ(res->get_changes(), 2);
+}
+
+TEST(CommandQueryTest, GetChangesForPlainAndZeroRowDml) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE changes_plain(id INTEGER);", true);
+    sqlite::execute(conn, "INSERT INTO changes_plain VALUES (1),(2),(3);", true);
+
+    sqlite::query update(conn, "UPDATE changes_plain SET id=id+100 WHERE id <= 2;");
+    auto update_res = update.get_result();
+    EXPECT_FALSE(update_res->next_row());
+    EXPECT_EQ(update_res->get_changes(), 2);
+
+    sqlite::query none(conn, "UPDATE changes_plain SET id=id WHERE id = -1;");
+    auto none_res = none.get_result();
+    EXPECT_FALSE(none_res->next_row());
+    EXPECT_EQ(none_res->get_changes(), 0);
+
+    sqlite::query remove(conn, "DELETE FROM changes_plain WHERE id > 100;");
+    auto remove_res = remove.get_result();
+    EXPECT_FALSE(remove_res->next_row());
+    EXPECT_EQ(remove_res->get_changes(), 2);
+}
+
+TEST(CommandQueryTest, GetChangesViaEmitResult) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE changes_emit(x INTEGER);", true);
+    sqlite::execute(conn, "INSERT INTO changes_emit VALUES (1),(2);", true);
+    sqlite::execute(conn, "UPDATE changes_emit SET x=x WHERE x=1;", true);
+
+    sqlite::query q(conn, "UPDATE changes_emit SET x=x+10 RETURNING x;");
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    auto res = q.emit_result();
+#pragma GCC diagnostic pop
+    while (res->next_row()) {
+        EXPECT_EQ(res->get_changes(), 0);
+    }
+    EXPECT_EQ(res->get_changes(), 2);
+
+    sqlite::query plain(conn, "UPDATE changes_emit SET x=x+1 WHERE x <= 12;");
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    auto plain_res = plain.emit_result();
+#pragma GCC diagnostic pop
+    EXPECT_FALSE(plain_res->next_row());
+    EXPECT_EQ(plain_res->get_changes(), 2);
+}
+
+TEST(CommandQueryTest, GetChangesReturnsToZeroAfterResetAndRecaptures) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE changes_reset(x INTEGER);", true);
+    sqlite::execute(conn, "INSERT INTO changes_reset VALUES (1),(2);", true);
+    sqlite::execute(conn, "UPDATE changes_reset SET x=x WHERE x=1;", true);
+
+    sqlite::query q(conn, "UPDATE changes_reset SET x=x WHERE x <= 2 RETURNING x;");
+    auto res     = q.get_result();
+    auto sibling = q.get_result();
+
+    while (res->next_row()) {}
+    EXPECT_EQ(res->get_changes(), 2);
+
+    // The rewind restarts the statement, so the captured count starts over for this
+    // result and for revived siblings sharing the statement.
+    res->reset();
+    EXPECT_EQ(res->get_changes(), 0);
+    EXPECT_EQ(sibling->get_changes(), 0);
+
+    while (sibling->next_row()) {}
+    EXPECT_EQ(sibling->get_changes(), 2);
+    EXPECT_EQ(res->get_changes(), 0);
+}

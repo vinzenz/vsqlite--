@@ -87,7 +87,11 @@ inline namespace v2 {
         };
         params->step = [db, statement = stmt, sql]() -> bool { return step_result(db, statement, sql); };
         params->db           = db;
-        params->changes      = sqlite3_changes(params->db);
+        // The step above may already have completed the statement, in which case
+        // sqlite3_changes() reports this statement's count. Otherwise SQLite still
+        // attributes the previous statement's count to the connection, so report 0
+        // until result::next_row() sees the statement finish.
+        params->changes      = ended ? sqlite3_changes(db) : 0;
         params->statement    = stmt;
         params->statement_owner = std::move(owner);
         params->sql          = std::move(sql);
@@ -109,7 +113,10 @@ inline namespace v2 {
         };
         params->step = [db, statement = stmt, sql]() -> bool { return step_result(db, statement, sql); };
         params->db           = db;
-        params->changes      = sqlite3_changes(params->db);
+        // The statement has not run yet, so sqlite3_changes() would report the count
+        // of whatever statement ran before on this connection. Report 0 until
+        // result::next_row() sees the statement finish.
+        params->changes      = 0;
         params->statement    = stmt;
         params->statement_owner = std::move(owner);
         params->sql          = std::move(sql);
