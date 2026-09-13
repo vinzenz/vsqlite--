@@ -105,7 +105,7 @@ inline namespace v2 {
             std::unique_lock<std::mutex> lock(state->mutex);
             while (true) {
                 if (!state->idle.empty()) {
-                    conn = std::move(state->idle.back());
+                    conn = std::move(state->idle.front());
                     state->idle.pop_back();
                     break;
                 }
