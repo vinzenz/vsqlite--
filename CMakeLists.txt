@@ -68,6 +68,7 @@ if(VSQLITE_BUNDLED_SQLITE)
       SQLITE_THREADSAFE=1
   )
   add_library(SQLite::SQLite3 ALIAS sqlite3)
+  add_library(SQLite3::SQLite3 ALIAS sqlite3)
 else()
   find_package(SQLite3 REQUIRED)
 endif()
@@ -90,6 +91,7 @@ target_sources(vsqlitepp
     src/sqlite/command.cpp
     src/sqlite/connection.cpp
     src/sqlite/execute.cpp
+  src/sqlite/function.cpp
   src/sqlite/query.cpp
   src/sqlite/result.cpp
   src/sqlite/savepoint.cpp
@@ -118,7 +120,9 @@ target_compile_options(vsqlitepp
     $<$<CXX_COMPILER_ID:MSVC>:/permissive- /W4>
 )
 
-if(TARGET SQLite::SQLite3)
+if(TARGET SQLite3::SQLite3)
+  set(VSQLITEPP_SQLITE_TARGET SQLite3::SQLite3)
+elseif(TARGET SQLite::SQLite3)
   set(VSQLITEPP_SQLITE_TARGET SQLite::SQLite3)
 else()
   set(VSQLITEPP_SQLITE_TARGET ${SQLITE3_LIBRARIES})

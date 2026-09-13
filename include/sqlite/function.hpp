@@ -36,13 +36,11 @@
 #include <concepts>
 #include <cstddef>
 #include <exception>
-#include <format>
 #include <functional>
 #include <limits>
 #include <memory>
 #include <optional>
 #include <span>
-#include <string>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
@@ -50,7 +48,7 @@
 #include <vector>
 
 #include <sqlite/database_exception.hpp>
-#include <sqlite/private/private_accessor.hpp>
+#include <sqlite/detail/function_registration.hpp>
 
 #include <sqlite3.h>
 
@@ -434,13 +432,6 @@ inline namespace v2 {
 #endif
             return rep;
         }
-
-        inline std::string make_function_error(std::string_view name) {
-            if (name.empty()) {
-                return "Failed to register SQL function.";
-            }
-            return std::format("Failed to register SQL function '{}'.", name);
-        }
     } // namespace detail
 
     template <typename Callable>
@@ -463,23 +454,15 @@ inline namespace v2 {
         auto holder =
             std::make_unique<detail::function_holder<callable_t>>(std::forward<Callable>(callable));
 
-        private_accessor::acccess_check(con);
-        auto handle = private_accessor::get_handle(con);
-        std::string name_buffer(name);
         auto text_rep = detail::compose_text_rep(options);
 
-        // Hand ownership to SQLite before checking the result: its xDestroy callback runs
-        // on failed registration, on replacement, and on connection close alike.
-        auto *holder_ptr = holder.release();
-
-        int rc = sqlite3_create_function_v2(handle, name_buffer.c_str(), arity, text_rep,
-                                            holder_ptr, &detail::function_entry<callable_t>,
-                                            nullptr, nullptr, &detail::destroy_holder<callable_t>);
-
-        if (rc != SQLITE_OK) {
-            auto err = sqlite3_errmsg(handle);
-            throw database_exception_code(err ? err : detail::make_function_error(name), rc);
-        }
+        // Hand the callback to the registration helper as an owned token: once the request
+        // reaches SQLite, its xDestroy callback runs on failed registration, on replacement,
+        // and on connection close alike. On earlier failures the token cleans up instead.
+        detail::register_scalar_function(
+            con, name, arity, text_rep,
+            detail::function_user_data(holder.release(), &detail::destroy_holder<callable_t>),
+            &detail::function_entry<callable_t>);
     }
 
 } // namespace v2
