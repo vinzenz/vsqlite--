@@ -55,6 +55,15 @@ inline namespace v2 {
             // updated before that error is surfaced.
             int err      = sqlite3_reset(params.statement);
             params.ended = false;
+            // Results sharing the statement keep their own ended flag; rewind theirs
+            // too so exhausted siblings revive instead of staying unusable.
+            if (params.siblings) {
+                for (auto const &weak : params.siblings->live) {
+                    if (auto sibling = weak.lock()) {
+                        sibling->ended = false;
+                    }
+                }
+            }
             if (err != SQLITE_OK)
                 throw database_exception_code(sqlite3_errmsg(params.db), err, params.sql);
         }

@@ -112,8 +112,9 @@ inline namespace v2 {
          * already exhausted cursor. Parameter bindings are preserved.
          *
          * The rewind acts on the underlying prepared statement, which may be shared by other
-         * result objects created from the same @ref query; those cursors are rewound too and
-         * restart from the first row on their next @ref next_row call.
+         * result objects created from the same @ref query; those cursors are rewound too —
+         * including exhausted ones, whose @ref end state is cleared — so they restart from the
+         * first row on their next @ref next_row call.
          *
          * @throws std::runtime_error if the result is no longer valid.
          * @throws database_exception when the statement reports an error, e.g. when its last

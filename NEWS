@@ -9,7 +9,7 @@
   prepared statement, which made a partially consumed cursor continue from the next row instead
   of restarting from the first row. Reset errors of the last evaluation are now reported with a
   `sqlite::database_exception`, parameter bindings are preserved, and results sharing the same
-  statement are rewound together.
+  statement are rewound and revived together, including exhausted ones.
 - Fixed named in-memory database URIs (`file:name?mode=memory&cache=shared`) being
   created as ordinary files on disk instead of living in memory.
 - Database names starting with `file:` are now interpreted as SQLite URIs: path

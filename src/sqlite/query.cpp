@@ -29,6 +29,7 @@
  POSSIBILITY OF SUCH DAMAGE.
 
 ##############################################################################*/
+#include <algorithm>
 #include <memory>
 #include <utility>
 #include <stdexcept>
@@ -39,7 +40,8 @@
 
 namespace sqlite {
 inline namespace v2 {
-    query::query(connection &con, std::string const &sql) : command(con, sql) {}
+    query::query(connection &con, std::string const &sql) :
+        command(con, sql), sibling_results_(std::make_shared<result_sibling_registry_private>()) {}
 
     query::~query() {}
 
@@ -56,6 +58,19 @@ inline namespace v2 {
             default:
                 throw database_exception_code(sqlite3_errmsg(db), err, sql);
             }
+        }
+
+        void track_siblings(
+            std::shared_ptr<result_construct_params_private> const &params,
+            std::shared_ptr<result_sibling_registry_private> const &registry) {
+            auto &live = registry->live;
+            live.erase(std::remove_if(live.begin(), live.end(),
+                                      [](std::weak_ptr<result_construct_params_private> const &w) {
+                                          return w.expired();
+                                      }),
+                       live.end());
+            params->siblings = registry;
+            live.push_back(params);
         }
     } // namespace
 
@@ -77,6 +92,7 @@ inline namespace v2 {
         params->statement_owner = std::move(owner);
         params->sql          = std::move(sql);
         params->ended        = ended;
+        track_siblings(params, sibling_results_);
         return std::shared_ptr<result>(new result(params));
     }
 
@@ -98,6 +114,7 @@ inline namespace v2 {
         params->statement_owner = std::move(owner);
         params->sql          = std::move(sql);
         params->ended        = false;
+        track_siblings(params, sibling_results_);
         return std::shared_ptr<result>(new result(params));
     }
 

@@ -35,6 +35,7 @@ VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 struct sqlite3;
 struct sqlite3_stmt;
@@ -42,6 +43,18 @@ struct sqlite3_stmt;
 namespace sqlite {
 inline namespace v2 {
     struct query;
+    struct result_construct_params_private;
+
+    /** \brief tracks the results that share one prepared statement
+     *
+     * Results handed out by the same query keep their own execution state, yet they
+     * drive a single sqlite3_stmt. The registry lets detail::reset() rewind the
+     * cursor state of every live result, not just the calling one.
+     */
+    struct result_sibling_registry_private {
+        std::vector<std::weak_ptr<result_construct_params_private>> live;
+    };
+
     struct result_construct_params_private {
         sqlite3 *db;
         sqlite3_stmt *statement;
@@ -50,6 +63,7 @@ inline namespace v2 {
         int changes;
         std::function<void()> access_check;
         std::function<bool()> step;
+        std::shared_ptr<result_sibling_registry_private> siblings;
         bool ended;
     };
 } // namespace v2

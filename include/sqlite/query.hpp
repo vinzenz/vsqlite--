@@ -60,6 +60,7 @@
  */
 namespace sqlite {
 inline namespace v2 {
+    struct result_sibling_registry_private;
 
     /** \brief query should be used to execute SQL queries
      * An object of this class is not copyable
@@ -335,6 +336,7 @@ inline namespace v2 {
         friend struct result;
         void access_check();
         bool step();
+        std::shared_ptr<result_sibling_registry_private> sibling_results_;
     };
 } // namespace v2
 } // namespace sqlite
