@@ -75,6 +75,8 @@ inline namespace v2 {
      * @param image Serialized bytes previously produced by @ref serialize or another SQLite source.
      * @param schema Logical database name.
      * @param read_only When true the connection treats the schema as immutable.
+     * @throws database_exception when serialization is unavailable, the image is empty, or
+     *         SQLite rejects the image (e.g. unknown schema or a busy target connection).
      */
     void deserialize(connection &con, std::span<const unsigned char> image,
                      std::string_view schema = "main", bool read_only = false);

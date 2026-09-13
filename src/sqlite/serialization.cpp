@@ -119,10 +119,17 @@ inline namespace v2 {
     void deserialize(connection &con, std::span<const unsigned char> image, std::string_view schema,
                      bool read_only) {
         ensure_serialization_available();
+        auto fn = serialization_symbols().deserialize;
+        if (!fn) {
+            throw database_exception("SQLite serialization APIs are not available in this build.");
+        }
         if (image.empty()) {
             throw database_exception("Serialized database image is empty.");
         }
+        // Every step that can throw runs before the buffer is allocated, so nothing is
+        // owned locally once the handoff to SQLite begins.
         auto normalized       = normalize_schema(schema);
+        sqlite3 *handle       = get_handle(con);
         auto size             = static_cast<sqlite3_int64>(image.size());
         unsigned char *buffer = static_cast<unsigned char *>(sqlite3_malloc64(image.size()));
         if (!buffer) {
@@ -133,12 +140,13 @@ inline namespace v2 {
         if (read_only) {
             flags |= SQLITE_DESERIALIZE_READONLY;
         }
-        auto fn = serialization_symbols().deserialize;
-        int rc =
-            fn ? fn(get_handle(con), normalized.c_str(), buffer, size, size, flags) : SQLITE_ERROR;
+        // SQLITE_DESERIALIZE_FREEONCLOSE transfers ownership to SQLite: the buffer is
+        // freed when the connection closes on success, and freed before the call
+        // returns when it fails. Either way the allocation is consumed here and must
+        // not be freed again below.
+        int rc = fn(handle, normalized.c_str(), buffer, size, size, flags);
         if (rc != SQLITE_OK) {
-            sqlite3_free(buffer);
-            throw database_exception_code(sqlite3_errmsg(get_handle(con)), rc);
+            throw database_exception_code(sqlite3_errmsg(handle), rc);
         }
     }
 } // namespace v2
