@@ -1,5 +1,11 @@
 # vsqlite++ (unreleased)
 
+- Fixed optional SQLite APIs (sessions, snapshots, serialization) being reported as unavailable
+  when VSQLite++ and SQLite are linked statically into an executable that does not export its own
+  symbols. APIs that the build confirms are provided by the selected SQLite library are now
+  resolved through direct references, which work for static and shared builds alike; the runtime
+  symbol lookup remains as a fallback for implementations that only expose the functions
+  dynamically. Detection of genuinely absent APIs is unchanged.
 - Writable databases restored via `sqlite::deserialize` can now grow beyond the size of
   the input image (`SQLITE_DESERIALIZE_RESIZEABLE`); previously inserts reported
   `SQLITE_FULL` once the image size was exhausted. Read-only deserialization stays

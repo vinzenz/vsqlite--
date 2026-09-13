@@ -131,23 +131,23 @@ session_api const &session_symbols() {
     static session_api api = [] {
         session_api loaded{};
         loaded.create =
-            sqlite::detail::load_sqlite_symbol<session_api::create_fn>("sqlite3session_create");
+            VSQLITE_SESSION_SYMBOL(session_api::create_fn, sqlite3session_create);
         loaded.destroy =
-            sqlite::detail::load_sqlite_symbol<session_api::delete_fn>("sqlite3session_delete");
+            VSQLITE_SESSION_SYMBOL(session_api::delete_fn, sqlite3session_delete);
         loaded.attach =
-            sqlite::detail::load_sqlite_symbol<session_api::attach_fn>("sqlite3session_attach");
+            VSQLITE_SESSION_SYMBOL(session_api::attach_fn, sqlite3session_attach);
         loaded.enable =
-            sqlite::detail::load_sqlite_symbol<session_api::enable_fn>("sqlite3session_enable");
+            VSQLITE_SESSION_SYMBOL(session_api::enable_fn, sqlite3session_enable);
         loaded.indirect =
-            sqlite::detail::load_sqlite_symbol<session_api::indirect_fn>("sqlite3session_indirect");
-        loaded.changeset = sqlite::detail::load_sqlite_symbol<session_api::changeset_fn>(
-            "sqlite3session_changeset");
+            VSQLITE_SESSION_SYMBOL(session_api::indirect_fn, sqlite3session_indirect);
+        loaded.changeset =
+            VSQLITE_SESSION_SYMBOL(session_api::changeset_fn, sqlite3session_changeset);
         loaded.patchset =
-            sqlite::detail::load_sqlite_symbol<session_api::patchset_fn>("sqlite3session_patchset");
+            VSQLITE_SESSION_SYMBOL(session_api::patchset_fn, sqlite3session_patchset);
         loaded.apply_changeset =
-            sqlite::detail::load_sqlite_symbol<session_api::apply_fn>("sqlite3changeset_apply");
+            VSQLITE_SESSION_SYMBOL(session_api::apply_fn, sqlite3changeset_apply);
         loaded.iter_op =
-            sqlite::detail::load_sqlite_symbol<session_api::iter_op_fn>("sqlite3changeset_op");
+            VSQLITE_SESSION_SYMBOL(session_api::iter_op_fn, sqlite3changeset_op);
         return loaded;
     }();
     return api;

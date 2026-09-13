@@ -67,10 +67,10 @@ struct serialization_api {
 serialization_api const &serialization_symbols() {
     static serialization_api api = [] {
         serialization_api loaded;
-        loaded.serialize = sqlite::detail::load_sqlite_symbol<serialization_api::serialize_fn>(
-            "sqlite3_serialize");
-        loaded.deserialize = sqlite::detail::load_sqlite_symbol<serialization_api::deserialize_fn>(
-            "sqlite3_deserialize");
+        loaded.serialize =
+            VSQLITE_SERIALIZE_SYMBOL(serialization_api::serialize_fn, sqlite3_serialize);
+        loaded.deserialize =
+            VSQLITE_SERIALIZE_SYMBOL(serialization_api::deserialize_fn, sqlite3_deserialize);
         return loaded;
     }();
     return api;

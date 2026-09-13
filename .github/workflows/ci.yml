@@ -48,3 +48,71 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --verbose --build-config ${{ matrix.build_type }}
+
+  static-link:
+    name: Static Linking
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-15'
+        run: |
+          brew update
+          brew install ninja
+
+      - name: Install dependencies (Linux)
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      - name: Install dependencies (Windows)
+        if: matrix.os == 'windows-2025'
+        run: |
+          choco install ninja
+
+      - name: Configure
+        run: |
+          cmake -S . -B build-static -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DVSQLITE_BUNDLED_SQLITE=ON -DVSQLITE_BUILD_TESTS=ON -DVSQLITE_BUILD_EXAMPLES=OFF
+        shell: bash
+
+      - name: Build
+        run: cmake --build build-static
+
+      - name: Test
+        run: ctest --test-dir build-static --verbose
+
+  static-link-external-sqlite:
+    name: Static Linking (external SQLite)
+    runs-on: ubuntu-24.04
+    env:
+      CXX: g++-13
+      CC: gcc-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libsqlite3-dev gcc-13 g++-13
+
+      - name: Configure
+        run: set -o pipefail && cmake -S . -B build-static-ext -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DVSQLITE_BUNDLED_SQLITE=OFF -DVSQLITE_BUILD_TESTS=ON -DVSQLITE_BUILD_EXAMPLES=OFF 2>&1 | tee configure.log
+
+      - name: Check configure-time API detection
+        run: grep -q "Optional SQLite APIs" configure.log
+
+      - name: Build
+        run: cmake --build build-static-ext
+
+      - name: Test
+        run: ctest --test-dir build-static-ext --verbose
