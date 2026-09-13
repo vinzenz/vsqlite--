@@ -558,3 +558,29 @@ TEST(CommandQueryTest, ResetRewindsResultsSharingTheSameStatement) {
     ASSERT_TRUE(second->next_row());
     EXPECT_EQ(second->get<int>(0), 1);
 }
+
+TEST(CommandQueryTest, ResetRevivesExhaustedSiblingResult) {
+    sqlite::connection conn(":memory:");
+    sqlite::query q(conn, "SELECT 1 UNION ALL SELECT 2");
+    auto first  = q.get_result();
+    auto second = q.get_result();
+
+    // Exhaust the second result entirely.
+    ASSERT_TRUE(second->next_row());
+    EXPECT_EQ(second->get<int>(0), 1);
+    ASSERT_TRUE(second->next_row());
+    EXPECT_EQ(second->get<int>(0), 2);
+    EXPECT_FALSE(second->next_row());
+    EXPECT_TRUE(second->end());
+
+    // Resetting the sibling clears the exhausted result's end state too, so it
+    // restarts from the first row instead of staying unusable.
+    first->reset();
+    EXPECT_FALSE(second->end());
+    ASSERT_TRUE(second->next_row());
+    EXPECT_EQ(second->get<int>(0), 1);
+    ASSERT_TRUE(second->next_row());
+    EXPECT_EQ(second->get<int>(0), 2);
+    EXPECT_FALSE(second->next_row());
+    EXPECT_TRUE(second->end());
+}
