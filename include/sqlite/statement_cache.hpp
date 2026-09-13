@@ -69,7 +69,9 @@ inline namespace v2 {
         sqlite3_stmt *acquire(sqlite3 *db, std::string_view sql);
         /// Returns a statement to the cache. The statement is reset and its bindings are
         /// cleared before it is retained, so it releases any locks it still held; if it
-        /// cannot be reset cleanly it is finalized instead of cached.
+        /// cannot be reset cleanly it is finalized instead of cached. If cache
+        /// bookkeeping cannot allocate memory, the statement is left unowned and the
+        /// caller is responsible for finalizing it.
         void release(std::string_view sql, sqlite3_stmt *stmt);
         void clear(sqlite3 *db);
         void reset(statement_cache_config cfg);

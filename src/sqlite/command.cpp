@@ -109,7 +109,13 @@ inline namespace v2 {
                 return;
             }
             if (cacheable && con) {
-                private_accessor::release_cached_statement(*con, sql, stmt);
+                try {
+                    private_accessor::release_cached_statement(*con, sql, stmt);
+                } catch (...) {
+                    // Cache bookkeeping ran out of memory; the statement was left
+                    // unowned, so release it here instead of leaking or terminating.
+                    sqlite3_finalize(stmt);
+                }
             } else {
                 sqlite3_finalize(stmt);
             }

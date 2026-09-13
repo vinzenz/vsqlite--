@@ -1,5 +1,19 @@
 # vsqlite++ (unreleased)
 
+- Writable databases restored via `sqlite::deserialize` can now grow beyond the size of
+  the input image (`SQLITE_DESERIALIZE_RESIZEABLE`); previously inserts reported
+  `SQLITE_FULL` once the image size was exhausted. Read-only deserialization stays
+  immutable.
+- Fixed statements returned to the statement cache while their cursor was still on a
+  row keeping the implicit read transaction open, which blocked writers on other
+  connections until the cache was cleared. Statements are now reset and their bindings
+  cleared before being retained, statements that fail to reset are finalized instead of
+  cached, and statement cleanup no longer lets exceptions escape through destructors.
+- Fixed `sqlite::result::reset()` only clearing the end flag without rewinding the underlying
+  prepared statement, which made a partially consumed cursor continue from the next row instead
+  of restarting from the first row. Reset errors of the last evaluation are now reported with a
+  `sqlite::database_exception`, parameter bindings are preserved, and results sharing the same
+  statement are rewound and revived together, including exhausted ones.
 - Fixed named in-memory database URIs (`file:name?mode=memory&cache=shared`) being
   created as ordinary files on disk instead of living in memory.
 - Database names starting with `file:` are now interpreted as SQLite URIs: path
@@ -10,6 +24,13 @@
   SQLite in their own environment even after the original installation moved.
   The legacy custom `FindSQLite3` module was removed in favor of CMake's built-in
   module, which supports `SQLite3_USE_STATIC_LIBS` and standard find options.
+- Fixed a crash (SIGSEGV) when applying a changeset or patchset containing conflicting changes:
+  the null conflict handler passed to `sqlite3changeset_apply` is replaced by a default abort
+  policy, so conflicts now raise `sqlite::database_exception` and roll back partial application.
+- Added conflict resolution support to `sqlite::apply_changeset` and `sqlite::apply_patchset`:
+  a fixed `conflict_policy` (`omit`, `replace`, `abort`) or a custom `conflict_handler` receiving
+  a `changeset_conflict` descriptor. Exceptions thrown by a handler are caught at the SQLite C
+  boundary, abort the application, and are rethrown to the caller.
 
 # vsqlite++ 0.4.2
 

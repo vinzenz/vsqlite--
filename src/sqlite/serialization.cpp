@@ -132,12 +132,21 @@ inline namespace v2 {
         unsigned flags = SQLITE_DESERIALIZE_FREEONCLOSE;
         if (read_only) {
             flags |= SQLITE_DESERIALIZE_READONLY;
+        } else {
+            // Without SQLITE_DESERIALIZE_RESIZEABLE the database can never grow past
+            // the image size and writes report SQLITE_FULL once the buffer is full.
+            flags |= SQLITE_DESERIALIZE_RESIZEABLE;
         }
         auto fn = serialization_symbols().deserialize;
-        int rc =
-            fn ? fn(get_handle(con), normalized.c_str(), buffer, size, size, flags) : SQLITE_ERROR;
-        if (rc != SQLITE_OK) {
+        if (!fn) {
+            // The call never happened, so the buffer is still owned by us.
             sqlite3_free(buffer);
+            throw database_exception("SQLite serialization APIs are not available in this build.");
+        }
+        // SQLITE_DESERIALIZE_FREEONCLOSE transfers ownership of buffer to SQLite: it frees the
+        // allocation on success and on failure alike, so it must not be freed here afterwards.
+        int rc = fn(get_handle(con), normalized.c_str(), buffer, size, size, flags);
+        if (rc != SQLITE_OK) {
             throw database_exception_code(sqlite3_errmsg(get_handle(con)), rc);
         }
     }
