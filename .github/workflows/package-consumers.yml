@@ -68,3 +68,27 @@ jobs:
             -DVSQLITE_BUNDLED_SQLITE=OFF
           cmake --build build/consumer-cpm
           ./build/consumer-cpm/vsqlitepp_cpm_consumer
+
+  relocated-external-sqlite:
+    name: Relocated external SQLite (${{ matrix.linkage }})
+    runs-on: ubuntu-24.04
+    env:
+      CC: gcc-13
+      CXX: g++-13
+    strategy:
+      fail-fast: false
+      matrix:
+        linkage:
+          - shared
+          - static
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl gcc-13 g++-13 ninja-build unzip
+
+      - name: Test installed consumer after SQLite relocation
+        run: scripts/test-sqlite-relocation.sh ${{ matrix.linkage }}
