@@ -35,8 +35,6 @@ option(VSQLITE_BUNDLED_SQLITE "Build and link bundled SQLite3" ${VSQLITE_BUNDLED
 
 set(VSQLITEPP_SOVERSION "${PROJECT_VERSION_MAJOR}" CACHE STRING "Shared object version to use")
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
@@ -68,8 +66,19 @@ if(VSQLITE_BUNDLED_SQLITE)
       SQLITE_THREADSAFE=1
   )
   add_library(SQLite::SQLite3 ALIAS sqlite3)
+  add_library(SQLite3::SQLite3 ALIAS sqlite3)
 else()
   find_package(SQLite3 REQUIRED)
+endif()
+
+# Newer CMake releases provide SQLite3::SQLite3 and deprecate SQLite::SQLite3,
+# older ones only provide the latter. Make both names resolve so the exported
+# targets keep working on consumers using either CMake version.
+if(NOT TARGET SQLite3::SQLite3 AND TARGET SQLite::SQLite3)
+  add_library(SQLite3::SQLite3 ALIAS SQLite::SQLite3)
+endif()
+if(NOT TARGET SQLite::SQLite3 AND TARGET SQLite3::SQLite3)
+  add_library(SQLite::SQLite3 ALIAS SQLite3::SQLite3)
 endif()
 
 if(VSQLITE_ENABLE_COVERAGE)
@@ -118,14 +127,9 @@ target_compile_options(vsqlitepp
     $<$<CXX_COMPILER_ID:MSVC>:/permissive- /W4>
 )
 
-if(TARGET SQLite::SQLite3)
-  set(VSQLITEPP_SQLITE_TARGET SQLite::SQLite3)
-else()
-  set(VSQLITEPP_SQLITE_TARGET ${SQLITE3_LIBRARIES})
-  target_include_directories(vsqlitepp PRIVATE ${SQLITE3_INCLUDE_DIRS})
-endif()
-
-target_link_libraries(vsqlitepp PUBLIC ${VSQLITEPP_SQLITE_TARGET})
+# Link the SQLite target by name so exported targets stay relocatable:
+# consumers re-resolve the dependency instead of keeping a build-machine path.
+target_link_libraries(vsqlitepp PUBLIC SQLite3::SQLite3)
 
 set_target_properties(vsqlitepp
   PROPERTIES

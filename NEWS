@@ -5,6 +5,11 @@
 - Database names starting with `file:` are now interpreted as SQLite URIs: path
   validation uses the decoded URI path and the `mode=memory` query parameter is
   matched strictly. All other names keep being treated as literal filenames.
+- Installed packages now export a dependency on the `SQLite3::SQLite3` CMake target
+  instead of an absolute build-machine SQLite library path, so consumers resolve
+  SQLite in their own environment even after the original installation moved.
+  The legacy custom `FindSQLite3` module was removed in favor of CMake's built-in
+  module, which supports `SQLite3_USE_STATIC_LIBS` and standard find options.
 
 # vsqlite++ 0.4.2
 
