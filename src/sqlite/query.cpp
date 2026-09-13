@@ -153,6 +153,128 @@ inline namespace v2 {
         }
     }
 
+    query::result_range::row::row(result &res, std::shared_ptr<column_cache> cache) :
+        cache_(std::move(cache)) {
+        int columns = res.get_column_count();
+        values_.reserve(static_cast<std::size_t>(columns));
+        for (int i = 0; i < columns; ++i) {
+            values_.push_back(res.get_variant(i));
+        }
+    }
+
+    int query::result_range::row::column(std::string_view name) const {
+        if (!cache_) {
+            throw std::runtime_error("column cache is not initialized");
+        }
+        return cache_->index_of(name);
+    }
+
+    std::int64_t query::result_range::row::as_int64(variant_t const &value) {
+        return std::visit(
+            [](auto const &alt) -> std::int64_t {
+                using alternative = std::remove_cvref_t<decltype(alt)>;
+                if constexpr (std::is_same_v<alternative, int> ||
+                              std::is_same_v<alternative, std::int64_t>) {
+                    return static_cast<std::int64_t>(alt);
+                } else if constexpr (std::is_same_v<alternative, long double>) {
+                    return static_cast<std::int64_t>(alt);
+                } else if constexpr (std::is_same_v<alternative, null_t>) {
+                    // Mirrors result::get_int64 on a NULL column.
+                    return 0;
+                } else {
+                    throw database_exception("row value is not numeric");
+                }
+            },
+            value);
+    }
+
+    double query::result_range::row::as_double(variant_t const &value) {
+        return std::visit(
+            [](auto const &alt) -> double {
+                using alternative = std::remove_cvref_t<decltype(alt)>;
+                if constexpr (std::is_same_v<alternative, int> ||
+                              std::is_same_v<alternative, std::int64_t>) {
+                    return static_cast<double>(alt);
+                } else if constexpr (std::is_same_v<alternative, long double>) {
+                    return static_cast<double>(alt);
+                } else if constexpr (std::is_same_v<alternative, null_t>) {
+                    // Mirrors result::get_double on a NULL column.
+                    return 0.0;
+                } else {
+                    throw database_exception("row value is not numeric");
+                }
+            },
+            value);
+    }
+
+    std::string query::result_range::row::as_string(variant_t const &value) {
+        return std::visit(
+            [](auto const &alt) -> std::string {
+                using alternative = std::remove_cvref_t<decltype(alt)>;
+                if constexpr (std::is_same_v<alternative, std::string>) {
+                    return alt;
+                } else if constexpr (std::is_same_v<alternative, blob_ref_t>) {
+                    if (!alt || alt->empty()) {
+                        return {};
+                    }
+                    auto const *data = reinterpret_cast<char const *>(alt->data());
+                    return std::string(data, alt->size());
+                } else if constexpr (std::is_same_v<alternative, null_t>) {
+                    // Mirrors result::get_string on a NULL column.
+                    return std::string("NULL");
+                } else {
+                    throw database_exception("row value is not text");
+                }
+            },
+            value);
+    }
+
+    std::string_view query::result_range::row::as_string_view(variant_t const &value) {
+        return std::visit(
+            [](auto const &alt) -> std::string_view {
+                using alternative = std::remove_cvref_t<decltype(alt)>;
+                if constexpr (std::is_same_v<alternative, std::string>) {
+                    return alt;
+                } else if constexpr (std::is_same_v<alternative, blob_ref_t>) {
+                    if (!alt || alt->empty()) {
+                        return {};
+                    }
+                    return std::string_view(reinterpret_cast<char const *>(alt->data()), alt->size());
+                } else if constexpr (std::is_same_v<alternative, null_t>) {
+                    // Mirrors result::get_string_view on a NULL column.
+                    return std::string_view("NULL");
+                } else {
+                    throw database_exception("row value is not text");
+                }
+            },
+            value);
+    }
+
+    std::span<const unsigned char> query::result_range::row::as_bytes(variant_t const &value) {
+        return std::visit(
+            [](auto const &alt) -> std::span<const unsigned char> {
+                using alternative = std::remove_cvref_t<decltype(alt)>;
+                if constexpr (std::is_same_v<alternative, blob_ref_t>) {
+                    if (!alt) {
+                        return {};
+                    }
+                    return std::span<const unsigned char>(alt->data(), alt->size());
+                } else if constexpr (std::is_same_v<alternative, std::string>) {
+                    if (alt.empty()) {
+                        return {};
+                    }
+                    return std::span<const unsigned char>(
+                        reinterpret_cast<unsigned char const *>(alt.data()), alt.size());
+                } else if constexpr (std::is_same_v<alternative, null_t>) {
+                    // Mirrors result::get_binary_span on a NULL column.
+                    return {};
+                } else {
+                    throw database_exception("row value has no byte representation");
+                }
+            },
+            value);
+    }
+
     query::result_range::iterator::reference query::result_range::iterator::operator*() const {
         return const_cast<row_view &>(current_);
     }
@@ -166,10 +288,17 @@ inline namespace v2 {
         return *this;
     }
 
-    query::result_range::iterator query::result_range::iterator::operator++(int) {
-        auto tmp = *this;
+    query::result_range::iterator::postfix_proxy query::result_range::iterator::operator++(int) {
+        auto snap = current_row();
         advance();
-        return tmp;
+        return postfix_proxy(std::move(snap));
+    }
+
+    query::result_range::row query::result_range::iterator::current_row() const {
+        if (!result_ || end_) {
+            return row();
+        }
+        return row(*result_, cache_);
     }
 
     bool query::result_range::iterator::operator==(iterator const &other) const {
