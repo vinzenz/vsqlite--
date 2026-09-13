@@ -80,6 +80,10 @@ build_sdk() {
   else
     "${cc}" -O1 -fPIC -shared -Wl,-soname,libsqlite3.so.0 \
       "${amalgamation_dir}/sqlite3.c" -o "${sdk_dir}/lib/libsqlite3.so" -lpthread -ldl -lm
+    # Dependents record NEEDED libsqlite3.so.0 from the SONAME; provide the
+    # matching symlink so the runtime loader resolves it inside the SDK
+    # instead of falling back to the system SQLite.
+    ln -s libsqlite3.so "${sdk_dir}/lib/libsqlite3.so.0"
   fi
 }
 
@@ -120,9 +124,11 @@ run_linkage() {
   local targets_file
   targets_file="$(install_targets_file "${install_prefix}")"
 
-  echo "==> [${linkage}] Asserting exported targets reference SQLite3::SQLite3"
-  grep -q 'SQLite3::SQLite3' "${targets_file}" \
-    || fail "exported targets do not reference the SQLite3::SQLite3 target"
+  echo "==> [${linkage}] Asserting exported targets reference the SQLite dependency target"
+  # Either spelling is valid: the export resolves the alias to the target name
+  # provided by the CMake that built VSQLite++.
+  grep -Eq 'SQLite3::SQLite3|SQLite::SQLite3' "${targets_file}" \
+    || fail "exported targets do not reference the SQLite dependency target"
 
   echo "==> [${linkage}] Asserting exported targets keep no absolute SDK path"
   if grep -Fq "${sdk_a}" "${targets_file}"; then
@@ -138,6 +144,13 @@ run_linkage() {
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_PREFIX_PATH="${install_prefix};${sdk_b}"
   cmake --build "${consumer_build_dir}"
+
+  if [ "${linkage}" = "shared" ] && command -v ldd >/dev/null 2>&1; then
+    echo "==> [${linkage}] Asserting the consumer resolves SQLite inside the relocated SDK"
+    ldd "${consumer_build_dir}/vsqlitepp_install_consumer" | grep -Fq "${sdk_b}/lib" \
+      || fail "consumer does not load SQLite from the relocated SDK"
+  fi
+
   "${consumer_build_dir}/vsqlitepp_install_consumer"
 
   echo "==> [${linkage}] OK"

@@ -8,12 +8,15 @@ if(NOT VSQLITEPP_BUNDLED_SQLITE)
   include(CMakeFindDependencyMacro)
   find_dependency(SQLite3)
   # Newer CMake releases only provide SQLite3::SQLite3 while older ones only
-  # provide the deprecated SQLite::SQLite3 spelling. Make both names resolve
-  # so the exported targets load regardless of which CMake produced them.
+  # provide the deprecated SQLite::SQLite3 spelling. Fill the missing name with
+  # a global interface shim forwarding to the real target so the exported
+  # targets load regardless of which CMake produced them.
   if(TARGET SQLite::SQLite3 AND NOT TARGET SQLite3::SQLite3)
-    add_library(SQLite3::SQLite3 ALIAS SQLite::SQLite3)
+    add_library(SQLite3::SQLite3 INTERFACE IMPORTED GLOBAL)
+    target_link_libraries(SQLite3::SQLite3 INTERFACE SQLite::SQLite3)
   elseif(TARGET SQLite3::SQLite3 AND NOT TARGET SQLite::SQLite3)
-    add_library(SQLite::SQLite3 ALIAS SQLite3::SQLite3)
+    add_library(SQLite::SQLite3 INTERFACE IMPORTED GLOBAL)
+    target_link_libraries(SQLite::SQLite3 INTERFACE SQLite3::SQLite3)
   endif()
 endif()
 
