@@ -123,12 +123,9 @@ struct snapshot_api {
 snapshot_api const &snapshot_symbols() {
     static snapshot_api api = [] {
         snapshot_api loaded;
-        loaded.get =
-            sqlite::detail::load_sqlite_symbol<snapshot_api::get_fn>("sqlite3_snapshot_get");
-        loaded.open =
-            sqlite::detail::load_sqlite_symbol<snapshot_api::open_fn>("sqlite3_snapshot_open");
-        loaded.free =
-            sqlite::detail::load_sqlite_symbol<snapshot_api::free_fn>("sqlite3_snapshot_free");
+        loaded.get   = VSQLITE_SNAPSHOT_SYMBOL(snapshot_api::get_fn, sqlite3_snapshot_get);
+        loaded.open  = VSQLITE_SNAPSHOT_SYMBOL(snapshot_api::open_fn, sqlite3_snapshot_open);
+        loaded.free  = VSQLITE_SNAPSHOT_SYMBOL(snapshot_api::free_fn, sqlite3_snapshot_free);
         return loaded;
     }();
     return api;
