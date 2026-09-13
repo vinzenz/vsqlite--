@@ -137,7 +137,8 @@ inline namespace v2 {
         /// Skip the conflicting change and continue with the remaining changes.
         omit,
         /// Remove conflicting rows and apply the change; only valid for `data` and
-        /// `conflict` types, other conflicts treat it like `abort` (SQLITE_MISUSE).
+        /// `conflict` types (see @ref changeset_conflict::replace_supported). As a fixed
+        /// policy, conflicts that cannot be replaced are omitted instead.
         replace,
         /// Abort the application; changes applied so far are rolled back by SQLite.
         abort,

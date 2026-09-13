@@ -357,7 +357,15 @@ inline namespace v2 {
 
     void apply_changeset(connection &con, std::span<const unsigned char> data,
                          conflict_policy policy) {
-        apply_changeset(con, data, [policy](changeset_conflict const &) { return policy; });
+        apply_changeset(con, data, [policy](changeset_conflict const &conflict) {
+            // SQLite fails the whole application with SQLITE_MISUSE when a handler answers
+            // SQLITE_CHANGESET_REPLACE for conflicts without old-row data, so a fixed
+            // replace policy omits those instead of turning every apply into a failure.
+            if (policy == conflict_policy::replace && !conflict.replace_supported()) {
+                return conflict_policy::omit;
+            }
+            return policy;
+        });
     }
 
     void apply_changeset(connection &con, std::span<const unsigned char> data,

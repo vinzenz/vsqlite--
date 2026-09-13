@@ -25,7 +25,9 @@
 - Added conflict resolution support to `sqlite::apply_changeset` and `sqlite::apply_patchset`:
   a fixed `conflict_policy` (`omit`, `replace`, `abort`) or a custom `conflict_handler` receiving
   a `changeset_conflict` descriptor. Exceptions thrown by a handler are caught at the SQLite C
-  boundary, abort the application, and are rethrown to the caller.
+  boundary, abort the application, and are rethrown to the caller. The fixed `replace` policy
+  omits conflicts that SQLite does not allow replacing (missing rows, constraint and foreign
+  key violations) instead of failing the application with `SQLITE_MISUSE`.
 
 # vsqlite++ 0.4.2
 

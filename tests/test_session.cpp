@@ -354,3 +354,64 @@ TEST(SessionTest, ForeignKeyConflictAbortsAndOmits) {
     // Omitting the foreign key conflict commits the change despite the violation.
     EXPECT_EQ(count_rows(tolerant, "child"), 1);
 }
+
+TEST(SessionTest, ReplacePolicyOmitsUnreplaceableConflicts) {
+    if (!sqlite::sessions_supported()) {
+        GTEST_SKIP() << "SQLite session API not available in this build.";
+    }
+    for (bool patchset : {false, true}) {
+        // The delete hits a row the consumer never had (not_found) and the insert violates
+        // the consumer's check constraint. Answering SQLITE_CHANGESET_REPLACE for either
+        // makes sqlite3changeset_apply fail with SQLITE_MISUSE, so the fixed replace policy
+        // must omit these conflicts instead.
+        sqlite::connection source(":memory:");
+        sqlite::execute(source, "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);", true);
+        sqlite::execute(source, "INSERT INTO t VALUES (1, 'a');", true);
+        sqlite::session session(source);
+        session.attach_all();
+        sqlite::execute(source, "DELETE FROM t WHERE id = 1;", true);
+        sqlite::execute(source, "INSERT INTO t VALUES (3, 'c');", true);
+        auto changeset = patchset ? session.patchset() : session.changeset();
+
+        sqlite::connection consumer(":memory:");
+        auto const consumer_ddl =
+            "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT, CHECK (v <> 'c'));";
+        open_consumer(consumer, consumer_ddl);
+
+        sqlite::apply_changeset(consumer, changeset, sqlite::conflict_policy::replace);
+
+        EXPECT_EQ(count_rows(consumer, "t"), 0);
+    }
+}
+
+TEST(SessionTest, AbortedApplyRollsBackEarlierChanges) {
+    if (!sqlite::sessions_supported()) {
+        GTEST_SKIP() << "SQLite session API not available in this build.";
+    }
+    auto const ddl = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
+    for (bool patchset : {false, true}) {
+        auto changeset = tracked_changeset(
+            ddl,
+            [](sqlite::connection &con) {
+                sqlite::execute(con, "INSERT INTO t VALUES (2, 'new');", true);
+                sqlite::execute(con, "INSERT INTO t VALUES (1, 'clash');", true);
+            },
+            patchset);
+        sqlite::connection consumer(":memory:");
+        open_consumer(consumer, ddl, "INSERT INTO t VALUES (1, 'original');");
+
+        try {
+            sqlite::apply_changeset(consumer, changeset);
+            FAIL() << "Expected conflicting changeset application to throw.";
+        } catch (sqlite::database_exception_code const &ex) {
+            EXPECT_EQ(ex.error_code(), SQLITE_ABORT);
+        }
+        // The insert of id 2 applied before the conflict must be rolled back together
+        // with the aborted change.
+        EXPECT_EQ(count_rows(consumer, "t"), 1);
+        sqlite::query q(consumer, "SELECT v FROM t WHERE id = 1;");
+        auto res = q.get_result();
+        ASSERT_TRUE(res->next_row());
+        EXPECT_EQ(res->get<std::string>(0), "original");
+    }
+}
