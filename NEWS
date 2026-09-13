@@ -5,6 +5,11 @@
   connections until the cache was cleared. Statements are now reset and their bindings
   cleared before being retained, statements that fail to reset are finalized instead of
   cached, and statement cleanup no longer lets exceptions escape through destructors.
+- Fixed `sqlite::result::reset()` only clearing the end flag without rewinding the underlying
+  prepared statement, which made a partially consumed cursor continue from the next row instead
+  of restarting from the first row. Reset errors of the last evaluation are now reported with a
+  `sqlite::database_exception`, parameter bindings are preserved, and results sharing the same
+  statement are rewound together.
 - Fixed named in-memory database URIs (`file:name?mode=memory&cache=shared`) being
   created as ordinary files on disk instead of living in memory.
 - Database names starting with `file:` are now interpreted as SQLite URIs: path

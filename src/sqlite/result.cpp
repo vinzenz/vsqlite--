@@ -48,7 +48,15 @@ inline namespace v2 {
         }
 
         void reset(result_construct_params_private &params) {
+            // Rewind the prepared statement itself; clearing the end flag alone would
+            // leave a partially consumed cursor advancing from the next row. Bindings
+            // are preserved by sqlite3_reset. The statement is reset even when the
+            // call reports the error of the last evaluation, so the cursor state is
+            // updated before that error is surfaced.
+            int err      = sqlite3_reset(params.statement);
             params.ended = false;
+            if (err != SQLITE_OK)
+                throw database_exception_code(sqlite3_errmsg(params.db), err, params.sql);
         }
     } // namespace detail
 
