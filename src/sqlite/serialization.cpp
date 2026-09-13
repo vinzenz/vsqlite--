@@ -132,6 +132,10 @@ inline namespace v2 {
         unsigned flags = SQLITE_DESERIALIZE_FREEONCLOSE;
         if (read_only) {
             flags |= SQLITE_DESERIALIZE_READONLY;
+        } else {
+            // Without SQLITE_DESERIALIZE_RESIZEABLE the database can never grow past
+            // the image size and writes report SQLITE_FULL once the buffer is full.
+            flags |= SQLITE_DESERIALIZE_RESIZEABLE;
         }
         auto fn = serialization_symbols().deserialize;
         if (!fn) {
