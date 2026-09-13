@@ -61,10 +61,10 @@ jobs:
 
       - name: Test vcpkg consumer
         run: |
-          cmake -S tests/package_consumers/install -B build/consumer-vcpkg -G Ninja \
+          cmake -S tests/package_consumers/vcpkg -B build/consumer-vcpkg -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="${RUNNER_TEMP}/vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_INSTALLED_DIR="${RUNNER_TEMP}/vcpkg-installed" \
             -DVCPKG_TARGET_TRIPLET=x64-linux
           cmake --build build/consumer-vcpkg
-          ./build/consumer-vcpkg/vsqlitepp_install_consumer
+          ./build/consumer-vcpkg/vsqlitepp_vcpkg_consumer
