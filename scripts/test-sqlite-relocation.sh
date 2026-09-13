@@ -147,11 +147,17 @@ run_linkage() {
 
   if [ "${linkage}" = "shared" ] && command -v ldd >/dev/null 2>&1; then
     echo "==> [${linkage}] Asserting the consumer resolves SQLite inside the relocated SDK"
-    ldd "${consumer_build_dir}/vsqlitepp_install_consumer" | grep -Fq "${sdk_b}/lib" \
+    # The relocated SDK is not on the default loader search path and RUNPATH
+    # entries of the executable do not cover indirect dependencies, so point
+    # the loader at it explicitly. This keeps the smoke test independent of
+    # whichever system SQLite the machine happens to have.
+    LD_LIBRARY_PATH="${sdk_b}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" \
+      ldd "${consumer_build_dir}/vsqlitepp_install_consumer" | grep -Fq "${sdk_b}/lib" \
       || fail "consumer does not load SQLite from the relocated SDK"
   fi
 
-  "${consumer_build_dir}/vsqlitepp_install_consumer"
+  LD_LIBRARY_PATH="${sdk_b}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" \
+    "${consumer_build_dir}/vsqlitepp_install_consumer"
 
   echo "==> [${linkage}] OK"
 }
