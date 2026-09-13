@@ -170,7 +170,7 @@ inline namespace v2 {
         if (sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL)
             return;
         size_t size = sqlite3_column_bytes(m_params->statement, idx);
-        if (size > buf_size)
+        if (size >= buf_size)
             throw buffer_too_small_exception("buffer too small");
         memcpy(buf, sqlite3_column_blob(m_params->statement, idx), size);
     }
