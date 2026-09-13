@@ -127,10 +127,14 @@ inline namespace v2 {
         }
 
         /**
-         * @brief Returns the number of rows affected by the statement.
+         * @brief Returns the number of rows affected by this result's statement.
          *
          * Mirrors `sqlite3_changes()` and therefore only applies to INSERT, UPDATE, or DELETE
-         * statements. To count the rows returned by a SELECT, issue a separate
+         * statements. The count is captured when the statement completes, i.e. once @ref
+         * next_row returned false, and is stored on the result so that statements executed
+         * afterwards on the same connection do not alter it. Before completion 0 is
+         * reported, since SQLite attributes no changes to a statement while it runs. To
+         * count the rows returned by a SELECT, issue a separate
          * <code>SELECT COUNT(*) ...</code> query.
          */
         int get_changes();
