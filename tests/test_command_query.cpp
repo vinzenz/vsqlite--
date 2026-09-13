@@ -3,6 +3,7 @@
 #include <sqlite/command.hpp>
 #include <sqlite/connection.hpp>
 #include <sqlite/execute.hpp>
+#include <sqlite/function.hpp>
 #include <sqlite/json_fts.hpp>
 #include <sqlite/query.hpp>
 
@@ -424,4 +425,136 @@ TEST(CommandQueryTest, ResultRangeIteratorSatisfiesInputIteratorRequirements) {
                                 return row.get<int>(0) % 2 == 0;
                             }),
               2);
+}
+
+TEST(CommandQueryTest, ResetRewindsPartiallyConsumedCursor) {
+    sqlite::connection conn(":memory:");
+    sqlite::query q(conn, "SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3");
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 1);
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 2);
+
+    res->reset();
+
+    // The cursor restarts from the first row instead of continuing with row 3.
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 1);
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 2);
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 3);
+    EXPECT_FALSE(res->next_row());
+    EXPECT_TRUE(res->end());
+}
+
+TEST(CommandQueryTest, ResetBeforeFirstStepRestartsQuery) {
+    sqlite::connection conn(":memory:");
+    sqlite::query q(conn, "SELECT 3 UNION ALL SELECT 4");
+    auto res = q.get_result();
+
+    res->reset();
+
+    EXPECT_FALSE(res->end());
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 3);
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 4);
+    EXPECT_FALSE(res->next_row());
+}
+
+TEST(CommandQueryTest, ResetAfterExhaustionRestartsQuery) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE restart(id INTEGER);", true);
+    sqlite::execute(conn, "INSERT INTO restart VALUES(10),(20);", true);
+    sqlite::query q(conn, "SELECT id FROM restart ORDER BY id;");
+    auto res = q.get_result();
+
+    std::vector<int> first_pass;
+    while (res->next_row()) {
+        first_pass.push_back(res->get<int>(0));
+    }
+    ASSERT_EQ(first_pass.size(), 2u);
+    EXPECT_TRUE(res->end());
+
+    // reset() must revive the cursor after SQLITE_DONE.
+    res->reset();
+    EXPECT_FALSE(res->end());
+
+    std::vector<int> second_pass;
+    while (res->next_row()) {
+        second_pass.push_back(res->get<int>(0));
+    }
+    EXPECT_EQ(second_pass, first_pass);
+    EXPECT_TRUE(res->end());
+}
+
+TEST(CommandQueryTest, ResetPreservesBoundParameters) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE bound(id INTEGER);", true);
+    sqlite::execute(conn, "INSERT INTO bound VALUES(1),(2),(3);", true);
+
+    sqlite::query q(conn, "SELECT id FROM bound WHERE id > ? ORDER BY id;");
+    q % 1;
+    auto res = q.get_result();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 2);
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 3);
+    EXPECT_FALSE(res->next_row());
+
+    res->reset();
+
+    // Bindings survive the rewind, so the same filtered rows come back.
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 2);
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 3);
+    EXPECT_FALSE(res->next_row());
+}
+
+TEST(CommandQueryTest, ResetAfterSteppingErrorReportsErrorAndKeepsCursorUsable) {
+    sqlite::connection conn(":memory:");
+    sqlite::create_function(
+        conn, "fail_once", [failed = false]() mutable -> std::int64_t {
+            if (!failed) {
+                failed = true;
+                throw sqlite::database_exception("fail_once evaluation failed");
+            }
+            return 7;
+        });
+
+    sqlite::query q(conn, "SELECT fail_once() UNION ALL SELECT 8;");
+    auto res = q.get_result();
+    EXPECT_THROW(res->next_row(), sqlite::database_exception);
+
+    // reset() reports the pending error of the failed evaluation ...
+    EXPECT_THROW(res->reset(), sqlite::database_exception);
+    // ... but the statement was still reset, so a second reset succeeds and the
+    // cursor can be iterated from the beginning.
+    res->reset();
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 7);
+    ASSERT_TRUE(res->next_row());
+    EXPECT_EQ(res->get<int>(0), 8);
+    EXPECT_FALSE(res->next_row());
+}
+
+TEST(CommandQueryTest, ResetRewindsResultsSharingTheSameStatement) {
+    sqlite::connection conn(":memory:");
+    sqlite::query q(conn, "SELECT 1 UNION ALL SELECT 2");
+    auto first  = q.get_result();
+    auto second = q.get_result();
+
+    // Both results drive the same underlying prepared statement.
+    ASSERT_TRUE(first->next_row());
+    EXPECT_EQ(first->get<int>(0), 1);
+    ASSERT_TRUE(second->next_row());
+    EXPECT_EQ(second->get<int>(0), 2);
+
+    // Resetting one result rewinds the shared cursor for the other as well.
+    first->reset();
+    ASSERT_TRUE(second->next_row());
+    EXPECT_EQ(second->get<int>(0), 1);
 }
