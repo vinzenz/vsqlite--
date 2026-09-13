@@ -149,9 +149,7 @@ inline namespace v2 {
         reset();
     }
 
-    snapshot::snapshot(snapshot &&other) noexcept : handle_(other.handle_) {
-        other.handle_ = nullptr;
-    }
+    snapshot::snapshot(snapshot &&other) noexcept : handle_(other.handle_) {}
 
     snapshot &snapshot::operator=(snapshot &&other) noexcept {
         if (this != &other) {
