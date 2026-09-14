@@ -99,6 +99,7 @@ target_sources(vsqlitepp
     src/sqlite/command.cpp
     src/sqlite/connection.cpp
     src/sqlite/execute.cpp
+  src/sqlite/function.cpp
   src/sqlite/query.cpp
   src/sqlite/result.cpp
   src/sqlite/savepoint.cpp

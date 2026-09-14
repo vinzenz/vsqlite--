@@ -9,8 +9,12 @@ permissions:
 
 jobs:
   cmake-consumers:
-    name: CMake consumers
+    name: CMake consumers (${{ matrix.sqlite }})
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        sqlite: [external, bundled]
     env:
       CC: gcc-13
       CXX: g++-13
@@ -22,52 +26,65 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl gcc-13 g++-13 libsqlite3-dev ninja-build
+          sudo apt-get install -y curl gcc-13 g++-13 ninja-build
+
+      - name: Install system SQLite
+        if: matrix.sqlite == 'external'
+        run: |
+          sudo apt-get install -y libsqlite3-dev
 
       - name: Build and install vsqlitepp
         run: |
-          cmake -S . -B build/install -G Ninja \
+          cmake -S . -B build/install-${{ matrix.sqlite }} -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX="${RUNNER_TEMP}/vsqlitepp-install" \
+            -DCMAKE_INSTALL_PREFIX="${RUNNER_TEMP}/vsqlitepp-install-${{ matrix.sqlite }}" \
             -DVSQLITE_BUILD_EXAMPLES=OFF \
             -DVSQLITE_BUILD_TESTS=OFF \
-            -DVSQLITE_BUNDLED_SQLITE=OFF
-          cmake --build build/install
-          cmake --install build/install
+            -DVSQLITE_BUNDLED_SQLITE=${{ matrix.sqlite == 'bundled' && 'ON' || 'OFF' }}
+          cmake --build build/install-${{ matrix.sqlite }}
+          cmake --install build/install-${{ matrix.sqlite }}
 
       - name: Test installed package consumer
         run: |
-          cmake -S tests/package_consumers/install -B build/consumer-install -G Ninja \
+          cmake -S tests/package_consumers/install -B build/consumer-install-${{ matrix.sqlite }} -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH="${RUNNER_TEMP}/vsqlitepp-install"
-          cmake --build build/consumer-install
-          ./build/consumer-install/vsqlitepp_install_consumer
+            -DCMAKE_PREFIX_PATH="${RUNNER_TEMP}/vsqlitepp-install-${{ matrix.sqlite }}"
+          cmake --build build/consumer-install-${{ matrix.sqlite }}
+          ./build/consumer-install-${{ matrix.sqlite }}/vsqlitepp_install_consumer
+
+      - name: Test installed package public headers
+        run: |
+          cmake -S tests/package_consumers/headers -B build/consumer-headers-${{ matrix.sqlite }} -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="${RUNNER_TEMP}/vsqlitepp-install-${{ matrix.sqlite }}"
+          cmake --build build/consumer-headers-${{ matrix.sqlite }}
+          ctest --test-dir build/consumer-headers-${{ matrix.sqlite }} --output-on-failure
 
       - name: Test FetchContent consumer
         run: |
-          cmake -S tests/package_consumers/fetchcontent -B build/consumer-fetchcontent -G Ninja \
+          cmake -S tests/package_consumers/fetchcontent -B build/consumer-fetchcontent-${{ matrix.sqlite }} -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DVSQLITEPP_SOURCE_DIR="${GITHUB_WORKSPACE}" \
             -DVSQLITE_BUILD_EXAMPLES=OFF \
             -DVSQLITE_BUILD_TESTS=OFF \
-            -DVSQLITE_BUNDLED_SQLITE=OFF
-          cmake --build build/consumer-fetchcontent
-          ./build/consumer-fetchcontent/vsqlitepp_fetchcontent_consumer
+            -DVSQLITE_BUNDLED_SQLITE=${{ matrix.sqlite == 'bundled' && 'ON' || 'OFF' }}
+          cmake --build build/consumer-fetchcontent-${{ matrix.sqlite }}
+          ./build/consumer-fetchcontent-${{ matrix.sqlite }}/vsqlitepp_fetchcontent_consumer
 
       - name: Test CPM.cmake consumer
         run: |
           mkdir -p "${RUNNER_TEMP}/cpm"
           curl -fsSL https://github.com/cpm-cmake/CPM.cmake/releases/latest/download/CPM.cmake \
             -o "${RUNNER_TEMP}/cpm/CPM.cmake"
-          cmake -S tests/package_consumers/cpm -B build/consumer-cpm -G Ninja \
+          cmake -S tests/package_consumers/cpm -B build/consumer-cpm-${{ matrix.sqlite }} -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCPM_SOURCE_CACHE="${RUNNER_TEMP}/cpm" \
             -DVSQLITEPP_SOURCE_DIR="${GITHUB_WORKSPACE}" \
             -DVSQLITE_BUILD_EXAMPLES=OFF \
             -DVSQLITE_BUILD_TESTS=OFF \
-            -DVSQLITE_BUNDLED_SQLITE=OFF
-          cmake --build build/consumer-cpm
-          ./build/consumer-cpm/vsqlitepp_cpm_consumer
+            -DVSQLITE_BUNDLED_SQLITE=${{ matrix.sqlite == 'bundled' && 'ON' || 'OFF' }}
+          cmake --build build/consumer-cpm-${{ matrix.sqlite }}
+          ./build/consumer-cpm-${{ matrix.sqlite }}/vsqlitepp_cpm_consumer
 
   relocated-external-sqlite:
     name: Relocated external SQLite (${{ matrix.linkage }})
