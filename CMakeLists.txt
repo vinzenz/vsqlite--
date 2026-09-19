@@ -112,6 +112,7 @@ target_sources(vsqlitepp
   src/sqlite/serialization.cpp
   src/sqlite/json_fts.cpp
   src/sqlite/statement_cache.cpp
+  src/sqlite/prepared_statement.cpp
 )
 
 target_include_directories(vsqlitepp
@@ -249,6 +250,8 @@ set_target_properties(vsqlitepp
 if(VSQLITE_BUILD_EXAMPLES)
   add_executable(vsqlitepp_example examples/sqlite_wrapper.cpp)
   target_link_libraries(vsqlitepp_example PRIVATE vsqlite::vsqlitepp)
+  add_executable(vsqlitepp_prepared_statement_example examples/prepared_statement.cpp)
+  target_link_libraries(vsqlitepp_prepared_statement_example PRIVATE vsqlite::vsqlitepp)
   if(VSQLITE_ENABLE_INSTALL)
     install(TARGETS vsqlitepp_example RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   endif()
@@ -344,6 +347,7 @@ if(VSQLITE_BUILD_TESTS)
     tests/test_connection_pool.cpp
     tests/test_function.cpp
     tests/test_json_fts.cpp
+    tests/test_prepared_statement.cpp
     tests/test_serialization.cpp
     tests/test_session.cpp
     tests/test_snapshot.cpp
@@ -369,6 +373,11 @@ if(VSQLITE_BUILD_TESTS)
     endif()
   endforeach()
   add_test(NAME vsqlitepp_tests COMMAND vsqlitepp_tests)
+
+  # Micro-benchmark for the prepared_statement facade; not part of ctest.
+  # Build and run it explicitly: cmake --build build --target vsqlitepp_benchmark_prepared_statement
+  add_executable(vsqlitepp_benchmark_prepared_statement tests/benchmark_prepared_statement.cpp)
+  target_link_libraries(vsqlitepp_benchmark_prepared_statement PRIVATE vsqlite::vsqlitepp)
 
   if(NOT BUILD_SHARED_LIBS)
     # Reproduction of GH issue #59: a consumer that statically links VSQLite++ and

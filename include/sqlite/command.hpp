@@ -126,7 +126,7 @@ inline namespace v2 {
             }
             reset_statement();
             ((void)(*this % std::forward<Args>(args)), ...);
-            auto result = step();
+            auto result  = step();
             last_arg_idx = 0;
             return result;
         }
@@ -272,6 +272,8 @@ inline namespace v2 {
         void bind_text_impl(int idx, std::string_view text);
 
     private:
+        friend struct private_accessor;
+
         connection &m_con;
         std::string m_sql;
 

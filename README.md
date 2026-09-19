@@ -207,6 +207,32 @@ Errors reported by these wrappers come in two kinds:
 - **Absent build capability** — the linked SQLite build lacks the API group. Operations throw a `sqlite::database_exception` whose message contains "not available in this build", names the capability, and names the SQLite build flags that enable it: `SQLITE_ENABLE_SESSION` plus `SQLITE_ENABLE_PREUPDATE_HOOK` for sessions, `SQLITE_ENABLE_SNAPSHOT` for snapshots, and building without `SQLITE_OMIT_DESERIALIZE` for serialization.
 - **Connection-state / operation errors** — the capability exists, but SQLite rejects the operation (for example, capturing a snapshot outside a WAL read transaction, applying a conflicting changeset, or deserializing into an unknown schema). These throw `sqlite::database_exception_code` carrying the SQLite result code.
 
+## Prepared Statements with Explicit Execution State
+
+`connection::prepare()` returns a move-only `sqlite::prepared_statement` whose `execute()` runs a
+bound argument set to completion and whose `rows()` returns a cursor over result rows. The
+statement tracks whether it is `prepared`, `executing`, `complete`, or `failed`, rejects a second
+execution while one of its cursors is live, and snapshots affected-row counts at completion:
+
+```cpp
+#include <sqlite/prepared_statement.hpp>
+
+auto insert = db.prepare("INSERT INTO events(message) VALUES (?)");
+auto outcome = insert.execute("started"); // affected_rows + last_insert_rowid
+
+auto select = db.prepare("SELECT id, message FROM events WHERE id > ?");
+for (auto row : select.rows(last_seen)) {
+    auto id = row.get<std::int64_t>(0);
+}
+```
+
+Every `execute(args...)`/`rows(args...)` call supplies the complete argument set (earlier
+bindings are cleared first, and incomplete sets throw before anything runs); manual `bind()`
+plus the zero-argument overloads cover the advanced mode. Statements that return rows —
+`SELECT` or DML with `RETURNING` — go through `rows()`; `execute()` rejects them with a clear
+error. The full behavior specification, the error matrix, and a migration table from
+`command`/`query`/`execute` live in [docs/prepared-statement.md](docs/prepared-statement.md).
+
 ## Snapshots, WAL & WAL2
 
 The wrapper exposes WAL helpers and snapshot utilities in `#include <sqlite/snapshot.hpp>`. Switch a database into WAL or WAL2 (when supported by your SQLite build) using `sqlite::enable_wal(conn, /*prefer_wal2=*/true);` – the helper automatically falls back to classic WAL if WAL2 is unavailable. Once running in WAL, capture consistent read views via the transaction/savepoint adapters:

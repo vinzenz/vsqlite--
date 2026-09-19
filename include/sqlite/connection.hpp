@@ -35,6 +35,7 @@
 #include <memory>
 #include <string>
 #include <sqlite/capabilities.hpp>
+#include <string_view>
 #include <sqlite/filesystem_adapter.hpp>
 #include <sqlite/statement_cache.hpp>
 
@@ -49,6 +50,8 @@ struct sqlite3;
 
 namespace sqlite {
 inline namespace v2 {
+    struct prepared_statement;
+
     enum class open_mode {
         open_readonly,  ///< Opens an existing database for reads only or fails
         open_existing,  ///< Opens an existing database; fails when it is missing
@@ -126,6 +129,18 @@ inline namespace v2 {
          *  database
          */
         std::int64_t get_last_insert_rowid();
+
+        /** \brief Prepares @p sql and returns a move-only \ref prepared_statement.
+         *
+         * The returned object integrates with the statement cache the same way \ref command
+         * and \ref query do: a cached sqlite3_stmt for the same SQL text is reused when one
+         * is available, and the statement is handed back to the cache when the object is
+         * destroyed. See docs/prepared-statement.md for the execution model.
+         *
+         * \param sql the SQL statement to prepare; may contain '?' placeholders or named
+         *        parameters
+         */
+        prepared_statement prepare(std::string_view sql);
 
         void configure_statement_cache(statement_cache_config const &cfg);
         statement_cache_config statement_cache_settings() const;

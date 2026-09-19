@@ -43,6 +43,7 @@
 #include <sqlite/serialization.hpp>
 #include <sqlite/session.hpp>
 #include <sqlite/snapshot.hpp>
+#include <sqlite/prepared_statement.hpp>
 #include <sqlite3.h>
 #include <iostream>
 
@@ -428,6 +429,11 @@ inline namespace v2 {
         if (!handle)
             throw database_exception("Database is not open.");
         return static_cast<std::int64_t>(sqlite3_last_insert_rowid(handle));
+    }
+
+    prepared_statement connection::prepare(std::string_view sql) {
+        access_check();
+        return prepared_statement(*this, std::string(sql));
     }
 
     void connection::configure_statement_cache(statement_cache_config const &cfg) {

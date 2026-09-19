@@ -32,7 +32,10 @@ VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
 #ifndef GUARD_SQLITE_PRIVATE_PRIVATE_ACCESSOR_HPP_INCLUDED
 #define GUARD_SQLITE_PRIVATE_PRIVATE_ACCESSOR_HPP_INCLUDED
 
+#include <sqlite/command.hpp>
 #include <sqlite/connection.hpp>
+
+struct sqlite3_stmt;
 
 namespace sqlite {
 inline namespace v2 {
@@ -48,6 +51,9 @@ inline namespace v2 {
         }
         static void close(connection &m_con) {
             m_con.close();
+        }
+        static sqlite3_stmt *statement(command &cmd) {
+            return cmd.stmt;
         }
         static sqlite3_stmt *acquire_cached_statement(connection &con, std::string const &sql) {
             return con.acquire_cached_statement(sql);
