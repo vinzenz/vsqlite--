@@ -1,6 +1,7 @@
 #include <sqlite/connection_pool.hpp>
 
 #include <sqlite/database_exception.hpp>
+#include <sqlite/private/private_accessor.hpp>
 
 namespace sqlite {
 inline namespace v2 {
@@ -20,6 +21,11 @@ inline namespace v2 {
         }
     };
 
+    // The lease's shared state doubles as the keep-alive token the leased
+    // connection retains: statement handles created while the lease is alive
+    // keep a strong reference to it, so its destructor - and with it the
+    // return of the connection to the pool - runs only after the public
+    // lease and every dependent statement or result released it.
     struct connection_pool::lease::shared_state {
         std::weak_ptr<pool_state> pool;
         std::shared_ptr<connection> resource;
@@ -35,10 +41,11 @@ inline namespace v2 {
 
     connection_pool::lease::lease(connection_pool *pool, std::shared_ptr<connection> conn) {
         if (pool && conn) {
-            state_             = std::make_shared<shared_state>();
-            state_->pool       = pool->state_;
-            state_->resource   = std::move(conn);
-            connection_        = std::shared_ptr<connection>(state_, state_->resource.get());
+            state_           = std::make_shared<shared_state>();
+            state_->pool     = pool->state_;
+            state_->resource = std::move(conn);
+            connection_      = std::shared_ptr<connection>(state_, state_->resource.get());
+            private_accessor::set_keep_alive(*state_->resource, state_);
         }
     }
 

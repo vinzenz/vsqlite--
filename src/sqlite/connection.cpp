@@ -41,6 +41,8 @@
 #include <sqlite/execute.hpp>
 #include <sqlite/connection.hpp>
 #include <sqlite/filesystem_adapter.hpp>
+#include <sqlite/private/connection_state.hpp>
+#include <sqlite/private/private_accessor.hpp>
 #include <sqlite/serialization.hpp>
 #include <sqlite/session.hpp>
 #include <sqlite/snapshot.hpp>
@@ -393,9 +395,7 @@ inline namespace v2 {
         connection(db, std::make_shared<default_filesystem_adapter>()) {}
 
     connection::connection(std::string const &db, filesystem_adapter_ptr fs) :
-        handle(0),
-        filesystem(std::move(fs) ? std::move(fs) : std::make_shared<default_filesystem_adapter>()),
-        cache_() {
+        state_(std::make_shared<connection_state>(std::move(fs))) {
         open(db);
     }
 
@@ -404,18 +404,14 @@ inline namespace v2 {
 
     connection::connection(std::string const &db, sqlite::open_mode open_mode,
                            filesystem_adapter_ptr fs) :
-        handle(0),
-        filesystem(std::move(fs) ? std::move(fs) : std::make_shared<default_filesystem_adapter>()),
-        cache_() {
+        state_(std::make_shared<connection_state>(std::move(fs))) {
         open(db, open_mode);
     }
 
     // Opens without further validation; the explicit factories validate first
     // and then hand the prepared name and flags to this constructor.
     connection::connection(std::string const &db, int flags, filesystem_adapter_ptr fs) :
-        handle(0),
-        filesystem(std::move(fs) ? std::move(fs) : std::make_shared<default_filesystem_adapter>()),
-        cache_() {
+        state_(std::make_shared<connection_state>(std::move(fs))) {
         open_with_flags(db, flags);
     }
 
@@ -491,21 +487,23 @@ inline namespace v2 {
     }
 
     connection::~connection() {
-        try {
-            close();
-        } catch (...) {
-        }
+        // Facade destruction defers the native cleanup instead of rejecting
+        // it: the shared connection_state finalizes the cache and consumes
+        // the handle once the last dependent statement or result released
+        // it. Destruction must not throw, so it never calls close(), which
+        // reports errors.
+        state_.reset();
     }
 
     void connection::open(const std::string &db) {
         reject_embedded_nul(db);
-        validate_db_path(db, false, filesystem);
+        validate_db_path(db, false, state_->filesystem);
         open_with_flags(db, make_open_flags(false, true));
     }
 
     void connection::open(const std::string &db, bool readonly) {
         reject_embedded_nul(db);
-        validate_db_path(db, readonly, filesystem);
+        validate_db_path(db, readonly, state_->filesystem);
         open_with_flags(db, make_open_flags(readonly, !readonly));
     }
 
@@ -517,7 +515,7 @@ inline namespace v2 {
         bool disk_backed = !info.memory && !(info.is_uri && info.path.empty());
         if (disk_backed) {
             prepare_disk_backed_open(db, std::filesystem::path(info.is_uri ? info.path : db),
-                                     open_mode, filesystem);
+                                     open_mode, state_->filesystem);
         }
         open_with_flags(db, flags_for_open_mode(open_mode, false));
     }
@@ -533,25 +531,35 @@ inline namespace v2 {
             }
             throw database_exception_code(message, err);
         }
-        handle = tmp;
-        sqlite3_extended_result_codes(handle, 1);
+        state_->handle = tmp;
+        sqlite3_extended_result_codes(state_->handle, 1);
     }
 
     void connection::close() {
         // Closing an already closed connection is a harmless no-op: the
         // native handle was consumed by the first close call. A failed close
         // keeps the handle, so a retry reports the error again.
-        if (!handle)
+        if (!state_->handle)
             return;
-        cache_.clear(handle);
-        int err = sqlite3_close(handle);
+        // Explicit close rejects a busy connection instead of deferring like
+        // facade destruction does: a half-closed facade that stays usable
+        // would hide lifetime errors from the caller.
+        auto outstanding = state_->live_statements.load(std::memory_order_acquire);
+        if (outstanding != 0) {
+            throw database_exception(std::format(
+                "connection::close: {} statement(s) are still in use; finish or destroy them "
+                "before closing the connection",
+                outstanding));
+        }
+        state_->cache.clear(state_->handle);
+        int err = sqlite3_close(state_->handle);
         if (err != SQLITE_OK)
-            throw database_exception_code(sqlite3_errmsg(handle), err);
-        handle = 0;
+            throw database_exception_code(sqlite3_errmsg(state_->handle), err);
+        state_->handle = nullptr;
     }
 
     void connection::access_check() {
-        if (!handle)
+        if (!state_->handle)
             throw database_exception("Database is not open.");
     }
 
@@ -560,7 +568,7 @@ inline namespace v2 {
             throw database_exception("Database alias must not be empty.");
         }
         reject_embedded_nul(db);
-        validate_db_path(db, false, filesystem);
+        validate_db_path(db, false, state_->filesystem);
         command cmd(*this, std::format("ATTACH DATABASE ? AS {};", quote_identifier(alias)));
         cmd % db;
         cmd.step_once();
@@ -575,9 +583,9 @@ inline namespace v2 {
     }
 
     std::int64_t connection::get_last_insert_rowid() {
-        if (!handle)
+        if (!state_->handle)
             throw database_exception("Database is not open.");
-        return static_cast<std::int64_t>(sqlite3_last_insert_rowid(handle));
+        return static_cast<std::int64_t>(sqlite3_last_insert_rowid(state_->handle));
     }
 
     prepared_statement connection::prepare(std::string_view sql) {
@@ -586,36 +594,29 @@ inline namespace v2 {
     }
 
     void connection::configure_statement_cache(statement_cache_config const &cfg) {
-        cache_.reset(cfg);
+        state_->cache.reset(cfg);
     }
 
     statement_cache_config connection::statement_cache_settings() const {
-        return cache_.config();
+        return state_->cache.config();
     }
 
     sqlite3_stmt *connection::acquire_cached_statement(std::string const &sql) {
-        if (!handle)
+        if (!state_->handle)
             return nullptr;
-        return cache_.acquire(handle, sql);
+        return state_->cache.acquire(state_->handle, sql);
     }
 
-    void connection::release_cached_statement(std::string const &sql,
-                                               sqlite3_stmt *stmt) noexcept {
-        if (!stmt)
-            return;
-        if (!handle) {
-            sqlite3_finalize(stmt);
-            return;
-        }
-        cache_.release(sql, stmt);
+    void connection::release_cached_statement(std::string const &sql, sqlite3_stmt *stmt) noexcept {
+        private_accessor::release_cached_statement(*state_, sql, stmt);
     }
 
     void connection::set_statement_cache_error_hook(statement_cache_error_hook hook) {
-        cache_.set_error_hook(std::move(hook));
+        state_->cache.set_error_hook(std::move(hook));
     }
 
     void connection::clear_statement_cache() {
-        cache_.clear(handle);
+        state_->cache.clear(state_->handle);
     }
 
     connection_capabilities connection::capabilities() const {

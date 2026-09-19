@@ -47,6 +47,8 @@
  *
  * The pool hands out scoped leases that automatically return the connection to the pool when
  * destroyed, allowing applications to share a small set of connections across many callers.
+ * Statements and results created from a leased connection retain the lease internally, so the
+ * connection returns to the pool only after the lease and every dependent operation finished.
  */
 namespace sqlite {
 inline namespace v2 {

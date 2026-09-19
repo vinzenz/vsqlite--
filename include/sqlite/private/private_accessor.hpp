@@ -34,6 +34,9 @@ VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
 
 #include <sqlite/command.hpp>
 #include <sqlite/connection.hpp>
+#include <sqlite/private/connection_state.hpp>
+
+#include <memory>
 
 struct sqlite3_stmt;
 
@@ -44,13 +47,30 @@ inline namespace v2 {
      */
     struct private_accessor {
         static struct sqlite3 *get_handle(connection &m_con) {
-            return m_con.handle;
+            return m_con.state_->handle;
         }
         static void acccess_check(connection &m_con) {
             m_con.access_check();
         }
         static void close(connection &m_con) {
             m_con.close();
+        }
+        /// Returns the shared state that keeps the connection's native
+        /// resources alive while dependents (statements, results, cursors)
+        /// are in use.
+        static std::shared_ptr<connection_state> state(connection &con) {
+            return con.state_;
+        }
+        /// Returns the pool lease token of the connection, or null when the
+        /// connection is not leased from a pool.
+        static std::shared_ptr<void> keep_alive(connection &con) {
+            return con.state_->keep_alive.lock();
+        }
+        /// Installs the pool lease token; statement handles created while the
+        /// token is alive retain it so the connection returns to its pool only
+        /// after every dependent operation finished.
+        static void set_keep_alive(connection &con, std::shared_ptr<void> token) {
+            con.state_->keep_alive = std::move(token);
         }
         static sqlite3_stmt *statement(command &cmd) {
             return cmd.stmt;
@@ -60,7 +80,20 @@ inline namespace v2 {
         }
         static void release_cached_statement(connection &con, std::string const &sql,
                                              sqlite3_stmt *stmt) noexcept {
-            con.release_cached_statement(sql, stmt);
+            release_cached_statement(*con.state_, sql, stmt);
+        }
+        /// Returns a statement to the state's cache without going through the
+        /// facade, so it stays usable while the facade is already destroyed
+        /// (deferred cleanup). noexcept like the cache contract it serves.
+        static void release_cached_statement(connection_state &st, std::string const &sql,
+                                             sqlite3_stmt *stmt) noexcept {
+            if (!stmt)
+                return;
+            if (!st.handle) {
+                sqlite3_finalize(stmt);
+                return;
+            }
+            st.cache.release(sql, stmt);
         }
         static void clear_statement_cache(connection &con) {
             con.clear_statement_cache();
