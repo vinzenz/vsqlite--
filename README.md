@@ -228,7 +228,7 @@ Need to persist an in-memory database or hydrate a fixture from bytes? With `#in
 
 `#include <sqlite/json_fts.hpp>` ships opt-in helpers for two popular SQLite extensions:
 
-- `sqlite::json::path()` builds JSON paths fluently and `json::contains_expression()`/`json::extract_expression()` format ready-to-use SQL fragments.
+- `sqlite::json::path()` builds JSON paths fluently, quoting and JSON-escaping key segments so keys like `a"b` or `a\b` round-trip, and `json::contains_expression()`/`json::extract_expression()` format ready-to-use SQL fragments that embed the path as a safely escaped SQL string literal.
 - `sqlite::json::register_contains_function()` registers a deterministic `json_contains_value(doc, path, value)` UDF (implemented in terms of JSON1) so application code can reuse the same predicate everywhere.
 - `sqlite::fts::match_expression()` stitches together safe `MATCH` clauses, while `sqlite::fts::register_rank_function()` exposes a ready-to-use ranking helper for FTS5 tables (skips automatically when FTS5 is unavailable).
 

@@ -53,7 +53,10 @@ inline namespace v2 {
          *
          * Instances start at the root (`$`) and can be extended via @ref key and @ref index.
          * The builder keeps the JSON path in UTF-8 form and automatically quotes segments
-         * that require escaping (spaces, punctuation, etc.).
+         * that require escaping (spaces, punctuation, etc.). Quoted segments apply JSON
+         * escaping: backslash and double quote are escaped as `\\` and `\"`, control
+         * characters (U+0000..U+001F) as `\u00XX`, and other bytes (including UTF-8)
+         * pass through unchanged.
          */
         class path_builder {
         public:
@@ -64,6 +67,8 @@ inline namespace v2 {
              * @brief Appends an object key to the path.
              *
              * The key is automatically quoted when it contains characters that need escaping.
+             * Inside quotes the key is escaped with JSON rules, so keys like `a"b`, `a\b`,
+             * or keys with control characters round-trip through the generated path.
              *
              * @param segment Key to append.
              * @return Reference to the builder for chaining.
@@ -98,6 +103,9 @@ inline namespace v2 {
          * @param json_expr SQL expression that yields JSON text.
          * @param path JSON path built with @ref path_builder.
          * @return SQL snippet invoking `json_extract(json_expr, path)`.
+         *
+         * The path is embedded in a single-quoted SQL string literal with every apostrophe
+         * doubled, so keys like `O'Reilly` stay valid SQL and address the intended key.
          */
         std::string extract_expression(std::string_view json_expr, path_builder const &path);
 
@@ -106,7 +114,8 @@ inline namespace v2 {
          * value_expr.
          *
          * This expands to `json_extract(json_expr, path) = value_expr` so it can be embedded
-         * inside WHERE clauses or CHECK constraints.
+         * inside WHERE clauses or CHECK constraints. As with @ref extract_expression, the
+         * path is SQL-escaped for embedding, so apostrophes in keys are safe.
          */
         std::string contains_expression(std::string_view json_expr, path_builder const &path,
                                         std::string_view value_expr);
