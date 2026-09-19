@@ -36,9 +36,11 @@ TEST(SerializationTest, NoCopyKeepsDeserializedDatabaseUsable) {
     sqlite::connection dest(":memory:");
     sqlite::deserialize(dest, image);
 
-    // SQLITE_SERIALIZE_NOCOPY returns the connection's own storage; the wrapper must
-    // copy the bytes without freeing the buffer it does not own.
-    auto nocopy = sqlite::serialize(dest, "main", SQLITE_SERIALIZE_NOCOPY);
+    // Reading the connection image (SQLITE_SERIALIZE_NOCOPY) returns the connection's
+    // own storage; the wrapper must copy the bytes without freeing the buffer it does
+    // not own.
+    auto nocopy =
+        sqlite::serialize(dest, "main", sqlite::serialize_options{.use_connection_image = true});
     ASSERT_FALSE(nocopy.empty());
 
     // The connection stays usable afterwards and closes cleanly on destruction.
@@ -61,7 +63,8 @@ TEST(SerializationTest, NoCopyMatchesOwningCopyImage) {
     sqlite::deserialize(dest, image);
 
     auto copied = sqlite::serialize(dest);
-    auto nocopy = sqlite::serialize(dest, "main", SQLITE_SERIALIZE_NOCOPY);
+    auto nocopy =
+        sqlite::serialize(dest, "main", sqlite::serialize_options{.use_connection_image = true});
     ASSERT_FALSE(copied.empty());
     EXPECT_EQ(nocopy, copied);
 }
@@ -74,15 +77,52 @@ TEST(SerializationTest, NoCopyWithoutContiguousImageThrows) {
     sqlite::connection con(file.string());
     sqlite::execute(con, "CREATE TABLE data(id INTEGER PRIMARY KEY);", true);
 
-    // A file-backed database has no contiguous in-memory image, so
-    // SQLITE_SERIALIZE_NOCOPY yields NULL from sqlite3_serialize.
-    EXPECT_THROW(sqlite::serialize(con, "main", SQLITE_SERIALIZE_NOCOPY),
-                 sqlite::database_exception);
+    // A file-backed database has no contiguous in-memory image, so reading the
+    // connection image yields NULL from sqlite3_serialize.
+    EXPECT_THROW(
+        sqlite::serialize(con, "main", sqlite::serialize_options{.use_connection_image = true}),
+        sqlite::database_exception);
 
     // The connection remains usable, and the owning-copy path still works.
     EXPECT_EQ(count_rows(con, "data"), 0);
     auto image = sqlite::serialize(con);
     EXPECT_FALSE(image.empty());
+}
+
+TEST(SerializationTest, DeprecatedFlagOverloadMapsToTypedOptions) {
+    if (!sqlite::serialization_supported()) {
+        GTEST_SKIP() << "SQLite serialization APIs not available in this build.";
+    }
+    sqlite::connection src(":memory:");
+    sqlite::execute(src, "CREATE TABLE data(id INTEGER PRIMARY KEY, value TEXT);", true);
+    sqlite::execute(src, "INSERT INTO data(value) VALUES ('one'), ('two');", true);
+    auto image = sqlite::serialize(src);
+
+    // Reading the connection image only works for a deserialized (memdb) database.
+    sqlite::connection dest(":memory:");
+    sqlite::deserialize(dest, image);
+
+    // The deprecated raw-flag overload is an adapter: SQLITE_SERIALIZE_NOCOPY maps to
+    // serialize_options::use_connection_image, everything else to a plain owning copy.
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#else
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+    auto via_nocopy_flag = sqlite::serialize(dest, "main", SQLITE_SERIALIZE_NOCOPY);
+    auto via_plain_flags = sqlite::serialize(src, "main", 0u);
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#else
+#pragma GCC diagnostic pop
+#endif
+
+    EXPECT_EQ(
+        via_nocopy_flag,
+        sqlite::serialize(dest, "main", sqlite::serialize_options{.use_connection_image = true}));
+    EXPECT_EQ(via_plain_flags, sqlite::serialize(src, "main", sqlite::serialize_options{}));
 }
 
 TEST(SerializationTest, FailingDeserializeThrowsCatchablyAndRetainsNoMemory) {

@@ -123,9 +123,9 @@ struct snapshot_api {
 snapshot_api const &snapshot_symbols() {
     static snapshot_api api = [] {
         snapshot_api loaded;
-        loaded.get   = VSQLITE_SNAPSHOT_SYMBOL(snapshot_api::get_fn, sqlite3_snapshot_get);
-        loaded.open  = VSQLITE_SNAPSHOT_SYMBOL(snapshot_api::open_fn, sqlite3_snapshot_open);
-        loaded.free  = VSQLITE_SNAPSHOT_SYMBOL(snapshot_api::free_fn, sqlite3_snapshot_free);
+        loaded.get  = VSQLITE_SNAPSHOT_SYMBOL(snapshot_api::get_fn, sqlite3_snapshot_get);
+        loaded.open = VSQLITE_SNAPSHOT_SYMBOL(snapshot_api::open_fn, sqlite3_snapshot_open);
+        loaded.free = VSQLITE_SNAPSHOT_SYMBOL(snapshot_api::free_fn, sqlite3_snapshot_free);
         return loaded;
     }();
     return api;
@@ -133,7 +133,11 @@ snapshot_api const &snapshot_symbols() {
 
 void ensure_snapshot_available() {
     if (!sqlite::snapshots_supported()) {
-        throw sqlite::database_exception("SQLite snapshot APIs are not available in this build.");
+        // Absence of the build capability, not an operation error: the message names the
+        // capability and the SQLite build flag that enables it.
+        throw sqlite::database_exception(
+            "SQLite snapshot APIs are not available in this build (capability 'snapshots'). "
+            "Build SQLite with SQLITE_ENABLE_SNAPSHOT to enable them.");
     }
 }
 } // namespace
@@ -254,8 +258,14 @@ inline namespace v2 {
     }
 
     bool snapshots_supported() noexcept {
+#if defined(VSQLITE_HAVE_SQLITE3_SNAPSHOT)
+        // The build verified the snapshot APIs of the selected SQLite implementation, so
+        // the wrapper resolves them through direct references that always exist.
+        return true;
+#else
         auto const &api = snapshot_symbols();
         return api.get && api.open && api.free;
+#endif
     }
 } // namespace v2
 } // namespace sqlite

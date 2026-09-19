@@ -45,6 +45,17 @@
  *
  * Sessions capture row-level changes in memory so they can later be applied or merged across
  * connections, which is useful for sync workflows and replicating WAL streams.
+ *
+ * Error taxonomy:
+ * - Build capability absent: when the SQLite implementation this library uses was built without
+ *   `SQLITE_ENABLE_SESSION` and `SQLITE_ENABLE_PREUPDATE_HOOK`, every operation of this header
+ *   throws a `database_exception` whose message contains "not available in this build" together
+ *   with the capability name (`sessions`) and the build flags that enable it. Query
+ *   `sqlite::connection::capabilities()` to branch on this case without exceptions.
+ * - Connection-state/operation errors: when the capability exists but SQLite rejects the
+ *   operation, the helpers throw a `database_exception_code` carrying the SQLite result code
+ *   (e.g. a conflicting changeset aborts with `SQLITE_ABORT` and SQLite rolls the application
+ *   back).
  */
 namespace sqlite {
 inline namespace v2 {
@@ -97,7 +108,8 @@ inline namespace v2 {
         data,
         /// A row expected to exist for an update or delete was not found.
         not_found,
-        /// Applying the change would violate a uniqueness constraint (e.g. a duplicate primary key).
+        /// Applying the change would violate a uniqueness constraint (e.g. a duplicate primary
+        /// key).
         conflict,
         /// Applying the change would violate some other constraint.
         constraint,

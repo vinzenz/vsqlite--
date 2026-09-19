@@ -40,6 +40,9 @@
 #include <sqlite/execute.hpp>
 #include <sqlite/connection.hpp>
 #include <sqlite/filesystem_adapter.hpp>
+#include <sqlite/serialization.hpp>
+#include <sqlite/session.hpp>
+#include <sqlite/snapshot.hpp>
 #include <sqlite3.h>
 #include <iostream>
 
@@ -107,7 +110,7 @@ database_name_info classify_database_name(std::string_view db) {
     if (!is_uri_database(db)) {
         return info;
     }
-    info.is_uri = true;
+    info.is_uri           = true;
     std::string_view rest = db.substr(5);
 
     // Optional authority: SQLite accepts an empty one or "localhost" only and
@@ -146,10 +149,10 @@ database_name_info classify_database_name(std::string_view db) {
     bool has_mode         = false;
     std::size_t param_pos = 0;
     while (param_pos < query.size()) {
-        auto next  = query.find('&', param_pos);
-        auto param = query.substr(param_pos,
-                                  next == std::string_view::npos ? next : next - param_pos);
-        param_pos  = next == std::string_view::npos ? query.size() : next + 1;
+        auto next = query.find('&', param_pos);
+        auto param =
+            query.substr(param_pos, next == std::string_view::npos ? next : next - param_pos);
+        param_pos   = next == std::string_view::npos ? query.size() : next + 1;
         auto equals = param.find('=');
         if (percent_decode(param.substr(0, equals)) != "mode") {
             continue;
@@ -321,9 +324,9 @@ inline namespace v2 {
                              filesystem);
         }
 
-        std::filesystem::path disk_path =
-            disk_backed ? std::filesystem::path(info.is_uri ? info.path : db)
-                        : std::filesystem::path();
+        std::filesystem::path disk_path = disk_backed
+                                              ? std::filesystem::path(info.is_uri ? info.path : db)
+                                              : std::filesystem::path();
         std::error_code ec;
         bool exists = disk_backed ? std::filesystem::exists(disk_path, ec) : false;
         if (disk_backed && ec) {
@@ -458,6 +461,19 @@ inline namespace v2 {
 
     void connection::clear_statement_cache() {
         cache_.clear(handle);
+    }
+
+    connection_capabilities connection::capabilities() const {
+        // Each helper returns a compile-time true when the build verified the API group
+        // of the selected SQLite implementation (the wrappers then resolve the symbols
+        // through direct references). Without that verification the helpers report the
+        // runtime module lookup the wrappers themselves use, so the capability values
+        // always match what the operations can actually do.
+        connection_capabilities caps;
+        caps.sessions      = sessions_supported();
+        caps.snapshots     = snapshots_supported();
+        caps.serialization = serialization_supported();
+        return caps;
     }
 } // namespace v2
 } // namespace sqlite
