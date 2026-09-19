@@ -130,6 +130,17 @@ inline namespace v2 {
         statement_cache_config statement_cache_settings() const;
         void clear_statement_cache();
 
+        /** \brief Installs the hook notified when a statement returned to the
+         * cache is discarded because sqlite3_reset reported an error for its
+         * last evaluation.
+         *
+         * The hook receives the reset error text, is invoked without the cache
+         * lock held from the thread that destroyed the statement's final owner,
+         * and must not throw. Without a hook, reset failures are written to
+         * std::cerr in debug builds and ignored otherwise.
+         */
+        void set_statement_cache_error_hook(statement_cache_error_hook hook);
+
     private:
         friend struct private_accessor;
 
@@ -141,7 +152,7 @@ inline namespace v2 {
         void access_check();
         void open_with_flags(std::string const &db, int flags);
         sqlite3_stmt *acquire_cached_statement(std::string const &sql);
-        void release_cached_statement(std::string const &sql, sqlite3_stmt *stmt);
+        void release_cached_statement(std::string const &sql, sqlite3_stmt *stmt) noexcept;
 
     private:
         sqlite3 *handle;

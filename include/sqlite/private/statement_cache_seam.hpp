@@ -1,7 +1,8 @@
 /*##############################################################################
-VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
+ VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
 
- Copyright (c) 2006-2014 Vinzenz Feenstra vinzenz.feenstra@gmail.com
+ Copyright (c) 2006-2024 Vinzenz Feenstra
+                         and contributors
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without modification,
@@ -29,35 +30,38 @@ VSQLite++ - virtuosic bytes SQLite3 C++ wrapper
  POSSIBILITY OF SUCH DAMAGE.
 
 ##############################################################################*/
-#ifndef GUARD_SQLITE_PRIVATE_PRIVATE_ACCESSOR_HPP_INCLUDED
-#define GUARD_SQLITE_PRIVATE_PRIVATE_ACCESSOR_HPP_INCLUDED
+#ifndef GUARD_SQLITE_PRIVATE_STATEMENT_CACHE_SEAM_HPP_INCLUDED
+#define GUARD_SQLITE_PRIVATE_STATEMENT_CACHE_SEAM_HPP_INCLUDED
 
-#include <sqlite/connection.hpp>
+#include <sqlite/statement_cache.hpp>
 
 namespace sqlite {
 inline namespace v2 {
-    /** \brief A internal used class, shall not be used from users
+    /** \brief Test-only seam for statement_cache, not part of the public API.
      *
+     * Unit tests use it to reach the cache insertion failure paths of
+     * statement_cache::release(), which normal execution cannot trigger without
+     * an actual out-of-memory condition. The seam is a single process-wide slot
+     * and is not synchronized: it is meant for single-threaded tests only.
      */
-    struct private_accessor {
-        static struct sqlite3 *get_handle(connection &m_con) {
-            return m_con.handle;
-        }
-        static void acccess_check(connection &m_con) {
-            m_con.access_check();
-        }
-        static sqlite3_stmt *acquire_cached_statement(connection &con, std::string const &sql) {
-            return con.acquire_cached_statement(sql);
-        }
-        static void release_cached_statement(connection &con, std::string const &sql,
-                                             sqlite3_stmt *stmt) noexcept {
-            con.release_cached_statement(sql, stmt);
-        }
-        static void clear_statement_cache(connection &con) {
-            con.clear_statement_cache();
-        }
-    };
+    namespace statement_cache_seam {
+        /// The insertion step of statement_cache::release() that fails as if its
+        /// allocation had failed.
+        enum class insertion_failure {
+            none,               ///< Do not interfere with the next return.
+            before_bookkeeping, ///< Fail before the map entry is created.
+            before_retain       ///< Fail after the map entry exists, before the
+                                ///< statement is retained in the LRU list.
+        };
+
+        /// Requests that the next statement returned to any statement cache fails
+        /// at \p point, exactly once.
+        void fail_next_insertion(insertion_failure point);
+
+        /// Returns and clears the currently requested failure point.
+        insertion_failure take_pending_insertion_failure();
+    } // namespace statement_cache_seam
 } // namespace v2
 } // namespace sqlite
 
-#endif // GUARD_SQLITE_PRIVATE_PRIVATE_ACCESSOR_HPP_INCLUDED
+#endif // GUARD_SQLITE_PRIVATE_STATEMENT_CACHE_SEAM_HPP_INCLUDED

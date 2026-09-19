@@ -34,6 +34,7 @@
 #define GUARD_SQLITE_STATEMENT_CACHE_HPP_INCLUDED
 
 #include <cstddef>
+#include <functional>
 #include <list>
 #include <memory>
 #include <mutex>
@@ -61,6 +62,12 @@ inline namespace v2 {
         bool enabled         = true; ///< Disable caching without destroying existing entries.
     };
 
+    /// Signature of the hook that receives diagnostics when a statement returned to
+    /// the cache cannot be reset cleanly. The hook receives the `sqlite3_reset`
+    /// error text describing the statement's last evaluation, is invoked without
+    /// the cache lock held, and must not throw.
+    using statement_cache_error_hook = std::function<void(std::string)>;
+
     /// Tracks prepared statements by SQL text and hands them out on demand.
     class statement_cache {
     public:
@@ -68,16 +75,23 @@ inline namespace v2 {
 
         sqlite3_stmt *acquire(sqlite3 *db, std::string_view sql);
         /// Returns a statement to the cache. The statement is reset and its bindings are
-        /// cleared before it is retained, so it releases any locks it still held; if it
-        /// cannot be reset cleanly it is finalized instead of cached. If cache
-        /// bookkeeping cannot allocate memory, the statement is left unowned and the
-        /// caller is responsible for finalizing it.
-        void release(std::string_view sql, sqlite3_stmt *stmt);
+        /// cleared before it is retained, so it releases any locks it still held and
+        /// reports inactive through `sqlite3_stmt_busy()`. This path is noexcept
+        /// because it runs from the destruction of a statement's final owner:
+        /// whenever the statement cannot be retained (cache disabled, duplicate SQL
+        /// text, a reset failure reported through the error hook, or a bookkeeping
+        /// allocation failure) it is finalized instead of stored.
+        void release(std::string_view sql, sqlite3_stmt *stmt) noexcept;
         void clear(sqlite3 *db);
         void reset(statement_cache_config cfg);
         statement_cache_config config() const noexcept {
             return config_;
         }
+
+        /// Installs the hook notified when a returned statement is discarded because
+        /// `sqlite3_reset` reported an error. Without a hook, reset failures are
+        /// written to `std::cerr` in debug builds and ignored otherwise.
+        void set_error_hook(statement_cache_error_hook hook);
 
     private:
         struct entry {
@@ -91,6 +105,7 @@ inline namespace v2 {
         statement_cache_config config_;
         lru_list lru_;
         std::unordered_map<std::string, iterator> map_;
+        statement_cache_error_hook error_hook_; ///< guarded by mutex_
         mutable std::mutex mutex_;
     };
 } // namespace v2

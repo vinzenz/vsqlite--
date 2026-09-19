@@ -109,13 +109,11 @@ inline namespace v2 {
                 return;
             }
             if (cacheable && con) {
-                try {
-                    private_accessor::release_cached_statement(*con, sql, stmt);
-                } catch (...) {
-                    // Cache bookkeeping ran out of memory; the statement was left
-                    // unowned, so release it here instead of leaking or terminating.
-                    sqlite3_finalize(stmt);
-                }
+                // noexcept by contract: a failed reset is reported through the
+                // connection's statement cache error hook, and every failure
+                // path (cache disabled, duplicate, eviction trouble, failed
+                // bookkeeping) finalizes the statement itself.
+                private_accessor::release_cached_statement(*con, sql, stmt);
             } else {
                 sqlite3_finalize(stmt);
             }

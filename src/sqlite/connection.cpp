@@ -437,7 +437,8 @@ inline namespace v2 {
         return cache_.acquire(handle, sql);
     }
 
-    void connection::release_cached_statement(std::string const &sql, sqlite3_stmt *stmt) {
+    void connection::release_cached_statement(std::string const &sql,
+                                               sqlite3_stmt *stmt) noexcept {
         if (!stmt)
             return;
         if (!handle) {
@@ -445,6 +446,10 @@ inline namespace v2 {
             return;
         }
         cache_.release(sql, stmt);
+    }
+
+    void connection::set_statement_cache_error_hook(statement_cache_error_hook hook) {
+        cache_.set_error_hook(std::move(hook));
     }
 
     void connection::clear_statement_cache() {
