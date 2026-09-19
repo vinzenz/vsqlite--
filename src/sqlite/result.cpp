@@ -31,6 +31,7 @@
 ##############################################################################*/
 #include <sqlite/private/result_construct_params_private.hpp>
 #include <sqlite/database_exception.hpp>
+#include <sqlite/detail/conversion.hpp>
 #include <sqlite/result.hpp>
 #include <sqlite/query.hpp>
 #include <sqlite3.h>
@@ -53,9 +54,9 @@ inline namespace v2 {
             // are preserved by sqlite3_reset. The statement is reset even when the
             // call reports the error of the last evaluation, so the cursor state is
             // updated before that error is surfaced.
-            int err          = sqlite3_reset(params.statement);
-            params.ended     = false;
-            params.changes   = 0;
+            int err        = sqlite3_reset(params.statement);
+            params.ended   = false;
+            params.changes = 0;
             // Results sharing the statement keep their own ended flag; rewind theirs
             // too so exhausted siblings revive instead of staying unusable. The
             // statement will run again, so their captured affected-row counts also
@@ -151,16 +152,33 @@ inline namespace v2 {
 
     int result::get_int(int idx) {
         access_check(idx);
-        if (sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL)
-            return 0;
-        return sqlite3_column_int(m_params->statement, idx);
+        return detail::conversion::legacy_int(
+            detail::conversion::column_adapter{m_params->statement, idx});
     }
 
     std::int64_t result::get_int64(int idx) {
         access_check(idx);
-        if (sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL)
-            return 0;
-        return sqlite3_column_int64(m_params->statement, idx);
+        return detail::conversion::legacy_int64(
+            detail::conversion::column_adapter{m_params->statement, idx});
+    }
+
+    void result::require_not_null(int idx) {
+        access_check(idx);
+        if (detail::conversion::column_adapter{m_params->statement, idx}.is_null()) {
+            throw database_exception(
+                "NULL in column read through sqlite::result::get_checked but the requested type "
+                "is not nullable.");
+        }
+    }
+
+    std::int64_t result::checked_int64(int idx) {
+        require_not_null(idx);
+        return get_int64(idx);
+    }
+
+    double result::checked_double(int idx) {
+        require_not_null(idx);
+        return get_double(idx);
     }
 
     std::string result::get_string(int idx) {
@@ -170,36 +188,31 @@ inline namespace v2 {
 
     std::string_view result::get_string_view(int idx) {
         access_check(idx);
-        if (sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL)
-            return std::string_view("NULL", 4);
-        char const *v =
-            reinterpret_cast<char const *>(sqlite3_column_text(m_params->statement, idx));
-        size_t length = get_binary_size(idx);
-        return std::string_view(v, length);
+        return detail::conversion::legacy_text(
+            detail::conversion::column_adapter{m_params->statement, idx});
     }
 
     double result::get_double(int idx) {
         access_check(idx);
-        if (sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL)
-            return 0.0;
-        return sqlite3_column_double(m_params->statement, idx);
+        return detail::conversion::legacy_double(
+            detail::conversion::column_adapter{m_params->statement, idx});
     }
 
     size_t result::get_binary_size(int idx) {
         access_check(idx);
-        if (sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL)
-            return 0;
-        return sqlite3_column_bytes(m_params->statement, idx);
+        return detail::conversion::legacy_blob_size(
+            detail::conversion::column_adapter{m_params->statement, idx});
     }
 
     void result::get_binary(int idx, void *buf, size_t buf_size) {
         access_check(idx);
-        if (sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL)
+        detail::conversion::column_adapter adapted{m_params->statement, idx};
+        if (adapted.is_null())
             return;
-        size_t size = sqlite3_column_bytes(m_params->statement, idx);
+        size_t size = static_cast<size_t>(adapted.byte_count());
         if (size > buf_size)
             throw buffer_too_small_exception("buffer too small");
-        memcpy(buf, sqlite3_column_blob(m_params->statement, idx), size);
+        memcpy(buf, adapted.blob_value(), size);
     }
 
     void result::get_binary(int idx, std::vector<unsigned char> &v) {
@@ -209,12 +222,8 @@ inline namespace v2 {
 
     std::span<const unsigned char> result::get_binary_span(int idx) {
         access_check(idx);
-        if (sqlite3_column_type(m_params->statement, idx) == SQLITE_NULL)
-            return {};
-        size_t size = sqlite3_column_bytes(m_params->statement, idx);
-        auto ptr =
-            static_cast<unsigned char const *>(sqlite3_column_blob(m_params->statement, idx));
-        return std::span<const unsigned char>(ptr, size);
+        return detail::conversion::legacy_blob(
+            detail::conversion::column_adapter{m_params->statement, idx});
     }
 
     std::string result::get_column_name(int idx) {

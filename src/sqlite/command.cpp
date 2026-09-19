@@ -33,6 +33,7 @@
 #include <cctype>
 #include <sqlite/database_exception.hpp>
 #include <sqlite/command.hpp>
+#include <sqlite/detail/conversion.hpp>
 #include <sqlite/private/private_accessor.hpp>
 #include <sqlite3.h>
 
@@ -89,10 +90,7 @@ inline namespace v2 {
     struct command::statement_handle {
         statement_handle(connection &owner, std::string sql_text, sqlite3_stmt *statement,
                          bool should_cache) :
-            con(&owner),
-            sql(std::move(sql_text)),
-            stmt(statement),
-            cacheable(should_cache) {}
+            con(&owner), sql(std::move(sql_text)), stmt(statement), cacheable(should_cache) {}
 
         statement_handle(statement_handle const &)            = delete;
         statement_handle &operator=(statement_handle const &) = delete;
@@ -102,7 +100,7 @@ inline namespace v2 {
         connection *con = nullptr;
         std::string sql;
         sqlite3_stmt *stmt = nullptr;
-        bool cacheable = false;
+        bool cacheable     = false;
 
         ~statement_handle() {
             if (!stmt) {
@@ -164,17 +162,17 @@ inline namespace v2 {
             auto *cached = private_accessor::acquire_cached_statement(m_con, m_sql);
             if (cached) {
                 stmt_owner_ = std::make_shared<statement_handle>(m_con, m_sql, cached, true);
-                stmt = cached;
+                stmt        = cached;
                 return;
             }
         }
-        const char *tail = 0;
+        const char *tail       = 0;
         sqlite3_stmt *prepared = nullptr;
         int err = sqlite3_prepare_v2(get_handle(), m_sql.c_str(), -1, &prepared, &tail);
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
         stmt_owner_ = std::make_shared<statement_handle>(m_con, m_sql, prepared, cacheable);
-        stmt = prepared;
+        stmt        = prepared;
     }
 
     bool command::step_once() {
@@ -198,70 +196,50 @@ inline namespace v2 {
     }
 
     bool command::operator()() {
-        bool result = step();
+        bool result  = step();
         last_arg_idx = 0;
         return result;
     }
 
     void command::bind(int idx) {
         access_check();
-        int err = sqlite3_bind_null(stmt, idx);
+        int err = detail::conversion::bind_adapter{stmt, idx}.bind_null();
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     void command::bind(int idx, int v) {
         access_check();
-        int err = sqlite3_bind_int(stmt, idx, v);
+        int err = detail::conversion::bind_adapter{stmt, idx}.bind_int(v);
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     void command::bind(int idx, std::int64_t v) {
         access_check();
-        int err = sqlite3_bind_int64(stmt, idx, v);
+        int err = detail::conversion::bind_adapter{stmt, idx}.bind_int64(v);
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     void command::bind(int idx, double v) {
         access_check();
-        int err = sqlite3_bind_double(stmt, idx, v);
+        int err = detail::conversion::bind_adapter{stmt, idx}.bind_double(v);
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
-    namespace {
-        const char *text_or_dummy(std::string_view view, char const *&dummy_holder) {
-            static char const kDummy = 0;
-            if (view.empty()) {
-                dummy_holder = &kDummy;
-                return dummy_holder;
-            }
-            return view.data();
-        }
-
-        const unsigned char *blob_or_dummy(std::span<const unsigned char> view,
-                                           unsigned char const *&dummy_holder) {
-            static const unsigned char kDummy = 0;
-            if (view.empty()) {
-                dummy_holder = &kDummy;
-                return dummy_holder;
-            }
-            return view.data();
-        }
-    } // namespace
-
     void command::bind_text_impl(int idx, std::string_view v) {
         access_check();
-        char const *dummy = nullptr;
-        auto ptr          = text_or_dummy(v, dummy);
-        int err = sqlite3_bind_text(stmt, idx, ptr, static_cast<int>(v.size()), SQLITE_TRANSIENT);
+        int err = detail::conversion::bind_adapter{stmt, idx}.bind_text(v);
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     void command::bind(int idx, void const *v, size_t vn) {
+        // The raw pointer overload intentionally bypasses the shared
+        // empty-value rule: a null pointer binds NULL, matching the
+        // historical contract of this lowest-level overload.
         access_check();
         int err = sqlite3_bind_blob(stmt, idx, v, int(vn), SQLITE_TRANSIENT);
         if (err != SQLITE_OK)
@@ -274,9 +252,7 @@ inline namespace v2 {
 
     void command::bind(int idx, std::span<const unsigned char> v) {
         access_check();
-        unsigned char const *dummy = nullptr;
-        auto ptr                   = blob_or_dummy(v, dummy);
-        int err = sqlite3_bind_blob(stmt, idx, ptr, static_cast<int>(v.size()), SQLITE_TRANSIENT);
+        int err = detail::conversion::bind_adapter{stmt, idx}.bind_blob(v);
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
