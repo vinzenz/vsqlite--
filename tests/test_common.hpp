@@ -5,6 +5,9 @@
 #include <sqlite/connection.hpp>
 #include <sqlite/query.hpp>
 #include <sqlite/result.hpp>
+#include <sqlite/serialization.hpp>
+#include <sqlite/session.hpp>
+#include <sqlite/snapshot.hpp>
 
 #include <atomic>
 #include <chrono>
@@ -18,6 +21,66 @@
 #include <vector>
 
 #include <sqlite3.h>
+
+// Optional-API guards that cross-check the configure-time detection in
+// CMakeLists.txt against the runtime capability probes.
+//
+// When the build verified that the selected SQLite provides an API group, the
+// test executable is compiled with VSQLITE_EXPECT_SQLITE3_<API> and a runtime
+// "unavailable" verdict must fail the run: silently skipping the test would
+// hide a broken capability probe (GH issue #75). Builds that could not verify
+// the API keep skipping, so distributions without it stay supported.
+#if defined(VSQLITE_EXPECT_SQLITE3_SESSION)
+#define VSQLITE_REQUIRE_SESSIONS_SUPPORTED()                                                       \
+    do {                                                                                           \
+        if (!sqlite::sessions_supported()) {                                                       \
+            GTEST_FAIL() << "Configure-time detection verified the SQLite session API, "           \
+                            "but the runtime probe reports it unavailable.";                       \
+        }                                                                                          \
+    } while (false)
+#else
+#define VSQLITE_REQUIRE_SESSIONS_SUPPORTED()                                                       \
+    do {                                                                                           \
+        if (!sqlite::sessions_supported()) {                                                       \
+            GTEST_SKIP() << "SQLite session API not available in this build.";                     \
+        }                                                                                          \
+    } while (false)
+#endif
+
+#if defined(VSQLITE_EXPECT_SQLITE3_SNAPSHOT)
+#define VSQLITE_REQUIRE_SNAPSHOTS_SUPPORTED()                                                      \
+    do {                                                                                           \
+        if (!sqlite::snapshots_supported()) {                                                      \
+            GTEST_FAIL() << "Configure-time detection verified the SQLite snapshot "               \
+                            "APIs, but the runtime probe reports them unavailable.";               \
+        }                                                                                          \
+    } while (false)
+#else
+#define VSQLITE_REQUIRE_SNAPSHOTS_SUPPORTED()                                                      \
+    do {                                                                                           \
+        if (!sqlite::snapshots_supported()) {                                                      \
+            GTEST_SKIP() << "SQLite snapshot APIs not available in this build.";                   \
+        }                                                                                          \
+    } while (false)
+#endif
+
+#if defined(VSQLITE_EXPECT_SQLITE3_SERIALIZE)
+#define VSQLITE_REQUIRE_SERIALIZATION_SUPPORTED()                                                  \
+    do {                                                                                           \
+        if (!sqlite::serialization_supported()) {                                                  \
+            GTEST_FAIL() << "Configure-time detection verified the SQLite "                        \
+                            "serialization APIs, but the runtime probe reports them "              \
+                            "unavailable.";                                                        \
+        }                                                                                          \
+    } while (false)
+#else
+#define VSQLITE_REQUIRE_SERIALIZATION_SUPPORTED()                                                  \
+    do {                                                                                           \
+        if (!sqlite::serialization_supported()) {                                                  \
+            GTEST_SKIP() << "SQLite serialization APIs not available in this build.";              \
+        }                                                                                          \
+    } while (false)
+#endif
 
 namespace testhelpers {
 
@@ -155,8 +218,7 @@ inline void dump_table_info(sqlite::connection &con, std::string_view table) {
 
     try {
         sqlite::query count_q(con,
-                              "SELECT COUNT(*) FROM " + quote_identifier(std::string(table)) +
-                                  ";");
+                              "SELECT COUNT(*) FROM " + quote_identifier(std::string(table)) + ";");
         auto count_res = count_q.get_result();
         if (count_res->next_row()) {
             std::cerr << "    row_count: " << count_res->get<int>(0) << '\n';

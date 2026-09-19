@@ -36,9 +36,7 @@ void open_consumer(sqlite::connection &consumer, std::string const &ddl,
 } // namespace
 
 TEST(SessionTest, CapturesAndAppliesChangeset) {
-    if (!sqlite::sessions_supported()) {
-        GTEST_SKIP() << "SQLite session API not available in this build.";
-    }
+    VSQLITE_REQUIRE_SESSIONS_SUPPORTED();
     sqlite::connection conn(":memory:");
     sqlite::execute(conn, "CREATE TABLE inventory(id INTEGER PRIMARY KEY, qty INTEGER);", true);
     sqlite::session session(conn);
@@ -57,9 +55,7 @@ TEST(SessionTest, CapturesAndAppliesChangeset) {
 }
 
 TEST(SessionTest, PatchsetTracksDeletes) {
-    if (!sqlite::sessions_supported()) {
-        GTEST_SKIP() << "SQLite session API not available in this build.";
-    }
+    VSQLITE_REQUIRE_SESSIONS_SUPPORTED();
     sqlite::connection conn(":memory:");
     sqlite::execute(conn, "CREATE TABLE docs(id INTEGER PRIMARY KEY, body TEXT);", true);
     sqlite::execute(conn, "INSERT INTO docs(body) VALUES ('old');", true);
@@ -80,11 +76,9 @@ TEST(SessionTest, PatchsetTracksDeletes) {
 }
 
 TEST(SessionTest, ChangesetConflictAbortsByDefault) {
-    if (!sqlite::sessions_supported()) {
-        GTEST_SKIP() << "SQLite session API not available in this build.";
-    }
-    auto const ddl  = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
-    auto changeset  = tracked_changeset(ddl, [](sqlite::connection &con) {
+    VSQLITE_REQUIRE_SESSIONS_SUPPORTED();
+    auto const ddl = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
+    auto changeset = tracked_changeset(ddl, [](sqlite::connection &con) {
         sqlite::execute(con, "INSERT INTO t VALUES (1, 'a');", true);
     });
     sqlite::connection consumer(":memory:");
@@ -104,9 +98,7 @@ TEST(SessionTest, ChangesetConflictAbortsByDefault) {
 }
 
 TEST(SessionTest, ChangesetConflictOmitPolicySkipsConflictingRows) {
-    if (!sqlite::sessions_supported()) {
-        GTEST_SKIP() << "SQLite session API not available in this build.";
-    }
+    VSQLITE_REQUIRE_SESSIONS_SUPPORTED();
     auto const ddl = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
     auto changeset = tracked_changeset(ddl, [](sqlite::connection &con) {
         sqlite::execute(con, "INSERT INTO t VALUES (1, 'a'), (2, 'b');", true);
@@ -124,9 +116,7 @@ TEST(SessionTest, ChangesetConflictOmitPolicySkipsConflictingRows) {
 }
 
 TEST(SessionTest, ChangesetConflictReplacePolicyOverwritesRow) {
-    if (!sqlite::sessions_supported()) {
-        GTEST_SKIP() << "SQLite session API not available in this build.";
-    }
+    VSQLITE_REQUIRE_SESSIONS_SUPPORTED();
     auto const ddl = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
     auto changeset = tracked_changeset(ddl, [](sqlite::connection &con) {
         sqlite::execute(con, "INSERT INTO t VALUES (1, 'a'), (2, 'b');", true);
@@ -145,11 +135,9 @@ TEST(SessionTest, ChangesetConflictReplacePolicyOverwritesRow) {
 }
 
 TEST(SessionTest, ConflictHandlerReceivesConflictDetails) {
-    if (!sqlite::sessions_supported()) {
-        GTEST_SKIP() << "SQLite session API not available in this build.";
-    }
-    auto const ddl  = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
-    auto changeset  = tracked_changeset(ddl, [](sqlite::connection &con) {
+    VSQLITE_REQUIRE_SESSIONS_SUPPORTED();
+    auto const ddl = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
+    auto changeset = tracked_changeset(ddl, [](sqlite::connection &con) {
         sqlite::execute(con, "INSERT INTO t VALUES (1, 'a');", true);
     });
     sqlite::connection consumer(":memory:");
@@ -157,7 +145,7 @@ TEST(SessionTest, ConflictHandlerReceivesConflictDetails) {
 
     sqlite::changeset_conflict seen{};
     auto handler = [&seen](sqlite::changeset_conflict const &conflict) {
-        seen    = conflict;
+        seen = conflict;
         return sqlite::conflict_policy::omit;
     };
     sqlite::apply_changeset(consumer, changeset, handler);
@@ -170,31 +158,27 @@ TEST(SessionTest, ConflictHandlerReceivesConflictDetails) {
 }
 
 TEST(SessionTest, ConflictHandlerExceptionPropagatesAndRollsBack) {
-    if (!sqlite::sessions_supported()) {
-        GTEST_SKIP() << "SQLite session API not available in this build.";
-    }
-    auto const ddl  = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
-    auto changeset  = tracked_changeset(ddl, [](sqlite::connection &con) {
+    VSQLITE_REQUIRE_SESSIONS_SUPPORTED();
+    auto const ddl = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
+    auto changeset = tracked_changeset(ddl, [](sqlite::connection &con) {
         sqlite::execute(con, "INSERT INTO t VALUES (1, 'a'), (2, 'b');", true);
     });
     sqlite::connection consumer(":memory:");
     open_consumer(consumer, ddl, "INSERT INTO t VALUES (1, 'original');");
 
-    EXPECT_THROW(sqlite::apply_changeset(consumer, changeset,
-                                         [](sqlite::changeset_conflict const &)
-                                             -> sqlite::conflict_policy {
-                                             throw std::runtime_error("boom");
-                                         }),
-                 std::runtime_error);
+    EXPECT_THROW(
+        sqlite::apply_changeset(consumer, changeset,
+                                [](sqlite::changeset_conflict const &) -> sqlite::conflict_policy {
+                                    throw std::runtime_error("boom");
+                                }),
+        std::runtime_error);
     EXPECT_EQ(count_rows(consumer, "t"), 1);
 }
 
 TEST(SessionTest, EmptyConflictHandlerAbortsLikeDefault) {
-    if (!sqlite::sessions_supported()) {
-        GTEST_SKIP() << "SQLite session API not available in this build.";
-    }
-    auto const ddl  = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
-    auto changeset  = tracked_changeset(ddl, [](sqlite::connection &con) {
+    VSQLITE_REQUIRE_SESSIONS_SUPPORTED();
+    auto const ddl = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
+    auto changeset = tracked_changeset(ddl, [](sqlite::connection &con) {
         sqlite::execute(con, "INSERT INTO t VALUES (1, 'a');", true);
     });
     sqlite::connection consumer(":memory:");
@@ -207,11 +191,9 @@ TEST(SessionTest, EmptyConflictHandlerAbortsLikeDefault) {
 }
 
 TEST(SessionTest, ChangesetConflictReplacePolicyOverwritesDuplicateKeyRow) {
-    if (!sqlite::sessions_supported()) {
-        GTEST_SKIP() << "SQLite session API not available in this build.";
-    }
-    auto const ddl  = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
-    auto changeset  = tracked_changeset(ddl, [](sqlite::connection &con) {
+    VSQLITE_REQUIRE_SESSIONS_SUPPORTED();
+    auto const ddl = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
+    auto changeset = tracked_changeset(ddl, [](sqlite::connection &con) {
         sqlite::execute(con, "INSERT INTO t VALUES (1, 'a');", true);
     });
     sqlite::connection consumer(":memory:");
@@ -227,9 +209,7 @@ TEST(SessionTest, ChangesetConflictReplacePolicyOverwritesDuplicateKeyRow) {
 }
 
 TEST(SessionTest, MissingRowConflictAbortsByDefaultAndOmitAppliesRest) {
-    if (!sqlite::sessions_supported()) {
-        GTEST_SKIP() << "SQLite session API not available in this build.";
-    }
+    VSQLITE_REQUIRE_SESSIONS_SUPPORTED();
     sqlite::connection source(":memory:");
     sqlite::execute(source, "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);", true);
     // Seed before the session starts tracking so the changeset holds only the delete.
@@ -263,11 +243,9 @@ TEST(SessionTest, MissingRowConflictAbortsByDefaultAndOmitAppliesRest) {
 }
 
 TEST(SessionTest, PatchsetConflictAbortsByDefault) {
-    if (!sqlite::sessions_supported()) {
-        GTEST_SKIP() << "SQLite session API not available in this build.";
-    }
-    auto const ddl  = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
-    auto patchset   = tracked_changeset(
+    VSQLITE_REQUIRE_SESSIONS_SUPPORTED();
+    auto const ddl = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
+    auto patchset  = tracked_changeset(
         ddl,
         [](sqlite::connection &con) {
             sqlite::execute(con, "INSERT INTO t VALUES (1, 'a');", true);
@@ -286,9 +264,7 @@ TEST(SessionTest, PatchsetConflictAbortsByDefault) {
 }
 
 TEST(SessionTest, PatchsetConflictOmitPolicyAppliesRest) {
-    if (!sqlite::sessions_supported()) {
-        GTEST_SKIP() << "SQLite session API not available in this build.";
-    }
+    VSQLITE_REQUIRE_SESSIONS_SUPPORTED();
     auto const ddl = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
     auto patchset  = tracked_changeset(
         ddl,
@@ -309,9 +285,7 @@ TEST(SessionTest, PatchsetConflictOmitPolicyAppliesRest) {
 }
 
 TEST(SessionTest, ForeignKeyConflictAbortsAndOmits) {
-    if (!sqlite::sessions_supported()) {
-        GTEST_SKIP() << "SQLite session API not available in this build.";
-    }
+    VSQLITE_REQUIRE_SESSIONS_SUPPORTED();
     auto const child_ddl =
         "CREATE TABLE child(id INTEGER PRIMARY KEY, pid INTEGER REFERENCES parent(id));";
 
@@ -356,9 +330,7 @@ TEST(SessionTest, ForeignKeyConflictAbortsAndOmits) {
 }
 
 TEST(SessionTest, ReplacePolicyOmitsUnreplaceableConflicts) {
-    if (!sqlite::sessions_supported()) {
-        GTEST_SKIP() << "SQLite session API not available in this build.";
-    }
+    VSQLITE_REQUIRE_SESSIONS_SUPPORTED();
     for (bool patchset : {false, true}) {
         // The delete hits a row the consumer never had (not_found) and the insert violates
         // the consumer's check constraint. Answering SQLITE_CHANGESET_REPLACE for either
@@ -385,9 +357,7 @@ TEST(SessionTest, ReplacePolicyOmitsUnreplaceableConflicts) {
 }
 
 TEST(SessionTest, AbortedApplyRollsBackEarlierChanges) {
-    if (!sqlite::sessions_supported()) {
-        GTEST_SKIP() << "SQLite session API not available in this build.";
-    }
+    VSQLITE_REQUIRE_SESSIONS_SUPPORTED();
     auto const ddl = "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);";
     for (bool patchset : {false, true}) {
         auto changeset = tracked_changeset(
