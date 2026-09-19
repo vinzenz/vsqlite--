@@ -45,6 +45,7 @@ modification, are permitted provided that the following conditions are met:
 
 #include <sqlite/database_exception.hpp>
 #include <sqlite/deprecated.hpp>
+#include <sqlite/detail/conversion.hpp>
 #include <sqlite/detail/type_helpers.hpp>
 #include <sqlite/ext/variant.hpp>
 
@@ -54,6 +55,11 @@ modification, are permitted provided that the following conditions are met:
  *
  * The header defines the `sqlite::result` type along with helpers such as `result_type`, the
  * templated `get<T>` conversion logic, and tuple extraction utilities.
+ *
+ * How stored values map to C++ types - the legacy NULL coercions, empty text and blobs, numeric
+ * casts, the microsecond chrono representation, and the borrowed-versus-owning lifetime rules -
+ * is defined once in docs/conversions.md and implemented by the shared policy in
+ * `sqlite/detail/conversion.hpp`.
  */
 namespace sqlite {
 inline namespace v2 {
@@ -231,6 +237,10 @@ inline namespace v2 {
          * - byte arrays (`std::vector<unsigned char>`, `std::span<const unsigned char>`,
          * `std::span<const std::byte>`)
          *
+         * This is the legacy conversion path: SQL NULL coerces to 0, 0.0, false, the text
+         * "NULL", or empty binary data, and integer narrowing wraps. The complete mapping,
+         * including the coercions kept for compatibility, is documented in docs/conversions.md.
+         *
          * @param idx Zero-based column index.
          * @tparam T Desired destination type.
          * @throws database_exception or std::out_of_range when @p idx is invalid.
@@ -238,6 +248,26 @@ inline namespace v2 {
          * available.
          */
         template <typename T> T get(int idx);
+
+        /**
+         * @brief Strict variant of @ref get that rejects ambiguous conversions.
+         *
+         * Applies the same type support as @ref get but with a checked numeric policy:
+         * - reading SQL NULL into a type that is not std::optional throws
+         *   database_exception; std::optional<T> still maps NULL to std::nullopt;
+         * - integer narrowing that loses width or signedness throws instead of wrapping;
+         * - narrowing a double to a smaller floating point type throws when the value lies
+         *   outside the representable range.
+         *
+         * Chrono and text/blob conversions behave like @ref get once the NULL check passed.
+         * See docs/conversions.md for the full mapping.
+         *
+         * @param idx Zero-based column index.
+         * @tparam T Desired destination type.
+         * @throws database_exception when @p idx is invalid, the column is NULL, or the value
+         * does not fit the requested type.
+         */
+        template <typename T> T get_checked(int idx);
 
         /**
          * @brief Collects a contiguous slice of columns into a std::tuple.
@@ -256,6 +286,9 @@ inline namespace v2 {
         std::string get_string(int idx);
         std::string_view get_string_view(int idx);
         double get_double(int idx);
+        std::int64_t checked_int64(int idx);
+        double checked_double(int idx);
+        void require_not_null(int idx);
 
     private:
         construct_params m_params;
@@ -281,16 +314,13 @@ inline namespace v2 {
             using value_type = typename detail::optional_value<decayed>::type;
             return get<value_type>(idx);
         } else if constexpr (detail::is_duration_v<decayed>) {
-            auto micros = std::chrono::microseconds{get_int64(idx)};
-            return std::chrono::duration_cast<decayed>(micros);
+            return detail::conversion::duration_from_microseconds<decayed>(get_int64(idx));
         } else if constexpr (detail::is_time_point_v<decayed>) {
-            auto micros   = std::chrono::microseconds{get_int64(idx)};
-            auto duration = std::chrono::duration_cast<typename decayed::duration>(micros);
-            return decayed(duration);
+            return detail::conversion::time_point_from_microseconds<decayed>(get_int64(idx));
         } else if constexpr (std::is_enum_v<decayed>) {
             return static_cast<decayed>(get_int64(idx));
         } else if constexpr (std::is_integral_v<decayed> && !std::is_same_v<decayed, bool>) {
-            return static_cast<decayed>(get_int64(idx));
+            return detail::conversion::legacy_narrow<decayed>(get_int64(idx));
         } else if constexpr (std::is_same_v<decayed, bool>) {
             return get_int(idx) != 0;
         } else if constexpr (std::is_floating_point_v<decayed>) {
@@ -312,6 +342,53 @@ inline namespace v2 {
         } else {
             static_assert(detail::always_false_v<decayed>,
                           "Unsupported type for sqlite::result::get<T>");
+        }
+    }
+
+    template <typename T> T result::get_checked(int idx) {
+        using decayed = detail::decay_t<T>;
+        if constexpr (detail::is_optional_v<decayed>) {
+            if (is_null(idx)) {
+                return std::nullopt;
+            }
+            using value_type = typename detail::optional_value<decayed>::type;
+            return get_checked<value_type>(idx);
+        } else if constexpr (detail::is_duration_v<decayed>) {
+            return detail::conversion::duration_from_microseconds<decayed>(checked_int64(idx));
+        } else if constexpr (detail::is_time_point_v<decayed>) {
+            return detail::conversion::time_point_from_microseconds<decayed>(checked_int64(idx));
+        } else if constexpr (std::is_enum_v<decayed>) {
+            using underlying_type = std::underlying_type_t<decayed>;
+            return static_cast<decayed>(
+                detail::conversion::checked_narrow<underlying_type>(checked_int64(idx)));
+        } else if constexpr (std::is_integral_v<decayed> && !std::is_same_v<decayed, bool>) {
+            return detail::conversion::checked_narrow<decayed>(checked_int64(idx));
+        } else if constexpr (std::is_same_v<decayed, bool>) {
+            return checked_int64(idx) != 0;
+        } else if constexpr (std::is_floating_point_v<decayed>) {
+            return detail::conversion::checked_narrow<decayed>(checked_double(idx));
+        } else if constexpr (std::is_same_v<decayed, std::string>) {
+            require_not_null(idx);
+            return get_string(idx);
+        } else if constexpr (std::is_same_v<decayed, std::string_view>) {
+            require_not_null(idx);
+            return get_string_view(idx);
+        } else if constexpr (detail::is_byte_vector_v<decayed>) {
+            require_not_null(idx);
+            std::vector<unsigned char> buffer;
+            get_binary(idx, buffer);
+            return buffer;
+        } else if constexpr (detail::is_unsigned_char_span_v<decayed>) {
+            require_not_null(idx);
+            return get_binary_span(idx);
+        } else if constexpr (detail::is_byte_span_v<decayed>) {
+            require_not_null(idx);
+            auto blob = get_binary_span(idx);
+            auto ptr  = reinterpret_cast<std::byte const *>(blob.data());
+            return std::span<const std::byte>(ptr, blob.size());
+        } else {
+            static_assert(detail::always_false_v<decayed>,
+                          "Unsupported type for sqlite::result::get_checked<T>");
         }
     }
 

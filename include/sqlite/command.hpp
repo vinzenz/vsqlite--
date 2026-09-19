@@ -43,6 +43,7 @@
 #include <utility>
 #include <vector>
 #include <sqlite/connection.hpp>
+#include <sqlite/detail/conversion.hpp>
 #include <sqlite/detail/type_helpers.hpp>
 
 struct sqlite3_stmt;
@@ -53,6 +54,10 @@ struct sqlite3_stmt;
  *
  * Commands own a prepared statement, expose strongly typed `bind` overloads, and provide the
  * streaming-style `%` syntax that higher-level convenience APIs (e.g. `query`) are built upon.
+ *
+ * How C++ values map to bound parameters - NULL handling, empty text and blobs, numeric casts,
+ * and the microsecond chrono representation - is defined once in docs/conversions.md and
+ * implemented by the shared policy in `sqlite/detail/conversion.hpp`.
  */
 namespace sqlite {
 inline namespace v2 {
@@ -294,13 +299,9 @@ inline namespace v2 {
                 bind_value(idx, *value);
             }
         } else if constexpr (detail::is_duration_v<decayed>) {
-            auto micros = std::chrono::duration_cast<std::chrono::microseconds>(value).count();
-            bind(idx, static_cast<std::int64_t>(micros));
+            bind(idx, detail::conversion::microseconds_count(value));
         } else if constexpr (detail::is_time_point_v<decayed>) {
-            auto micros =
-                std::chrono::duration_cast<std::chrono::microseconds>(value.time_since_epoch())
-                    .count();
-            bind(idx, static_cast<std::int64_t>(micros));
+            bind(idx, detail::conversion::microseconds_count(value));
         } else if constexpr (std::is_enum_v<decayed>) {
             bind(idx, static_cast<std::int64_t>(value));
         } else if constexpr (std::is_integral_v<decayed>) {

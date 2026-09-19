@@ -48,6 +48,7 @@
 #include <vector>
 
 #include <sqlite/database_exception.hpp>
+#include <sqlite/detail/conversion.hpp>
 #include <sqlite/detail/function_registration.hpp>
 
 #include <sqlite3.h>
@@ -58,6 +59,11 @@
  *
  * This header provides the heavy lifting to translate between `sqlite3_value*` arguments and
  * strongly typed C++ invocables, handling optional/nullable parameters and propagating errors.
+ *
+ * How C++ arguments and results map to SQL values - NULL handling, empty text and blobs, and
+ * numeric casts - follows the one conversion policy documented in docs/conversions.md and
+ * implemented in `sqlite/detail/conversion.hpp`. Exceptions thrown by the callable are
+ * translated into SQLite errors and never cross the C boundary.
  */
 namespace sqlite {
 inline namespace v2 {
@@ -165,19 +171,21 @@ inline namespace v2 {
             requires(std::is_integral_v<decay_t<T>> && !std::is_same_v<decay_t<T>, bool>)
         struct argument_converter<T> {
             static decay_t<T> convert(sqlite3_value *value) {
-                if (sqlite3_value_type(value) == SQLITE_NULL) {
+                conversion::value_adapter adapted{value};
+                if (adapted.is_null()) {
                     throw_null_argument_error();
                 }
-                return static_cast<decay_t<T>>(sqlite3_value_int64(value));
+                return conversion::legacy_narrow<decay_t<T>>(adapted.int64_value());
             }
         };
 
         template <> struct argument_converter<bool> {
             static bool convert(sqlite3_value *value) {
-                if (sqlite3_value_type(value) == SQLITE_NULL) {
+                conversion::value_adapter adapted{value};
+                if (adapted.is_null()) {
                     throw_null_argument_error();
                 }
-                return sqlite3_value_int(value) != 0;
+                return adapted.int_value() != 0;
             }
         };
 
@@ -185,20 +193,22 @@ inline namespace v2 {
             requires std::is_floating_point_v<decay_t<T>>
         struct argument_converter<T> {
             static decay_t<T> convert(sqlite3_value *value) {
-                if (sqlite3_value_type(value) == SQLITE_NULL) {
+                conversion::value_adapter adapted{value};
+                if (adapted.is_null()) {
                     throw_null_argument_error();
                 }
-                return static_cast<decay_t<T>>(sqlite3_value_double(value));
+                return static_cast<decay_t<T>>(adapted.double_value());
             }
         };
 
         template <> struct argument_converter<std::string_view> {
             static std::string_view convert(sqlite3_value *value) {
-                if (sqlite3_value_type(value) == SQLITE_NULL) {
+                conversion::value_adapter adapted{value};
+                if (adapted.is_null()) {
                     throw_null_argument_error();
                 }
-                auto const len   = sqlite3_value_bytes(value);
-                auto const *text = reinterpret_cast<char const *>(sqlite3_value_text(value));
+                auto const len   = adapted.byte_count();
+                auto const *text = adapted.text_value();
                 if (!text) {
                     return std::string_view();
                 }
@@ -217,11 +227,12 @@ inline namespace v2 {
 
         template <> struct argument_converter<std::span<const unsigned char>> {
             static std::span<const unsigned char> convert(sqlite3_value *value) {
-                if (sqlite3_value_type(value) == SQLITE_NULL) {
+                conversion::value_adapter adapted{value};
+                if (adapted.is_null()) {
                     throw_null_argument_error();
                 }
-                auto const len   = sqlite3_value_bytes(value);
-                auto const *data = static_cast<unsigned char const *>(sqlite3_value_blob(value));
+                auto const len   = adapted.byte_count();
+                auto const *data = adapted.blob_value();
                 return std::span<const unsigned char>(data, static_cast<std::size_t>(len));
             }
         };
@@ -262,7 +273,8 @@ inline namespace v2 {
             static_assert(!is_optional<decay_t<T>>::value,
                           "Nested std::optional values are not supported.");
             static std::optional<T> convert(sqlite3_value *value) {
-                if (sqlite3_value_type(value) == SQLITE_NULL) {
+                conversion::value_adapter adapted{value};
+                if (adapted.is_null()) {
                     return std::nullopt;
                 }
                 return argument_converter<T>::convert(value);
@@ -273,19 +285,19 @@ inline namespace v2 {
 
         template <> struct result_writer<void> {
             static void apply(sqlite3_context *ctx, void const *) {
-                sqlite3_result_null(ctx);
+                conversion::context_adapter{ctx}.result_null();
             }
         };
 
         template <> struct result_writer<null_type> {
             static void apply(sqlite3_context *ctx, null_type const &) {
-                sqlite3_result_null(ctx);
+                conversion::context_adapter{ctx}.result_null();
             }
         };
 
         template <> struct result_writer<std::nullptr_t> {
             static void apply(sqlite3_context *ctx, std::nullptr_t) {
-                sqlite3_result_null(ctx);
+                conversion::context_adapter{ctx}.result_null();
             }
         };
 
@@ -293,13 +305,13 @@ inline namespace v2 {
             requires(std::is_integral_v<decay_t<T>> && !std::is_same_v<decay_t<T>, bool>)
         struct result_writer<T> {
             static void apply(sqlite3_context *ctx, T value) {
-                sqlite3_result_int64(ctx, static_cast<sqlite3_int64>(value));
+                conversion::context_adapter{ctx}.result_int64(static_cast<std::int64_t>(value));
             }
         };
 
         template <> struct result_writer<bool> {
             static void apply(sqlite3_context *ctx, bool value) {
-                sqlite3_result_int(ctx, value ? 1 : 0);
+                conversion::context_adapter{ctx}.result_int(value ? 1 : 0);
             }
         };
 
@@ -307,33 +319,13 @@ inline namespace v2 {
             requires std::is_floating_point_v<decay_t<T>>
         struct result_writer<T> {
             static void apply(sqlite3_context *ctx, T value) {
-                sqlite3_result_double(ctx, static_cast<double>(value));
+                conversion::context_adapter{ctx}.result_double(static_cast<double>(value));
             }
         };
 
-        /// SQLite turns a null data pointer into SQL NULL, whatever the length says.
-        /// Empty text and blob results must therefore pass a non-null dummy pointer with
-        /// length zero, as the bind overloads of \a command already do.
-        template <typename T>
-        inline T const *result_data_or_empty(T const *data, std::size_t size) {
-            static constexpr T kEmpty{0};
-            return size == 0 ? &kEmpty : data;
-        }
-
-        inline void result_text(sqlite3_context *ctx, std::string_view view) {
-            sqlite3_result_text(ctx, result_data_or_empty(view.data(), view.size()),
-                                static_cast<int>(view.size()), SQLITE_TRANSIENT);
-        }
-
-        template <typename T>
-        inline void result_blob(sqlite3_context *ctx, T const *data, std::size_t size) {
-            sqlite3_result_blob(ctx, result_data_or_empty(data, size), static_cast<int>(size),
-                                SQLITE_TRANSIENT);
-        }
-
         template <> struct result_writer<std::string_view> {
             static void apply(sqlite3_context *ctx, std::string_view value) {
-                result_text(ctx, value);
+                conversion::context_adapter{ctx}.result_text(value);
             }
         };
 
@@ -342,19 +334,19 @@ inline namespace v2 {
                      std::constructible_from<std::string_view, decay_t<Text>>)
         struct result_writer<Text> {
             static void apply(sqlite3_context *ctx, Text const &value) {
-                result_text(ctx, std::string_view(value));
+                conversion::context_adapter{ctx}.result_text(std::string_view(value));
             }
         };
 
         template <> struct result_writer<std::span<const unsigned char>> {
             static void apply(sqlite3_context *ctx, std::span<const unsigned char> value) {
-                result_blob(ctx, value.data(), value.size());
+                conversion::context_adapter{ctx}.result_blob(value.data(), value.size());
             }
         };
 
         template <> struct result_writer<std::span<const std::byte>> {
             static void apply(sqlite3_context *ctx, std::span<const std::byte> value) {
-                result_blob(ctx, value.data(), value.size());
+                conversion::context_adapter{ctx}.result_blob(value.data(), value.size());
             }
         };
 
@@ -363,14 +355,14 @@ inline namespace v2 {
                      std::is_same_v<decay_t<Vector>, std::vector<std::byte>>)
         struct result_writer<Vector> {
             static void apply(sqlite3_context *ctx, Vector const &value) {
-                result_blob(ctx, value.data(), value.size());
+                conversion::context_adapter{ctx}.result_blob(value.data(), value.size());
             }
         };
 
         template <typename T> struct result_writer<std::optional<T>> {
             static void apply(sqlite3_context *ctx, std::optional<T> const &value) {
                 if (!value) {
-                    sqlite3_result_null(ctx);
+                    conversion::context_adapter{ctx}.result_null();
                     return;
                 }
                 result_writer<T>::apply(ctx, *value);
