@@ -40,6 +40,7 @@
 #include <sqlite/execute.hpp>
 #include <sqlite/connection.hpp>
 #include <sqlite/filesystem_adapter.hpp>
+#include <sqlite/prepared_statement.hpp>
 #include <sqlite3.h>
 #include <iostream>
 
@@ -107,7 +108,7 @@ database_name_info classify_database_name(std::string_view db) {
     if (!is_uri_database(db)) {
         return info;
     }
-    info.is_uri = true;
+    info.is_uri           = true;
     std::string_view rest = db.substr(5);
 
     // Optional authority: SQLite accepts an empty one or "localhost" only and
@@ -146,10 +147,10 @@ database_name_info classify_database_name(std::string_view db) {
     bool has_mode         = false;
     std::size_t param_pos = 0;
     while (param_pos < query.size()) {
-        auto next  = query.find('&', param_pos);
-        auto param = query.substr(param_pos,
-                                  next == std::string_view::npos ? next : next - param_pos);
-        param_pos  = next == std::string_view::npos ? query.size() : next + 1;
+        auto next = query.find('&', param_pos);
+        auto param =
+            query.substr(param_pos, next == std::string_view::npos ? next : next - param_pos);
+        param_pos   = next == std::string_view::npos ? query.size() : next + 1;
         auto equals = param.find('=');
         if (percent_decode(param.substr(0, equals)) != "mode") {
             continue;
@@ -321,9 +322,9 @@ inline namespace v2 {
                              filesystem);
         }
 
-        std::filesystem::path disk_path =
-            disk_backed ? std::filesystem::path(info.is_uri ? info.path : db)
-                        : std::filesystem::path();
+        std::filesystem::path disk_path = disk_backed
+                                              ? std::filesystem::path(info.is_uri ? info.path : db)
+                                              : std::filesystem::path();
         std::error_code ec;
         bool exists = disk_backed ? std::filesystem::exists(disk_path, ec) : false;
         if (disk_backed && ec) {
@@ -421,6 +422,11 @@ inline namespace v2 {
         if (!handle)
             throw database_exception("Database is not open.");
         return static_cast<std::int64_t>(sqlite3_last_insert_rowid(handle));
+    }
+
+    prepared_statement connection::prepare(std::string_view sql) {
+        access_check();
+        return prepared_statement(*this, std::string(sql));
     }
 
     void connection::configure_statement_cache(statement_cache_config const &cfg) {

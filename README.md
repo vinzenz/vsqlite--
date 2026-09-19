@@ -187,6 +187,32 @@ object is destroyed first. The owning `sqlite::connection` must still outlive ac
 results. `result::get_column_decltype()` mirrors SQLite and returns an empty string for computed
 expressions or other columns where SQLite reports no declared type.
 
+## Prepared Statements with Explicit Execution State
+
+`connection::prepare()` returns a move-only `sqlite::prepared_statement` whose `execute()` runs a
+bound argument set to completion and whose `rows()` returns a cursor over result rows. The
+statement tracks whether it is `prepared`, `executing`, `complete`, or `failed`, rejects a second
+execution while one of its cursors is live, and snapshots affected-row counts at completion:
+
+```cpp
+#include <sqlite/prepared_statement.hpp>
+
+auto insert = db.prepare("INSERT INTO events(message) VALUES (?)");
+auto outcome = insert.execute("started"); // affected_rows + last_insert_rowid
+
+auto select = db.prepare("SELECT id, message FROM events WHERE id > ?");
+for (auto row : select.rows(last_seen)) {
+    auto id = row.get<std::int64_t>(0);
+}
+```
+
+Every `execute(args...)`/`rows(args...)` call supplies the complete argument set (earlier
+bindings are cleared first, and incomplete sets throw before anything runs); manual `bind()`
+plus the zero-argument overloads cover the advanced mode. Statements that return rows —
+`SELECT` or DML with `RETURNING` — go through `rows()`; `execute()` rejects them with a clear
+error. The full behavior specification, the error matrix, and a migration table from
+`command`/`query`/`execute` live in [docs/prepared-statement.md](docs/prepared-statement.md).
+
 ## Snapshots, WAL & WAL2
 
 The wrapper exposes WAL helpers and snapshot utilities in `#include <sqlite/snapshot.hpp>`. Switch a database into WAL or WAL2 (when supported by your SQLite build) using `sqlite::enable_wal(conn, /*prefer_wal2=*/true);` – the helper automatically falls back to classic WAL if WAL2 is unavailable. Once running in WAL, capture consistent read views via the transaction/savepoint adapters:
