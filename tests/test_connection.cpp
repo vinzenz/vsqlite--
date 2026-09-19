@@ -214,8 +214,7 @@ TEST(ConnectionTest, FileUriPathIsValidated) {
     std::error_code ec;
     std::filesystem::remove_all(missing.parent_path(), ec);
     // Without mode=memory the URI path is validated like any other path.
-    EXPECT_THROW(sqlite::connection conn("file:" + missing.string()),
-                 sqlite::database_exception);
+    EXPECT_THROW(sqlite::connection conn("file:" + missing.string()), sqlite::database_exception);
 
     TempFile file("uri_existing");
     {
@@ -227,9 +226,9 @@ TEST(ConnectionTest, FileUriPathIsValidated) {
 
     TempFile absent("uri_missing");
     std::filesystem::remove(absent.path, ec);
-    EXPECT_THROW(sqlite::connection fail("file:" + absent.path.string(),
-                                         sqlite::open_mode::open_existing),
-                 sqlite::database_exception);
+    EXPECT_THROW(
+        sqlite::connection fail("file:" + absent.path.string(), sqlite::open_mode::open_existing),
+        sqlite::database_exception);
 }
 
 TEST(ConnectionTest, AttachMemoryUri) {
@@ -266,4 +265,331 @@ TEST(ConnectionTest, AlwaysCreateRejectsDirectories) {
     std::filesystem::create_directories(dir);
     EXPECT_THROW(sqlite::connection conn(dir.string(), sqlite::open_mode::always_create),
                  sqlite::database_exception);
+}
+
+TEST(ConnectionTest, OpenFileFactoryCreatesAndReopens) {
+    TempFile file("factory_db");
+    {
+        auto conn = sqlite::connection::open_file(file.path);
+        sqlite::execute(conn, "CREATE TABLE factory_t(id INTEGER);", true);
+    }
+    EXPECT_TRUE(std::filesystem::exists(file.path));
+
+    {
+        auto conn =
+            sqlite::connection::open_file(file.path, {.mode = sqlite::open_mode::open_existing});
+        EXPECT_NO_THROW(sqlite::execute(conn, "SELECT COUNT(*) FROM factory_t;", true));
+    }
+
+    {
+        auto conn =
+            sqlite::connection::open_file(file.path, {.mode = sqlite::open_mode::open_readonly});
+        EXPECT_NO_THROW(sqlite::execute(conn, "SELECT COUNT(*) FROM factory_t;", true));
+        EXPECT_THROW(sqlite::execute(conn, "INSERT INTO factory_t VALUES (1);", true),
+                     sqlite::database_exception);
+    }
+
+    TempFile missing("factory_missing");
+    EXPECT_THROW(auto conn = sqlite::connection::open_file(
+                     missing.path, {.mode = sqlite::open_mode::open_existing}),
+                 sqlite::database_exception);
+}
+
+TEST(ConnectionTest, OpenFileFactoryAlwaysCreateRecreates) {
+    TempFile file("factory_recreate");
+    {
+        std::ofstream sentinel(file.path);
+        sentinel << "SENTINEL";
+    }
+    {
+        auto conn =
+            sqlite::connection::open_file(file.path, {.mode = sqlite::open_mode::always_create});
+        sqlite::execute(conn, "CREATE TABLE reset_check(id INTEGER);", true);
+    }
+    std::error_code ec;
+    EXPECT_GT(std::filesystem::file_size(file.path, ec), 8u);
+}
+
+TEST(ConnectionTest, OpenFileFactoryAlwaysCreateRejectsSymlinks) {
+#if defined(_WIN32)
+    GTEST_SKIP() << "Symbolic link creation not supported on this platform.";
+#endif
+    TempFile real("factory_always_real");
+    TempFile link_target("factory_link_target");
+    std::error_code ec;
+    std::filesystem::remove(real.path);
+    std::filesystem::create_symlink(link_target.path, real.path, ec);
+    ASSERT_FALSE(ec);
+    EXPECT_THROW(auto conn = sqlite::connection::open_file(
+                     real.path, {.mode = sqlite::open_mode::always_create}),
+                 sqlite::database_exception);
+    std::filesystem::remove(real.path, ec);
+}
+
+TEST(ConnectionTest, OpenFileFactoryRejectsSpecialNames) {
+    EXPECT_THROW(auto conn = sqlite::connection::open_file(":memory:"), sqlite::database_exception);
+    TempFile file("factory_uri_name");
+    EXPECT_THROW(auto conn = sqlite::connection::open_file("file:" + file.string()),
+                 sqlite::database_exception);
+    EXPECT_THROW(auto conn = sqlite::connection::open_file(""), sqlite::database_exception);
+}
+
+TEST(ConnectionTest, OpenMemoryFactoryCreatesNoFile) {
+    {
+        auto conn = sqlite::connection::open_memory();
+        sqlite::execute(conn, "CREATE TABLE mem(id INTEGER);", true);
+    }
+}
+
+TEST(ConnectionTest, NamedMemoryFactorySharesWithoutFile) {
+    static std::atomic<uint64_t> counter{0};
+    auto name = "factory_mem_" + std::to_string(counter++);
+    {
+        auto first = sqlite::connection::open_memory(name);
+        sqlite::execute(first, "CREATE TABLE mem(id INTEGER);", true);
+        sqlite::execute(first, "INSERT INTO mem VALUES (7);", true);
+        {
+            auto second = sqlite::connection::open_memory(name);
+            EXPECT_EQ(count_rows(second, "mem"), 1);
+            sqlite::execute(second, "INSERT INTO mem VALUES (8);", true);
+        }
+        EXPECT_EQ(count_rows(first, "mem"), 2);
+    }
+    // Neither the bare name nor anything derived from the URI may materialize.
+    std::error_code ec;
+    EXPECT_FALSE(std::filesystem::exists(name, ec));
+    EXPECT_FALSE(std::filesystem::exists(test_root() / name, ec));
+    EXPECT_FALSE(
+        std::filesystem::exists("file:" + std::string(name) + "?mode=memory&cache=shared", ec));
+    // The name is a pure key: no directory is ever inspected or created.
+    EXPECT_NO_THROW({
+        auto conn = sqlite::connection::open_memory("no_such_parent_dir/factory_mem");
+        sqlite::execute(conn, "CREATE TABLE mem(id INTEGER);", true);
+    });
+}
+
+TEST(ConnectionTest, OpenMemoryFactoryRejectsUnsupportedModes) {
+    EXPECT_THROW(auto conn = sqlite::connection::open_memory(""), sqlite::database_exception);
+    EXPECT_THROW(auto conn = sqlite::connection::open_memory(
+                     "x", {.mode = sqlite::open_mode::always_create}),
+                 sqlite::database_exception);
+    EXPECT_THROW(auto conn = sqlite::connection::open_memory(
+                     "x", {.mode = sqlite::open_mode::open_readonly}),
+                 sqlite::database_exception);
+}
+
+TEST(ConnectionTest, OpenUriFactoryOpensPercentEncodedPaths) {
+    auto dir = test_root() / "uri_factory_dir";
+    std::filesystem::create_directories(dir);
+    auto odd = dir / "enc ?#.db";
+    std::error_code ec;
+    std::filesystem::remove(odd, ec);
+    {
+        auto conn = sqlite::connection::open_file(odd);
+        sqlite::execute(conn, "CREATE TABLE uri_t(id INTEGER);", true);
+    }
+    // space -> %20, '?' -> %3F, '#' -> %23
+    std::string uri = "file:" + dir.string() + "/enc%20%3F%23.db";
+    {
+        auto conn = sqlite::connection::open_uri(uri);
+        EXPECT_NO_THROW(sqlite::execute(conn, "SELECT COUNT(*) FROM uri_t;", true));
+    }
+    {
+        auto conn = sqlite::connection::open_uri(uri, {.mode = sqlite::open_mode::open_readonly});
+        EXPECT_NO_THROW(sqlite::execute(conn, "SELECT COUNT(*) FROM uri_t;", true));
+        EXPECT_THROW(sqlite::execute(conn, "INSERT INTO uri_t VALUES (1);", true),
+                     sqlite::database_exception);
+    }
+    std::filesystem::remove(odd, ec);
+}
+
+TEST(ConnectionTest, OpenUriFactoryValidatesSchemeAndMode) {
+    EXPECT_THROW(auto conn = sqlite::connection::open_uri(""), sqlite::database_exception);
+    EXPECT_THROW(auto conn = sqlite::connection::open_uri("http://localhost/db"),
+                 sqlite::database_exception);
+    EXPECT_THROW(auto conn = sqlite::connection::open_uri("plain.db"), sqlite::database_exception);
+
+    TempFile file("uri_conflict");
+    {
+        auto conn = sqlite::connection::open_file(file.path);
+        sqlite::execute(conn, "CREATE TABLE uri_t(id INTEGER);", true);
+    }
+    auto base = "file:" + file.string();
+
+    // Contradictions are rejected before anything is opened:
+    EXPECT_THROW(auto conn = sqlite::connection::open_uri(
+                     base + "?mode=rw", {.mode = sqlite::open_mode::open_readonly}),
+                 sqlite::database_exception);
+    EXPECT_THROW(auto conn = sqlite::connection::open_uri(
+                     base + "?mode=ro", {.mode = sqlite::open_mode::open_or_create}),
+                 sqlite::database_exception);
+    EXPECT_THROW(auto conn = sqlite::connection::open_uri(
+                     base + "?mode=create", {.mode = sqlite::open_mode::open_existing}),
+                 sqlite::database_exception);
+    EXPECT_THROW(auto conn = sqlite::connection::open_uri(
+                     base + "?mode=memory", {.mode = sqlite::open_mode::open_readonly}),
+                 sqlite::database_exception);
+    // "%72o" percent-decodes to "ro", so it still contradicts open_or_create:
+    EXPECT_THROW(auto conn = sqlite::connection::open_uri(
+                     base + "?mode=%72o", {.mode = sqlite::open_mode::open_or_create}),
+                 sqlite::database_exception);
+
+    // Matching combinations open the database:
+    EXPECT_NO_THROW({
+        auto conn = sqlite::connection::open_uri(base + "?mode=rw",
+                                                 {.mode = sqlite::open_mode::open_existing});
+        sqlite::execute(conn, "SELECT COUNT(*) FROM uri_t;", true);
+    });
+    EXPECT_NO_THROW({
+        auto conn = sqlite::connection::open_uri(base + "?mode=ro",
+                                                 {.mode = sqlite::open_mode::open_readonly});
+        sqlite::execute(conn, "SELECT COUNT(*) FROM uri_t;", true);
+    });
+    // Without a mode parameter the wrapper options govern:
+    EXPECT_NO_THROW({
+        auto conn = sqlite::connection::open_uri(base, {.mode = sqlite::open_mode::open_readonly});
+        sqlite::execute(conn, "SELECT COUNT(*) FROM uri_t;", true);
+    });
+    // Unknown mode values are left to SQLite, which rejects them itself:
+    EXPECT_THROW(auto conn = sqlite::connection::open_uri(base + "?mode=bogus"),
+                 sqlite::database_exception);
+    // Destructive recreation is refused outright:
+    EXPECT_THROW(auto conn =
+                     sqlite::connection::open_uri(base, {.mode = sqlite::open_mode::always_create}),
+                 sqlite::database_exception);
+}
+
+TEST(ConnectionTest, NulBytesRejectedEverywhere) {
+    std::string nul_name = std::string("bad\0name", 8);
+    TempFile file("nul_guard");
+
+    EXPECT_THROW(sqlite::connection conn(nul_name), sqlite::database_exception);
+    EXPECT_THROW(sqlite::connection conn(nul_name, sqlite::open_mode::open_existing),
+                 sqlite::database_exception);
+    EXPECT_THROW(auto conn = sqlite::connection::open_file(std::filesystem::path(nul_name)),
+                 sqlite::database_exception);
+    EXPECT_THROW(auto conn = sqlite::connection::open_memory(nul_name), sqlite::database_exception);
+    EXPECT_THROW(auto conn = sqlite::connection::open_uri("file:" + nul_name),
+                 sqlite::database_exception);
+
+    sqlite::connection conn(file.string());
+    EXPECT_THROW(conn.attach(nul_name, "alias"), sqlite::database_exception);
+}
+
+TEST(ConnectionTest, MigrationDefaultConstructorMatchesOpenFile) {
+    TempFile legacy("migrate_default_legacy");
+    TempFile modern("migrate_default_modern");
+    {
+        sqlite::connection conn(legacy.string());
+        sqlite::execute(conn, "CREATE TABLE t(id INTEGER);", true);
+    }
+    {
+        auto conn = sqlite::connection::open_file(modern.path);
+        sqlite::execute(conn, "CREATE TABLE t(id INTEGER);", true);
+    }
+    EXPECT_TRUE(std::filesystem::exists(legacy.path));
+    EXPECT_TRUE(std::filesystem::exists(modern.path));
+}
+
+TEST(ConnectionTest, MigrationMemoryConstructorMatchesOpenMemory) {
+    sqlite::connection legacy(":memory:");
+    sqlite::execute(legacy, "CREATE TABLE t(id INTEGER);", true);
+    auto modern = sqlite::connection::open_memory();
+    sqlite::execute(modern, "CREATE TABLE t(id INTEGER);", true);
+}
+
+TEST(ConnectionTest, MigrationNamedMemoryUriMatchesOpenMemoryName) {
+    static std::atomic<uint64_t> counter{0};
+    auto name = "migrate_mem_" + std::to_string(counter++);
+    sqlite::connection legacy("file:" + name + "?mode=memory&cache=shared");
+    sqlite::execute(legacy, "CREATE TABLE t(id INTEGER);", true);
+    sqlite::execute(legacy, "INSERT INTO t VALUES (5);", true);
+    {
+        // Same shared in-memory database as the legacy URI constructor.
+        auto modern = sqlite::connection::open_memory(name);
+        EXPECT_EQ(count_rows(modern, "t"), 1);
+    }
+    std::error_code ec;
+    EXPECT_FALSE(std::filesystem::exists(name, ec));
+}
+
+TEST(ConnectionTest, MigrationFileUriConstructorMatchesOpenUri) {
+    TempFile file("migrate_uri");
+    std::string uri = "file:" + file.string();
+    {
+        sqlite::connection legacy(uri);
+        sqlite::execute(legacy, "CREATE TABLE t(id INTEGER);", true);
+    }
+    auto modern = sqlite::connection::open_uri(uri);
+    EXPECT_NO_THROW(sqlite::execute(modern, "SELECT COUNT(*) FROM t;", true));
+}
+
+TEST(ConnectionTest, MigrationOpenExistingConstructorMatchesOpenFile) {
+    TempFile legacy("migrate_existing_legacy");
+    TempFile modern("migrate_existing_modern");
+    {
+        sqlite::connection created(legacy.string());
+        sqlite::execute(created, "CREATE TABLE t(id INTEGER);", true);
+    }
+    {
+        auto created = sqlite::connection::open_file(modern.path);
+        sqlite::execute(created, "CREATE TABLE t(id INTEGER);", true);
+    }
+    EXPECT_NO_THROW({
+        sqlite::connection conn(legacy.string(), sqlite::open_mode::open_existing);
+        sqlite::execute(conn, "SELECT COUNT(*) FROM t;", true);
+    });
+    EXPECT_NO_THROW({
+        auto conn =
+            sqlite::connection::open_file(modern.path, {.mode = sqlite::open_mode::open_existing});
+        sqlite::execute(conn, "SELECT COUNT(*) FROM t;", true);
+    });
+}
+
+TEST(ConnectionTest, MigrationOpenReadonlyConstructorMatchesOpenFile) {
+    TempFile legacy("migrate_readonly_legacy");
+    TempFile modern("migrate_readonly_modern");
+    {
+        sqlite::connection created(legacy.string());
+        sqlite::execute(created, "CREATE TABLE t(id INTEGER);", true);
+    }
+    {
+        auto created = sqlite::connection::open_file(modern.path);
+        sqlite::execute(created, "CREATE TABLE t(id INTEGER);", true);
+    }
+    EXPECT_THROW(
+        {
+            sqlite::connection conn(legacy.string(), sqlite::open_mode::open_readonly);
+            sqlite::execute(conn, "INSERT INTO t VALUES (1);", true);
+        },
+        sqlite::database_exception);
+    EXPECT_THROW(
+        {
+            auto conn = sqlite::connection::open_file(legacy.path,
+                                                      {.mode = sqlite::open_mode::open_readonly});
+            sqlite::execute(conn, "INSERT INTO t VALUES (1);", true);
+        },
+        sqlite::database_exception);
+}
+
+TEST(ConnectionTest, MigrationAlwaysCreateConstructorMatchesOpenFile) {
+    TempFile legacy("migrate_always_legacy");
+    TempFile modern("migrate_always_modern");
+    {
+        sqlite::connection created(legacy.string());
+        sqlite::execute(created, "CREATE TABLE t(id INTEGER);", true);
+    }
+    {
+        auto created = sqlite::connection::open_file(modern.path);
+        sqlite::execute(created, "CREATE TABLE t(id INTEGER);", true);
+    }
+    {
+        sqlite::connection recreated(legacy.string(), sqlite::open_mode::always_create);
+        sqlite::execute(recreated, "CREATE TABLE fresh(id INTEGER);", true);
+    }
+    {
+        auto recreated =
+            sqlite::connection::open_file(modern.path, {.mode = sqlite::open_mode::always_create});
+        sqlite::execute(recreated, "CREATE TABLE fresh(id INTEGER);", true);
+    }
 }

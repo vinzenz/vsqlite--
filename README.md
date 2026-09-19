@@ -98,6 +98,96 @@ Release tags matching `v*` build and attach native Linux packages to the GitHub 
 
 The generated packages install the CMake package config, headers, documentation, and shared library under `/usr` and link against the distribution SQLite package.
 
+## Opening Databases: File, Memory, and URI
+
+`sqlite::connection` offers explicit factories so the database location category is known before
+validation runs, instead of being guessed from one string:
+
+```cpp
+#include <sqlite/connection.hpp>
+
+auto file      = sqlite::connection::open_file("app.db", {.mode = sqlite::open_mode::open_existing});
+auto temporary = sqlite::connection::open_memory();
+auto named     = sqlite::connection::open_memory("events"); // file:events?mode=memory&cache=shared
+auto uri       = sqlite::connection::open_uri("file:data/app.sqlite?mode=rw");
+```
+
+`sqlite::open_options` bundles the request: `mode` (an `sqlite::open_mode`, default
+`open_or_create`) and `nofollow` (default `false`).
+
+### What each entry point validates
+
+- `open_file(path, options)` treats the name as a literal filename, never as a URI. Names starting
+  with `file:` and the special name `:memory:` are rejected with a pointer to the fitting factory.
+  The filesystem-adapter checks apply: the immediate parent directory must be a real directory, and
+  an existing target must be a regular file and no symlink.
+- `open_memory()` / `open_memory(name, options)` never checks, creates, or deletes anything on
+  disk. The name is a pure logical key (reserved characters are percent-encoded automatically) and
+  may look like a path under a directory that does not exist. Only `open_or_create` is accepted.
+- `open_uri(uri, options)` passes `SQLITE_OPEN_URI` semantics to SQLite, which owns the URI
+  interpretation: percent decoding, query parameters, and `vfs=` VFS selection. The wrapper rejects
+  only what it can decide correctly: embedded NUL bytes, empty URIs, non-`file:` schemes,
+  `open_mode::always_create`, and contradictory modes (below). No filesystem checks run here, so
+  locations served by custom SQLite VFS implementations are not rejected by `std::filesystem`
+  assumptions.
+
+Every entry point — including the string constructors and `attach()` — rejects database names
+containing embedded NUL bytes, which would otherwise be silently truncated.
+
+### Destructive creation is file-only
+
+`open_mode::always_create` deletes an existing database before recreating it and is accepted by
+`open_file()` alone; `open_memory()` and `open_uri()` reject it before opening anything. Recreating
+removes the main database file only: sidecar files (`-journal`, `-wal`, `-shm`) are left behind, and
+databases held open by other connections keep running on the unlinked inode (POSIX semantics).
+
+### URI modes versus wrapper options
+
+When a URI carries an explicit `mode=` parameter and the wrapper options would map onto different
+SQLite open flags, the call is rejected before anything is opened. The mapping is `mode=ro` with
+`open_mode::open_readonly`, `mode=rw` with `open_mode::open_existing`, and `mode=create` or
+`mode=memory` with `open_mode::open_or_create`. Unknown mode values (for example `mode=bogus`) are
+left to SQLite, which rejects them while opening. Without a `mode=` parameter the wrapper options
+govern on their own.
+
+### Symlink policy scope
+
+Symlink handling spans two mechanisms with different reach:
+
+- Pre-open checks (via the filesystem adapter, using `symlink_status` semantics): the immediate
+  parent directory and the database file entry itself are inspected, and symlinks are rejected.
+  Symlinked components deeper inside the parent path are followed by the operating system and are
+  not detected.
+- `SQLITE_OPEN_NOFOLLOW` at open time: SQLite's VFS refuses to open the database file itself when
+  it is a symlink. Enable it build-wide with `VSQLITE_ALLOW_FOLLOW_SYMLINKS=OFF` or per call with
+  `open_options::nofollow` (which only strengthens the build-wide setting). It covers only the
+  final path component.
+
+A path can change between the pre-open check and the actual open (TOCTOU); the wrapper does not
+claim to close that window — `SQLITE_OPEN_NOFOLLOW` narrows it for the final component only.
+
+### Validation versus VFS boundary
+
+The `filesystem_adapter` is a validation hook that runs before `open_file()` and the string
+constructors open a disk-backed name; it does not replace the filesystem SQLite talks to. SQLite's
+own VFS performs the real I/O. Locations that only exist for a custom VFS therefore belong to
+`open_uri()`, where no `std::filesystem` checks would reject them.
+
+### Migration table for the string constructors
+
+| Legacy constructor | Recommended factory |
+| --- | --- |
+| `connection("app.db")` | `connection::open_file("app.db")` |
+| `connection(":memory:")` | `connection::open_memory()` |
+| `connection("file:events?mode=memory&cache=shared")` | `connection::open_memory("events")` |
+| `connection("file:…")` (any other URI) | `connection::open_uri("file:…")` |
+| `connection("app.db", open_mode::open_existing)` | `connection::open_file("app.db", {.mode = open_mode::open_existing})` |
+| `connection("app.db", open_mode::open_readonly)` | `connection::open_file("app.db", {.mode = open_mode::open_readonly})` |
+| `connection("app.db", open_mode::always_create)` | `connection::open_file("app.db", {.mode = open_mode::always_create})` |
+
+The string constructors stay available: they classify the argument (`":memory:"`, `"file:"` URI, or
+literal filename) and route it to the same internal open paths as the factories.
+
 ## Threading & Pooling
 
 Configure SQLite's global threading mode before opening connections:

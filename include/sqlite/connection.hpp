@@ -32,6 +32,7 @@
 #ifndef GUARD_SQLITE_CONNECTION_HPP_INCLUDED
 #define GUARD_SQLITE_CONNECTION_HPP_INCLUDED
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <sqlite/filesystem_adapter.hpp>
@@ -43,6 +44,9 @@
  *
  * The `sqlite::connection` type encapsulates opening/closing databases, attaches additional files,
  * surfaces `sqlite3_last_insert_rowid`, and exposes the statement cache used by higher-level APIs.
+ * Databases are opened through the explicit factories `open_file()`, `open_memory()`, and
+ * `open_uri()`, or through the string constructors, which classify their argument and route it to
+ * the same internal open paths.
  */
 struct sqlite3;
 
@@ -55,6 +59,15 @@ inline namespace v2 {
         always_create   ///< Deletes any existing database file and recreates it
     };
 
+    /// Options for the explicit database factories (open_file, open_memory, open_uri).
+    struct open_options {
+        open_mode mode = open_mode::open_or_create; ///< How to behave when opening the database
+        bool nofollow  = false; ///< Add SQLITE_OPEN_NOFOLLOW so SQLite itself refuses a
+                                ///< symlinked database file at open time. The option only
+                                ///< strengthens the build-wide VSQLITE_ALLOW_FOLLOW_SYMLINKS
+                                ///< setting; it never weakens it. Ignored by open_memory.
+    };
+
     /** \brief connection is used to open, close, attach and detach a database.
      * Further it has to be passed to all classes since it represents the
      * connection to the database and contains the internal needed handle, so
@@ -64,6 +77,29 @@ inline namespace v2 {
      * (see https://www.sqlite.org/uri.html), e.g.
      * "file:name?mode=memory&cache=shared" opens a shared in-memory database.
      * Any other name is used as a literal filename.
+     *
+     * Explicit factories make the location category known before validation
+     * runs. open_file() accepts an ordinary filename, applies the
+     * filesystem-adapter validation described below, and is the only entry
+     * point that accepts open_mode::always_create. open_memory() opens an
+     * in-memory database and never checks, creates, or deletes anything on
+     * disk. open_uri() passes SQLITE_OPEN_URI semantics to SQLite and performs
+     * no filesystem checks of its own, so locations handled by custom SQLite
+     * VFS implementations keep working there.
+     *
+     * Every entry point, including the string constructors and attach(),
+     * rejects database names containing embedded NUL bytes.
+     *
+     * Symlink policy scope: the pre-open checks inspect the immediate parent
+     * directory and the database file entry itself (lstat semantics through
+     * the filesystem adapter) and reject symlinks. Symlinked components
+     * deeper inside the parent path are followed by the operating system and
+     * are not inspected. SQLITE_OPEN_NOFOLLOW (build-wide through
+     * VSQLITE_ALLOW_FOLLOW_SYMLINKS=OFF, per call through
+     * open_options::nofollow) makes SQLite's VFS refuse a symlinked database
+     * file at open time; it covers only the final path component. A path can
+     * change between validation and open (TOCTOU); the wrapper does not close
+     * that window.
      *
      * An object of this class is not copyable
      */
@@ -94,6 +130,69 @@ inline namespace v2 {
          */
         connection(std::string const &db, sqlite::open_mode open_mode);
         connection(std::string const &db, sqlite::open_mode open_mode, filesystem_adapter_ptr fs);
+
+        /*  Migration table - each legacy constructor maps to one explicit factory:
+         *
+         *    connection("app.db")                            -> open_file("app.db")
+         *    connection(":memory:")                          -> open_memory()
+         *    connection("file:name?mode=memory&cache=shared")-> open_memory("name")
+         *    connection("file:...")   other "file:" URIs     -> open_uri("file:...")
+         *    connection("app.db", open_mode::X)              -> open_file("app.db", {.mode = X})
+         *
+         *  The string constructors classify their argument and route it to the
+         *  same internal open paths, so both spellings behave alike.
+         */
+
+        /** \brief opens an ordinary database file; the name is never URI-interpreted
+         * \param path filesystem path of the database file
+         * \param options open mode and per-call symlink policy
+         *
+         * File-specific validation runs before opening: the immediate parent
+         * directory must be a real directory, and an existing target must be a
+         * regular file and no symlink. Names starting with "file:" and the
+         * special name ":memory:" are rejected because SQLite would not treat
+         * them as ordinary filenames; use open_uri() or open_memory() there.
+         *
+         * This is the only factory that accepts open_mode::always_create.
+         * Recreating removes the main database file only; sidecar files
+         * (-journal, -wal, -shm) and databases held open by other connections
+         * are left alone (POSIX unlink semantics apply there).
+         */
+        static connection open_file(std::filesystem::path const &path, open_options options = {});
+
+        /** \brief opens a private anonymous in-memory database
+         *
+         * The filesystem is never checked, created, or deleted.
+         */
+        static connection open_memory();
+
+        /** \brief opens a named in-memory database shared between open connections
+         * \param name logical name of the shared in-memory database; reserved URI
+         *             characters are percent-encoded automatically
+         * \param options only open_mode::open_or_create is accepted here
+         *
+         * The name is a pure key: the filesystem is never checked, created, or
+         * deleted, so names that look like paths under missing directories are
+         * fine. While at least one connection to the same name stays open, all
+         * connections see the same database.
+         */
+        static connection open_memory(std::string const &name, open_options options = {});
+
+        /** \brief opens a database through a SQLite "file:" URI
+         * \param uri the URI, e.g. "file:events?mode=memory&cache=shared"
+         * \param options open mode and per-call symlink policy
+         *
+         * SQLITE_OPEN_URI is passed to SQLite, which owns the URI
+         * interpretation (percent decoding, query parameters, vfs= selection).
+         * The wrapper only rejects what it can decide correctly: embedded NUL
+         * bytes, empty URIs, non-"file:" schemes, open_mode::always_create,
+         * and a mode parameter that contradicts \p options (mode=ro pairs
+         * with open_mode::open_readonly, mode=rw with open_mode::open_existing,
+         * mode=create and mode=memory with open_mode::open_or_create; unknown
+         * mode values are left to SQLite). No filesystem checks run here, so
+         * locations served by custom VFS implementations are not rejected.
+         */
+        static connection open_uri(std::string const &uri, open_options options = {});
 
         /** \brief destructor closes the database automatically
          *
@@ -137,6 +236,7 @@ inline namespace v2 {
         void open(std::string const &db);
         void open(std::string const &db, bool readonly);
         void open(std::string const &db, sqlite::open_mode open_mode);
+        explicit connection(std::string const &db, int flags, filesystem_adapter_ptr fs);
         void close();
         void access_check();
         void open_with_flags(std::string const &db, int flags);
