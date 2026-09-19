@@ -9,7 +9,7 @@ inline namespace v2 {
     struct connection_pool::pool_state {
         connection_factory factory;
         std::size_t capacity = 0;
-        std::size_t created = 0;
+        std::size_t created  = 0;
         mutable std::mutex mutex;
         std::condition_variable cv;
         std::vector<std::shared_ptr<connection>> idle;
@@ -106,7 +106,7 @@ inline namespace v2 {
     connection_pool::lease connection_pool::acquire() {
         std::shared_ptr<connection> conn;
         bool needs_creation = false;
-        auto state = state_;
+        auto state          = state_;
 
         {
             std::unique_lock<std::mutex> lock(state->mutex);
