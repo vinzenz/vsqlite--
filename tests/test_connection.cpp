@@ -4,6 +4,7 @@
 #include <sqlite/connection.hpp>
 #include <sqlite/database_exception.hpp>
 #include <sqlite/execute.hpp>
+#include <sqlite/private/private_accessor.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -266,4 +267,17 @@ TEST(ConnectionTest, AlwaysCreateRejectsDirectories) {
     std::filesystem::create_directories(dir);
     EXPECT_THROW(sqlite::connection conn(dir.string(), sqlite::open_mode::always_create),
                  sqlite::database_exception);
+}
+
+TEST(ConnectionTest, RepeatedCloseIsHarmless) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE close_check(id INTEGER);", true);
+    EXPECT_NO_THROW(sqlite::private_accessor::close(conn));
+    // The native handle was consumed by the first close call, so closing
+    // again is a no-op instead of an error.
+    EXPECT_NO_THROW(sqlite::private_accessor::close(conn));
+    // Genuinely invalid use of the closed connection still throws.
+    EXPECT_THROW(sqlite::execute(conn, "SELECT 1;", true), sqlite::database_exception);
+    EXPECT_THROW(conn.get_last_insert_rowid(), sqlite::database_exception);
+    // Destruction after the explicit close calls must not throw either.
 }

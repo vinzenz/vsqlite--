@@ -386,7 +386,11 @@ inline namespace v2 {
     }
 
     void connection::close() {
-        access_check();
+        // Closing an already closed connection is a harmless no-op: the
+        // native handle was consumed by the first close call. A failed close
+        // keeps the handle, so a retry reports the error again.
+        if (!handle)
+            return;
         cache_.clear(handle);
         int err = sqlite3_close(handle);
         if (err != SQLITE_OK)

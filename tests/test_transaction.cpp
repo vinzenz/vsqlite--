@@ -108,6 +108,26 @@ TEST(TransactionTest, ExplicitReleaseStillReportsFailure) {
     EXPECT_THROW(sp.release(), std::exception);
 }
 
+TEST(TransactionTest, RepeatedSavepointReleaseIsHarmless) {
+    sqlite::connection conn(":memory:");
+    sqlite::execute(conn, "CREATE TABLE items(id INTEGER PRIMARY KEY, value TEXT);", true);
+    {
+        sqlite::transaction txn(conn, sqlite::transaction_type::immediate);
+        sqlite::savepoint sp(conn, "sp_repeat_release");
+        insert_value(conn, "kept");
+        sp.release();
+        // The savepoint scope was consumed by the first release call, so
+        // releasing again is a no-op instead of an error.
+        EXPECT_NO_THROW(sp.release());
+        EXPECT_FALSE(sp.isActive());
+        // Operating on the released savepoint is still genuinely invalid.
+        EXPECT_THROW(sp.rollback(), sqlite::database_exception);
+        // The guard must not end the outer transaction on destruction.
+        txn.commit();
+    }
+    EXPECT_EQ(count_rows(conn, "items"), 1);
+}
+
 TEST(TransactionTest, GuardsAreNotCopyableOrMovable) {
     // Copying a guard would duplicate responsibility for a single SQL scope:
     // destroying the copy would end the original's transaction or savepoint.
