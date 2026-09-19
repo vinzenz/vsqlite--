@@ -311,8 +311,24 @@ inline namespace v2 {
             }
         };
 
+        /// SQLite turns a null data pointer into SQL NULL, whatever the length says.
+        /// Empty text and blob results must therefore pass a non-null dummy pointer with
+        /// length zero, as the bind overloads of \a command already do.
+        template <typename T>
+        inline T const *result_data_or_empty(T const *data, std::size_t size) {
+            static constexpr T kEmpty{0};
+            return size == 0 ? &kEmpty : data;
+        }
+
         inline void result_text(sqlite3_context *ctx, std::string_view view) {
-            sqlite3_result_text(ctx, view.data(), static_cast<int>(view.size()), SQLITE_TRANSIENT);
+            sqlite3_result_text(ctx, result_data_or_empty(view.data(), view.size()),
+                                static_cast<int>(view.size()), SQLITE_TRANSIENT);
+        }
+
+        template <typename T>
+        inline void result_blob(sqlite3_context *ctx, T const *data, std::size_t size) {
+            sqlite3_result_blob(ctx, result_data_or_empty(data, size), static_cast<int>(size),
+                                SQLITE_TRANSIENT);
         }
 
         template <> struct result_writer<std::string_view> {
@@ -332,15 +348,13 @@ inline namespace v2 {
 
         template <> struct result_writer<std::span<const unsigned char>> {
             static void apply(sqlite3_context *ctx, std::span<const unsigned char> value) {
-                sqlite3_result_blob(ctx, value.data(), static_cast<int>(value.size()),
-                                    SQLITE_TRANSIENT);
+                result_blob(ctx, value.data(), value.size());
             }
         };
 
         template <> struct result_writer<std::span<const std::byte>> {
             static void apply(sqlite3_context *ctx, std::span<const std::byte> value) {
-                auto ptr = reinterpret_cast<unsigned char const *>(value.data());
-                sqlite3_result_blob(ctx, ptr, static_cast<int>(value.size()), SQLITE_TRANSIENT);
+                result_blob(ctx, value.data(), value.size());
             }
         };
 
@@ -349,8 +363,7 @@ inline namespace v2 {
                      std::is_same_v<decay_t<Vector>, std::vector<std::byte>>)
         struct result_writer<Vector> {
             static void apply(sqlite3_context *ctx, Vector const &value) {
-                sqlite3_result_blob(ctx, reinterpret_cast<unsigned char const *>(value.data()),
-                                    static_cast<int>(value.size()), SQLITE_TRANSIENT);
+                result_blob(ctx, value.data(), value.size());
             }
         };
 
