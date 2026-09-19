@@ -59,17 +59,59 @@ bool needs_quoted_key(std::string_view key) {
                        [](unsigned char c) { return !(std::isalnum(c) || c == '_'); });
 }
 
+// Escapes a key for use inside a quoted JSON path segment (."key").
+//
+// SQLite scans a quoted segment with JSON string rules: a backslash starts an
+// escape sequence and the first unescaped double quote ends the segment. The
+// key is therefore escaped with the JSON rules SQLite accepts: backslash and
+// double quote become '\\' and '\", and C0 control characters (U+0000..U+001F)
+// become '\\u00XX'. The escape form is used for control characters because a
+// raw NUL byte would truncate the path, which SQLite parses as a NUL
+// terminated string. All other bytes, including multi-byte UTF-8, pass
+// through unchanged.
 std::string quote_key(std::string_view key) {
+    static constexpr char hex[] = "0123456789abcdef";
     std::string out;
     out.reserve(key.size() + 2);
     out.push_back('"');
-    for (char c : key) {
-        if (c == '"') {
-            out.push_back('"');
+    for (unsigned char c : key) {
+        switch (c) {
+        case '"':
+            out.append("\\\"");
+            break;
+        case '\\':
+            out.append("\\\\");
+            break;
+        default:
+            if (c < 0x20) {
+                out.append("\\u00");
+                out.push_back(hex[c >> 4]);
+                out.push_back(hex[c & 0x0f]);
+            } else {
+                out.push_back(static_cast<char>(c));
+            }
+            break;
+        }
+    }
+    out.push_back('"');
+    return out;
+}
+
+// Escapes text for embedding inside a SQL single-quoted string literal, where
+// an apostrophe is written twice ('').
+//
+// This rule is deliberately separate from quote_key() above: building a valid
+// JSON path (JSON escaping) and splicing that path into SQL text (SQL literal
+// escaping) are two independent problems.
+std::string sql_string_literal(std::string_view text) {
+    std::string out;
+    out.reserve(text.size());
+    for (char c : text) {
+        if (c == '\'') {
+            out.push_back('\'');
         }
         out.push_back(c);
     }
-    out.push_back('"');
     return out;
 }
 
@@ -184,7 +226,7 @@ inline namespace v2 {
             std::string sql("json_extract(");
             sql.append(json_expr);
             sql.append(", '");
-            sql.append(path.str());
+            sql.append(sql_string_literal(path.str()));
             sql.append("')");
             return sql;
         }
@@ -194,7 +236,7 @@ inline namespace v2 {
             std::string sql("json_extract(");
             sql.append(json_expr);
             sql.append(", '");
-            sql.append(path.str());
+            sql.append(sql_string_literal(path.str()));
             sql.append("') = ");
             sql.append(value_expr);
             return sql;
