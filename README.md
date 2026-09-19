@@ -227,6 +227,12 @@ cmd.step_once();
 cases where a connection has to cross an API boundary. If that alias outlives the pool, the
 connection is closed normally instead of being returned to a destroyed pool.
 
+A leased connection returns to the pool only after the lease object, every `shared()` alias, and
+every statement or result created from it are destroyed: statements retain the lease internally, so
+a live cursor keeps its connection out of the pool even when the lease object itself is already
+gone. A pool that is exhausted in this state blocks in `acquire()` (or creates another connection
+while below its capacity) instead of handing the same connection to a second borrower.
+
 ## User-Defined SQL Functions
 
 Register portable SQL functions directly from C++ lambdas via `sqlite::create_function` (from `#include <sqlite/function.hpp>`). Arguments map to lambda parameters (including `std::optional<T>` for nullable inputs) while return values are written back automatically:
@@ -282,9 +288,15 @@ and clears all previous bindings. Use `reset_statement()` only when you intentio
 existing bindings for another execution.
 
 `query::get_result()` returns a cursor that keeps the prepared statement alive even if the `query`
-object is destroyed first. The owning `sqlite::connection` must still outlive active commands and
-results. `result::get_column_decltype()` mirrors SQLite and returns an empty string for computed
-expressions or other columns where SQLite reports no declared type.
+object is destroyed first. The result also retains the connection's shared internal state, so it
+may outlive the `sqlite::connection` object itself: destroying the facade defers the native cleanup
+until the last active result or cursor is destroyed, and an already created cursor keeps reading
+correct data. `command` and `query` objects still borrow the connection, so finish those before
+destroying the facade. An explicit `close()` behaves the opposite way: it rejects the call with an
+error naming the number of statements still in use, and succeeds once they are gone (destroying the
+facade never rejects). Rows and row views still borrow from their cursor; only materialized rows
+own their values. `result::get_column_decltype()` mirrors SQLite and returns an empty string for
+computed expressions or other columns where SQLite reports no declared type.
 
 ## Optional SQLite Capabilities & Error Reporting
 

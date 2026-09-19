@@ -55,6 +55,7 @@ struct sqlite3;
 namespace sqlite {
 inline namespace v2 {
     struct prepared_statement;
+    struct connection_state;
 
     enum class open_mode {
         open_readonly,  ///< Opens an existing database for reads only or fails
@@ -104,6 +105,16 @@ inline namespace v2 {
      * file at open time; it covers only the final path component. A path can
      * change between validation and open (TOCTOU); the wrapper does not close
      * that window.
+     *
+     * Lifetime and cleanup: the facade shares its internal state with every
+     * active statement and result. Destroying the facade defers the native
+     * cleanup until the last dependent statement or result is destroyed, so
+     * an already created cursor keeps working even though new use through the
+     * destroyed facade is no longer possible. An explicit close() behaves the
+     * other way round: it rejects the call with a busy error while statements
+     * are still in use (naming how many), and closes the connection as
+     * before when none are. close() stays idempotent and reports a failed
+     * close again on retry.
      *
      * An object of this class is not copyable
      */
@@ -280,6 +291,11 @@ inline namespace v2 {
          * Closing an already closed connection is a harmless no-op, since
          * the native handle was consumed by the first close call. A failed
          * close keeps the handle and reports its error again on retry.
+         *
+         * Unlike facade destruction, which defers the native cleanup while
+         * statements or results are still active, close() rejects the call
+         * with a database_exception naming the number of statements still
+         * in use. Once they are gone, a retry closes the connection.
          */
         void close();
         void access_check();
@@ -288,9 +304,7 @@ inline namespace v2 {
         void release_cached_statement(std::string const &sql, sqlite3_stmt *stmt) noexcept;
 
     private:
-        sqlite3 *handle;
-        filesystem_adapter_ptr filesystem;
-        statement_cache cache_;
+        std::shared_ptr<connection_state> state_;
     };
 } // namespace v2
 } // namespace sqlite

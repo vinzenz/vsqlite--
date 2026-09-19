@@ -98,6 +98,7 @@ target_sources(vsqlitepp
     src/sqlite/backup.cpp
     src/sqlite/command.cpp
     src/sqlite/connection.cpp
+    src/sqlite/connection_state.cpp
     src/sqlite/execute.cpp
   src/sqlite/function.cpp
   src/sqlite/query.cpp
@@ -343,6 +344,7 @@ if(VSQLITE_BUILD_TESTS)
     tests/test_command_query.cpp
     tests/test_common.hpp
     tests/test_connection.cpp
+    tests/test_connection_lifetime.cpp
     tests/test_connection_thread_safety.cpp
     tests/test_connection_pool.cpp
     tests/test_conversions.cpp

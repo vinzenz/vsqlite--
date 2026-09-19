@@ -150,10 +150,20 @@ Row access uses the same types as `sqlite::query` (`sqlite::query::result_range`
 `connection::prepare()` participates in the connection's LRU statement cache exactly like
 `sqlite::command`: a cached `sqlite3_stmt` for identical SQL text is reused when one is
 available, schema-changing statements bypass and clear the cache, and the statement is
-handed back when the `prepared_statement` object is destroyed. The owning
-`sqlite::connection` must outlive the statement and every cursor created from it, the
-same rule the legacy classes follow. `prepared_statement` and `cursor` are move-only;
-`prepare()` returns the statement by value.
+handed back when the `prepared_statement` object is destroyed.
+
+`prepared_statement` and `cursor` are move-only; `prepare()` returns the statement by
+value. A cursor retains the connection's shared internal state, so it may outlive both
+the `prepared_statement` object and the `sqlite::connection` facade: destroying the
+facade defers the native cleanup until the last cursor or result is destroyed, and an
+already created cursor keeps reading correct data. The `prepared_statement` object
+itself still borrows the connection, so destroy or stop using it before the facade.
+An explicit `close()` of the connection behaves the opposite way: it rejects with an
+error naming the number of statements still in use while a statement or cursor is
+live, and succeeds once they are gone; destroying the facade never rejects. Rows and
+row views still borrow from their cursor; use the owning `row` snapshot when values
+must outlive the iteration. A connection leased from a pool returns to the pool only
+after the lease and every cursor or statement created from it are destroyed.
 
 ## Migration from command, query, and execute
 

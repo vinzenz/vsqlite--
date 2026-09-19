@@ -191,8 +191,11 @@ inline namespace v2 {
     /** \brief A prepared statement with an explicit execution state.
      *
      * Create instances through \ref connection::prepare. The class is move-only; the moved-from
-     * object must not be used. The owning \ref connection must outlive the statement and every
-     * cursor created from it, the same lifetime rule \ref command and \ref query follow.
+     * object must not be used. The statement object itself borrows the \ref connection, like
+     * \ref command and \ref query. A \ref cursor returned by rows() additionally retains the
+     * connection's shared state, so it may outlive both this statement and the connection
+     * facade: destroying the facade defers the native cleanup until the last cursor is
+     * destroyed. Rows and row views still borrow from their cursor.
      */
     struct prepared_statement {
         /** \brief Runs the statement with the manually bound values (advanced mode).
@@ -303,7 +306,8 @@ inline namespace v2 {
         prepared_statement(prepared_statement const &)            = delete;
         prepared_statement &operator=(prepared_statement const &) = delete;
         prepared_statement(prepared_statement &&) noexcept;
-        prepared_statement &operator=(prepared_statement &&) noexcept;
+        /// Not noexcept: assignment across different connections throws.
+        prepared_statement &operator=(prepared_statement &&);
         ~prepared_statement();
 
     private:
