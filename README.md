@@ -241,4 +241,16 @@ conn.configure_statement_cache({.capacity = 64, .enabled = true});
 // subsequent sqlite::command/sqlite::query objects will reuse cached sqlite3_stmt*
 ```
 
-Cached statements reset/clear bindings on checkout, and the cache is cleared whenever the connection closes or you reconfigure it.
+Cached statements are reset and cleared of bound values when they return to the cache, so an idle statement never keeps a read lock open, holds on to previous parameter values, or reports active through `sqlite3_stmt_busy()`. Statements that cannot be retained (cache disabled, duplicate SQL text, a failed `sqlite3_reset`, or failed cache bookkeeping) are finalized instead of stored.
+
+Returning a statement is a `noexcept` operation, because it runs while the last owner of a statement is destroyed. A `sqlite3_reset` error reported for the statement's last evaluation is therefore never thrown out of destruction; it is delivered to an error hook instead:
+
+```cpp
+conn.set_statement_cache_error_hook([](std::string const &message) {
+    std::cerr << "statement cache: " << message << '\n';
+});
+```
+
+The hook receives the reset error text, is invoked without the cache lock held, and must not throw (an exception escaping it is ignored). Without a hook, reset failures are written to `std::cerr` in debug builds and ignored otherwise.
+
+Reconfiguring the cache with `configure_statement_cache()` (or closing the connection) finalizes idle entries immediately. A statement that is checked out while the cache is reconfigured may re-enter the new configuration when it is returned; if the new configuration has caching disabled, it is finalized on return. VSQLite++ deliberately keeps no generation tracking for statements prepared under an older configuration: the cache keys entries by SQL text only, capacity and enabled state do not change what a prepared statement means, and nothing consumes such a distinction, while schema invalidation is already handled by SQLite's `sqlite3_prepare_v2` automatic recompile behavior.
