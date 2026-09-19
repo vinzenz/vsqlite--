@@ -137,6 +137,13 @@ inline namespace v2 {
         void open(std::string const &db);
         void open(std::string const &db, bool readonly);
         void open(std::string const &db, sqlite::open_mode open_mode);
+
+        /** \brief closes the database handle
+         *
+         * Closing an already closed connection is a harmless no-op, since
+         * the native handle was consumed by the first close call. A failed
+         * close keeps the handle and reports its error again on retry.
+         */
         void close();
         void access_check();
         void open_with_flags(std::string const &db, int flags);

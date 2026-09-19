@@ -1,0 +1,74 @@
+{
+  "version": 9,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 31,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "asan",
+      "displayName": "ASan + UBSan",
+      "description": "Debug build with AddressSanitizer and UndefinedBehaviorSanitizer to cover native ownership regressions (callback registration, deserialization, backup finalization, nested scope cleanup).",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/asan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined",
+        "VSQLITE_BUNDLED_SQLITE": "ON",
+        "VSQLITE_BUILD_TESTS": "ON",
+        "VSQLITE_BUILD_EXAMPLES": "OFF"
+      }
+    },
+    {
+      "name": "tsan",
+      "displayName": "TSan",
+      "description": "Debug build with ThreadSanitizer for data race detection; not combinable with ASan/UBSan, so it is tracked separately.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/tsan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=thread",
+        "VSQLITE_BUNDLED_SQLITE": "ON",
+        "VSQLITE_BUILD_TESTS": "ON",
+        "VSQLITE_BUILD_EXAMPLES": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "asan",
+      "displayName": "ASan + UBSan",
+      "configurePreset": "asan"
+    },
+    {
+      "name": "tsan",
+      "displayName": "TSan",
+      "configurePreset": "tsan"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "asan",
+      "displayName": "ASan + UBSan",
+      "configurePreset": "asan",
+      "output": {
+        "outputOnFailure": true
+      },
+      "environment": {
+        "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1",
+        "UBSAN_OPTIONS": "halt_on_error=1"
+      }
+    },
+    {
+      "name": "tsan",
+      "displayName": "TSan",
+      "configurePreset": "tsan",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

@@ -35,7 +35,9 @@ TEST(BackupTest, StepAfterFinishThrows) {
     sqlite::backup job(dst, src);
     job.finish();
     EXPECT_THROW(job.step(), sqlite::database_exception);
-    job.finish();
+    // The backup handle was consumed by the first finish call, so finishing
+    // again is a no-op instead of an error.
+    EXPECT_NO_THROW(job.finish());
 }
 
 namespace {
@@ -69,7 +71,7 @@ TEST(BackupTest, FailedBackupFinishThenDestructionDoesNotCrash) {
     // The backup handle is released by the first finish() call even though it
     // reported an error: repeated calls and the upcoming destruction must not
     // operate on the released handle anymore.
-    job.finish();
+    EXPECT_NO_THROW(job.finish());
 }
 
 TEST(BackupTest, DestructorFinishesFailedBackupWithoutExplicitFinish) {

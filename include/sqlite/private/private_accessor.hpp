@@ -46,6 +46,9 @@ inline namespace v2 {
         static void acccess_check(connection &m_con) {
             m_con.access_check();
         }
+        static void close(connection &m_con) {
+            m_con.close();
+        }
         static sqlite3_stmt *acquire_cached_statement(connection &con, std::string const &sql) {
             return con.acquire_cached_statement(sql);
         }
