@@ -90,13 +90,22 @@ target_link_libraries(my_app PRIVATE vsqlite::vsqlitepp)
 
 ## Release Packages
 
-Release tags matching `v*` build and attach native Linux packages to the GitHub release:
+Release tags matching `v*` build and attach native Linux packages to the GitHub release. Each package format is built inside the distribution it targets:
 
-- Debian packages via CPack's DEB generator.
-- RPM packages via CPack's RPM generator.
-- Arch Linux pacman packages from `packaging/arch/PKGBUILD`.
+- DEB packages via CPack's DEB generator on Ubuntu 24.04 (`amd64`).
+- RPM packages via CPack's RPM generator inside a Fedora 43 container (`x86_64`).
+- Arch Linux pacman packages from `packaging/arch/PKGBUILD` in an `archlinux:base-devel` container (`x86_64`).
 
-The generated packages install the CMake package config, headers, documentation, and shared library under `/usr` and link against the distribution SQLite package.
+The RPM is no longer produced on Ubuntu: building it with Fedora's own `rpmbuild` yields target-native install paths (`/usr/lib64`) and dependency names. Its release is dist-tagged (for example `vsqlitepp-0.4.2-1.fc43.x86_64.rpm`) and declares `sqlite-libs` as the runtime dependency, the Fedora package that owns `libsqlite3.so.0`. The automatically generated soname requirements cover the technical dependency; the explicit name documents the intended runtime package.
+
+All packages install under `/usr` and combine runtime and development files in a single package: the `libvsqlitepp` shared library, the public headers, the `vsqlite::vsqlitepp` CMake package config, and documentation. There is no separate runtime/dev split.
+
+Native packages always link against the distribution's external SQLite package (`libsqlite3-0` on Debian and Ubuntu, `sqlite-libs` on Fedora, `sqlite` on Arch) and never ship SQLite themselves. `VSQLITE_BUNDLED_SQLITE=ON` is a source-build option only (plain CMake, FetchContent, CPM.cmake, vcpkg): it installs a private static SQLite archive and headers next to VSQLite++ so such consumers do not depend on a system SQLite.
+
+Before anything is published:
+
+- The DEB artifact is installed with `apt` in a clean `ubuntu:24.04` container so its dependency metadata is resolved, its installed file and dependency lists are printed, a consumer is compiled against the installed development files, the build tree is removed, and the consumer runs against the installed shared library.
+- The publish job uploads the artifacts, re-lists the release assets, and fails when an expected asset is missing or has a size of zero.
 
 ## Threading & Pooling
 

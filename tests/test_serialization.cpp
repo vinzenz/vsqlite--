@@ -8,9 +8,7 @@
 using namespace testhelpers;
 
 TEST(SerializationTest, RoundTripsInMemoryDatabase) {
-    if (!sqlite::serialization_supported()) {
-        GTEST_SKIP() << "SQLite serialization APIs not available in this build.";
-    }
+    VSQLITE_REQUIRE_SERIALIZATION_SUPPORTED();
     sqlite::connection src(":memory:");
     sqlite::execute(src, "CREATE TABLE data(id INTEGER PRIMARY KEY, value TEXT);", true);
     sqlite::execute(src, "INSERT INTO data(value) VALUES ('one'), ('two');", true);
@@ -25,9 +23,7 @@ TEST(SerializationTest, RoundTripsInMemoryDatabase) {
 }
 
 TEST(SerializationTest, NoCopyKeepsDeserializedDatabaseUsable) {
-    if (!sqlite::serialization_supported()) {
-        GTEST_SKIP() << "SQLite serialization APIs not available in this build.";
-    }
+    VSQLITE_REQUIRE_SERIALIZATION_SUPPORTED();
     sqlite::connection src(":memory:");
     sqlite::execute(src, "CREATE TABLE data(id INTEGER PRIMARY KEY, value TEXT);", true);
     sqlite::execute(src, "INSERT INTO data(value) VALUES ('one'), ('two');", true);
@@ -51,9 +47,7 @@ TEST(SerializationTest, NoCopyKeepsDeserializedDatabaseUsable) {
 }
 
 TEST(SerializationTest, NoCopyMatchesOwningCopyImage) {
-    if (!sqlite::serialization_supported()) {
-        GTEST_SKIP() << "SQLite serialization APIs not available in this build.";
-    }
+    VSQLITE_REQUIRE_SERIALIZATION_SUPPORTED();
     sqlite::connection src(":memory:");
     sqlite::execute(src, "CREATE TABLE data(id INTEGER PRIMARY KEY, value TEXT);", true);
     sqlite::execute(src, "INSERT INTO data(value) VALUES ('one'), ('two');", true);
@@ -70,9 +64,7 @@ TEST(SerializationTest, NoCopyMatchesOwningCopyImage) {
 }
 
 TEST(SerializationTest, NoCopyWithoutContiguousImageThrows) {
-    if (!sqlite::serialization_supported()) {
-        GTEST_SKIP() << "SQLite serialization APIs not available in this build.";
-    }
+    VSQLITE_REQUIRE_SERIALIZATION_SUPPORTED();
     TempFile file("serialization_nocopy_file");
     sqlite::connection con(file.string());
     sqlite::execute(con, "CREATE TABLE data(id INTEGER PRIMARY KEY);", true);
@@ -126,9 +118,7 @@ TEST(SerializationTest, DeprecatedFlagOverloadMapsToTypedOptions) {
 }
 
 TEST(SerializationTest, FailingDeserializeThrowsCatchablyAndRetainsNoMemory) {
-    if (!sqlite::serialization_supported()) {
-        GTEST_SKIP() << "SQLite serialization APIs not available in this build.";
-    }
+    VSQLITE_REQUIRE_SERIALIZATION_SUPPORTED();
     sqlite::connection src(":memory:");
     sqlite::execute(src, "CREATE TABLE data(id INTEGER PRIMARY KEY, value TEXT);", true);
     sqlite::execute(src, "INSERT INTO data(value) VALUES ('one'), ('two');", true);
@@ -154,9 +144,7 @@ TEST(SerializationTest, FailingDeserializeThrowsCatchablyAndRetainsNoMemory) {
 }
 
 TEST(SerializationTest, WritableDeserializedDatabaseGrowsBeyondImage) {
-    if (!sqlite::serialization_supported()) {
-        GTEST_SKIP() << "SQLite serialization APIs not available in this build.";
-    }
+    VSQLITE_REQUIRE_SERIALIZATION_SUPPORTED();
     sqlite::connection src(":memory:");
     sqlite::execute(src, "CREATE TABLE t(x);", true);
     auto image = sqlite::serialize(src);
@@ -183,9 +171,7 @@ TEST(SerializationTest, WritableDeserializedDatabaseGrowsBeyondImage) {
 }
 
 TEST(SerializationTest, ReadOnlyDeserializedDatabaseRejectsWrites) {
-    if (!sqlite::serialization_supported()) {
-        GTEST_SKIP() << "SQLite serialization APIs not available in this build.";
-    }
+    VSQLITE_REQUIRE_SERIALIZATION_SUPPORTED();
     sqlite::connection src(":memory:");
     sqlite::execute(src, "CREATE TABLE data(id INTEGER PRIMARY KEY, value TEXT);", true);
     sqlite::execute(src, "INSERT INTO data(value) VALUES ('one'), ('two');", true);

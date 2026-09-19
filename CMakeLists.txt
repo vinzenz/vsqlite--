@@ -367,10 +367,16 @@ if(VSQLITE_BUILD_TESTS)
   )
   # Mirror the optional-API detection of the library to the tests, so capability
   # assertions can use the same macros that select the direct symbol references in the
-  # library build instead of guessing at runtime.
+  # library build instead of guessing at runtime. The EXPECT variant cross-checks the
+  # configure-time detection with the runtime capability probes: when the build verified
+  # an optional SQLite API, a runtime "unavailable" verdict must fail the test run instead
+  # of silently skipping the tests that cover it. See tests/test_common.hpp.
   foreach(optional_api IN ITEMS SESSION SNAPSHOT SERIALIZE)
     if(VSQLITEPP_HAVE_SQLITE3_${optional_api})
-      target_compile_definitions(vsqlitepp_tests PRIVATE VSQLITE_HAVE_SQLITE3_${optional_api}=1)
+      target_compile_definitions(vsqlitepp_tests PRIVATE
+        VSQLITE_HAVE_SQLITE3_${optional_api}=1
+        VSQLITE_EXPECT_SQLITE3_${optional_api}=1
+      )
     endif()
   endforeach()
   add_test(NAME vsqlitepp_tests COMMAND vsqlitepp_tests)
@@ -413,7 +419,15 @@ set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 
 set(CPACK_RPM_PACKAGE_LICENSE "BSD-3-Clause")
 set(CPACK_RPM_PACKAGE_GROUP "Development/Libraries")
-set(CPACK_RPM_PACKAGE_REQUIRES "sqlite")
+# Target-native runtime dependency of the distributions the RPM is built for
+# (the release workflow builds it in a Fedora container): sqlite-libs owns
+# libsqlite3.so.0 there, while the sqlite package is only the command line
+# tool. The generated soname requirement covers the technical dependency;
+# this entry documents the intended runtime package.
+set(CPACK_RPM_PACKAGE_REQUIRES "sqlite-libs")
+# The RPM release is dist-tagged by rpmbuild (e.g. 1.fc43) so release assets
+# identify the distribution they were built for.
+set(CPACK_RPM_PACKAGE_RELEASE "1%{?dist}")
 set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
 
 include(CPack)
