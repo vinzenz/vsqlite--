@@ -77,7 +77,11 @@ struct sqlite3_changeset_iter;
 #endif
 
 namespace {
-constexpr char kSessionsUnavailable[] = "SQLite session APIs are not available in this build.";
+// Absence of the build capability, not an operation error: the message names the
+// capability and the SQLite build flags that enable it.
+constexpr char kSessionsUnavailable[] =
+    "SQLite session APIs are not available in this build (capability 'sessions'). Build "
+    "SQLite with SQLITE_ENABLE_SESSION and SQLITE_ENABLE_PREUPDATE_HOOK to enable them.";
 
 sqlite3 *handle(sqlite::connection &con) {
     sqlite::private_accessor::acccess_check(con);
@@ -124,30 +128,23 @@ struct session_api {
     patchset_fn patchset     = nullptr;
     apply_fn apply_changeset = nullptr;
     // Optional: only used to fill in changeset_conflict details for conflict handlers.
-    iter_op_fn iter_op       = nullptr;
+    iter_op_fn iter_op = nullptr;
 };
 
 session_api const &session_symbols() {
     static session_api api = [] {
         session_api loaded{};
-        loaded.create =
-            VSQLITE_SESSION_SYMBOL(session_api::create_fn, sqlite3session_create);
-        loaded.destroy =
-            VSQLITE_SESSION_SYMBOL(session_api::delete_fn, sqlite3session_delete);
-        loaded.attach =
-            VSQLITE_SESSION_SYMBOL(session_api::attach_fn, sqlite3session_attach);
-        loaded.enable =
-            VSQLITE_SESSION_SYMBOL(session_api::enable_fn, sqlite3session_enable);
-        loaded.indirect =
-            VSQLITE_SESSION_SYMBOL(session_api::indirect_fn, sqlite3session_indirect);
+        loaded.create   = VSQLITE_SESSION_SYMBOL(session_api::create_fn, sqlite3session_create);
+        loaded.destroy  = VSQLITE_SESSION_SYMBOL(session_api::delete_fn, sqlite3session_delete);
+        loaded.attach   = VSQLITE_SESSION_SYMBOL(session_api::attach_fn, sqlite3session_attach);
+        loaded.enable   = VSQLITE_SESSION_SYMBOL(session_api::enable_fn, sqlite3session_enable);
+        loaded.indirect = VSQLITE_SESSION_SYMBOL(session_api::indirect_fn, sqlite3session_indirect);
         loaded.changeset =
             VSQLITE_SESSION_SYMBOL(session_api::changeset_fn, sqlite3session_changeset);
-        loaded.patchset =
-            VSQLITE_SESSION_SYMBOL(session_api::patchset_fn, sqlite3session_patchset);
+        loaded.patchset = VSQLITE_SESSION_SYMBOL(session_api::patchset_fn, sqlite3session_patchset);
         loaded.apply_changeset =
             VSQLITE_SESSION_SYMBOL(session_api::apply_fn, sqlite3changeset_apply);
-        loaded.iter_op =
-            VSQLITE_SESSION_SYMBOL(session_api::iter_op_fn, sqlite3changeset_op);
+        loaded.iter_op = VSQLITE_SESSION_SYMBOL(session_api::iter_op_fn, sqlite3changeset_op);
         return loaded;
     }();
     return api;
@@ -161,29 +158,41 @@ void ensure_session_available() {
 
 sqlite::changeset_conflict_type map_conflict_type(int reason) {
     switch (reason) {
-        case SQLITE_CHANGESET_DATA: return sqlite::changeset_conflict_type::data;
-        case SQLITE_CHANGESET_NOTFOUND: return sqlite::changeset_conflict_type::not_found;
-        case SQLITE_CHANGESET_CONFLICT: return sqlite::changeset_conflict_type::conflict;
-        case SQLITE_CHANGESET_FOREIGN_KEY: return sqlite::changeset_conflict_type::foreign_key;
-        case SQLITE_CHANGESET_CONSTRAINT:
-        default: return sqlite::changeset_conflict_type::constraint;
+    case SQLITE_CHANGESET_DATA:
+        return sqlite::changeset_conflict_type::data;
+    case SQLITE_CHANGESET_NOTFOUND:
+        return sqlite::changeset_conflict_type::not_found;
+    case SQLITE_CHANGESET_CONFLICT:
+        return sqlite::changeset_conflict_type::conflict;
+    case SQLITE_CHANGESET_FOREIGN_KEY:
+        return sqlite::changeset_conflict_type::foreign_key;
+    case SQLITE_CHANGESET_CONSTRAINT:
+    default:
+        return sqlite::changeset_conflict_type::constraint;
     }
 }
 
 sqlite::changeset_operation map_operation(int op) {
     switch (op) {
-        case SQLITE_INSERT: return sqlite::changeset_operation::insert;
-        case SQLITE_UPDATE: return sqlite::changeset_operation::update;
-        case SQLITE_DELETE: return sqlite::changeset_operation::remove;
-        default: return sqlite::changeset_operation::unknown;
+    case SQLITE_INSERT:
+        return sqlite::changeset_operation::insert;
+    case SQLITE_UPDATE:
+        return sqlite::changeset_operation::update;
+    case SQLITE_DELETE:
+        return sqlite::changeset_operation::remove;
+    default:
+        return sqlite::changeset_operation::unknown;
     }
 }
 
 int map_policy(sqlite::conflict_policy policy) {
     switch (policy) {
-        case sqlite::conflict_policy::omit: return SQLITE_CHANGESET_OMIT;
-        case sqlite::conflict_policy::replace: return SQLITE_CHANGESET_REPLACE;
-        case sqlite::conflict_policy::abort: break;
+    case sqlite::conflict_policy::omit:
+        return SQLITE_CHANGESET_OMIT;
+    case sqlite::conflict_policy::replace:
+        return SQLITE_CHANGESET_REPLACE;
+    case sqlite::conflict_policy::abort:
+        break;
     }
     return SQLITE_CHANGESET_ABORT;
 }
@@ -202,8 +211,8 @@ extern "C" int conflict_trampoline(void *ctx, int reason, sqlite3_changeset_iter
         return SQLITE_CHANGESET_ABORT;
     }
     try {
-        sqlite::changeset_conflict conflict{map_conflict_type(reason),
-                                            sqlite::changeset_operation::unknown, {}};
+        sqlite::changeset_conflict conflict{
+            map_conflict_type(reason), sqlite::changeset_operation::unknown, {}};
         // For foreign key conflicts SQLite provides no current row: only
         // sqlite3changeset_fk_conflicts() may be called on the iterator.
         if (reason != SQLITE_CHANGESET_FOREIGN_KEY && context->iter_op) {
@@ -233,9 +242,15 @@ namespace sqlite {
 inline namespace v2 {
 
     bool sessions_supported() noexcept {
+#if defined(VSQLITE_HAVE_SQLITE3_SESSION)
+        // The build verified the session APIs of the selected SQLite implementation, so
+        // the wrapper resolves them through direct references that always exist.
+        return true;
+#else
         auto const &api = session_symbols();
         return api.create && api.destroy && api.attach && api.enable && api.indirect &&
                api.changeset && api.patchset && api.apply_changeset;
+#endif
     }
 
     session::session(connection &con, std::string_view schema, session_options options) :
@@ -391,8 +406,8 @@ inline namespace v2 {
                 std::rethrow_exception(context.pending_exception);
             }
             if (rc == SQLITE_ABORT) {
-                throw database_exception_code(
-                    "Applying changeset aborted by conflict handler.", SQLITE_ABORT);
+                throw database_exception_code("Applying changeset aborted by conflict handler.",
+                                              SQLITE_ABORT);
             }
             throw database_exception_code(sqlite3_errmsg(handle(con)), rc);
         }

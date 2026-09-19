@@ -69,9 +69,10 @@ template <typename Fn> int expect_unavailable(char const *api, Fn &&call) {
 
 int main() {
     sqlite::connection db(":memory:");
-    bool const sessions      = sqlite::sessions_supported();
-    bool const snapshots     = sqlite::snapshots_supported();
-    bool const serialization = sqlite::serialization_supported();
+    sqlite::connection_capabilities const caps = db.capabilities();
+    bool const sessions                        = caps.sessions;
+    bool const snapshots                       = caps.snapshots;
+    bool const serialization                   = caps.serialization;
     std::cout << "sessions=" << sessions << " snapshots=" << snapshots
               << " serialization=" << serialization << '\n';
 

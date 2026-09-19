@@ -44,6 +44,17 @@ struct sqlite3_snapshot;
  *
  * Snapshots allow read transactions to observe a consistent view of a WAL database, while the
  * helper functions here make it easier to toggle between journal modes.
+ *
+ * Error taxonomy:
+ * - Build capability absent: when the SQLite implementation this library uses was built without
+ *   `SQLITE_ENABLE_SNAPSHOT`, the snapshot helpers throw a `database_exception` whose message
+ *   contains "not available in this build" together with the capability name (`snapshots`) and
+ *   the build flag that enables it. Query `sqlite::connection::capabilities()` to branch on
+ *   this case without exceptions.
+ * - Connection-state preconditions: the snapshot APIs exist but still require a suitable
+ *   connection state — `snapshot::take` and `snapshot::open` need an open read transaction on
+ *   a WAL-mode database. Violations are operation errors and throw a
+ *   `database_exception_code` carrying the SQLite result code.
  */
 namespace sqlite {
 inline namespace v2 {

@@ -34,6 +34,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <sqlite/capabilities.hpp>
 #include <sqlite/filesystem_adapter.hpp>
 #include <sqlite/statement_cache.hpp>
 
@@ -129,6 +130,16 @@ inline namespace v2 {
         void configure_statement_cache(statement_cache_config const &cfg);
         statement_cache_config statement_cache_settings() const;
         void clear_statement_cache();
+
+        /** \brief Reports the optional SQLite API groups this library's build can use.
+         *
+         * The values mirror the detection the wrapper build performed for the SQLite
+         * implementation it links against; they are identical for every connection of
+         * the process and never contradict the `*_supported()` helpers. See
+         * @ref sqlite::connection_capabilities for what a capability does and does not
+         * promise.
+         */
+        connection_capabilities capabilities() const;
 
     private:
         friend struct private_accessor;

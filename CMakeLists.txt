@@ -336,6 +336,7 @@ if(VSQLITE_BUILD_TESTS)
 
   set(VSQLITE_TEST_SOURCES
     tests/test_backup.cpp
+    tests/test_capabilities.cpp
     tests/test_command_query.cpp
     tests/test_common.hpp
     tests/test_connection.cpp
@@ -359,6 +360,14 @@ if(VSQLITE_BUILD_TESTS)
       vsqlite::vsqlitepp
       GTest::gtest_main
   )
+  # Mirror the optional-API detection of the library to the tests, so capability
+  # assertions can use the same macros that select the direct symbol references in the
+  # library build instead of guessing at runtime.
+  foreach(optional_api IN ITEMS SESSION SNAPSHOT SERIALIZE)
+    if(VSQLITEPP_HAVE_SQLITE3_${optional_api})
+      target_compile_definitions(vsqlitepp_tests PRIVATE VSQLITE_HAVE_SQLITE3_${optional_api}=1)
+    endif()
+  endforeach()
   add_test(NAME vsqlitepp_tests COMMAND vsqlitepp_tests)
 
   if(NOT BUILD_SHARED_LIBS)

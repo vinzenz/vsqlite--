@@ -187,6 +187,26 @@ object is destroyed first. The owning `sqlite::connection` must still outlive ac
 results. `result::get_column_decltype()` mirrors SQLite and returns an empty string for computed
 expressions or other columns where SQLite reports no declared type.
 
+## Optional SQLite Capabilities & Error Reporting
+
+Sessions, snapshots, and serialization are optional SQLite features: whether they exist depends on the SQLite build VSQLite++ links against (bundled SQLite enables all three; system SQLite varies). Query them up front with `sqlite::connection::capabilities()`:
+
+```cpp
+#include <sqlite/capabilities.hpp>
+
+sqlite::connection_capabilities caps = conn.capabilities();
+if (caps.serialization) {
+    auto image = sqlite::serialize(conn);
+}
+```
+
+The values mirror the detection performed when the wrapper was built and never contradict the `sessions_supported()`, `snapshots_supported()`, and `serialization_supported()` helpers: API groups the build verified report true and resolve their symbols through direct references (no executable export flags needed for static builds); unverifiable groups report whether the runtime lookup in the loaded SQLite module finds them.
+
+Errors reported by these wrappers come in two kinds:
+
+- **Absent build capability** — the linked SQLite build lacks the API group. Operations throw a `sqlite::database_exception` whose message contains "not available in this build", names the capability, and names the SQLite build flags that enable it: `SQLITE_ENABLE_SESSION` plus `SQLITE_ENABLE_PREUPDATE_HOOK` for sessions, `SQLITE_ENABLE_SNAPSHOT` for snapshots, and building without `SQLITE_OMIT_DESERIALIZE` for serialization.
+- **Connection-state / operation errors** — the capability exists, but SQLite rejects the operation (for example, capturing a snapshot outside a WAL read transaction, applying a conflicting changeset, or deserializing into an unknown schema). These throw `sqlite::database_exception_code` carrying the SQLite result code.
+
 ## Snapshots, WAL & WAL2
 
 The wrapper exposes WAL helpers and snapshot utilities in `#include <sqlite/snapshot.hpp>`. Switch a database into WAL or WAL2 (when supported by your SQLite build) using `sqlite::enable_wal(conn, /*prefer_wal2=*/true);` – the helper automatically falls back to classic WAL if WAL2 is unavailable. Once running in WAL, capture consistent read views via the transaction/savepoint adapters:
@@ -222,7 +242,17 @@ Patchsets/changesets arrive as `std::vector<unsigned char>` buffers and helpers 
 
 ## Serialization Helpers
 
-Need to persist an in-memory database or hydrate a fixture from bytes? With `#include <sqlite/serialization.hpp>` you can call `sqlite::serialize(conn)` to obtain a `std::vector<unsigned char>` snapshot and `sqlite::deserialize(conn, image)` to restore it later (requires `SQLITE_ENABLE_DESERIALIZE`). This keeps golden images in memory-friendly buffers and lets tests fast-forward between prebuilt schemas without temporary files.
+Need to persist an in-memory database or hydrate a fixture from bytes? With `#include <sqlite/serialization.hpp>` you can call `sqlite::serialize(conn)` to obtain a `std::vector<unsigned char>` snapshot and `sqlite::deserialize(conn, image)` to restore it later (requires a SQLite build without `SQLITE_OMIT_DESERIALIZE`). This keeps golden images in memory-friendly buffers and lets tests fast-forward between prebuilt schemas without temporary files.
+
+`sqlite::serialize` takes typed options instead of raw SQLite flags and always returns a vector that owns its bytes:
+
+```cpp
+// Read the connection's own contiguous in-memory image (SQLITE_SERIALIZE_NOCOPY)
+// instead of letting SQLite allocate a fresh buffer; the result is still a copy.
+auto image = sqlite::serialize(conn, "main", {.use_connection_image = true});
+```
+
+The deprecated raw-flag overload remains as an adapter that maps `SQLITE_SERIALIZE_NOCOPY` to `serialize_options::use_connection_image`.
 
 ## JSON & FTS Utilities
 

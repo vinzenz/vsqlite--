@@ -116,3 +116,54 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build-static-ext --verbose
+
+  stripped-sqlite:
+    name: Stripped external SQLite (absence reporting)
+    runs-on: ubuntu-24.04
+    env:
+      CXX: g++-13
+      CC: gcc-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build gcc-13 g++-13
+
+      - name: Build stripped SQLite
+        run: |
+          mkdir sqlite-stripped && cd sqlite-stripped
+          curl -fsSL -o sqlite-amalgamation.zip https://www.sqlite.org/2026/sqlite-amalgamation-3510200.zip
+          unzip -q sqlite-amalgamation.zip
+          # Omit every optional API group the wrapper detects: sessions and snapshots
+          # are opt-in, so their SQLITE_ENABLE_* flags stay undefined; serialization
+          # is compiled out through SQLITE_OMIT_DESERIALIZE. Everything else matches
+          # a plain SQLite build.
+          gcc-13 -c sqlite-amalgamation-3510200/sqlite3.c -fPIC -O2 \
+            -DSQLITE_THREADSAFE=1 -DSQLITE_OMIT_DESERIALIZE -o sqlite3_stripped.o
+          ar rcs libsqlite3_stripped.a sqlite3_stripped.o
+
+      - name: Configure
+        run: |
+          set -o pipefail
+          cmake -S . -B build-stripped -G Ninja -DCMAKE_BUILD_TYPE=Release -DVSQLITE_BUNDLED_SQLITE=OFF -DVSQLITE_BUILD_TESTS=ON -DVSQLITE_BUILD_EXAMPLES=OFF -DSQLite3_INCLUDE_DIR="$PWD/sqlite-stripped/sqlite-amalgamation-3510200" -DSQLite3_LIBRARY="$PWD/sqlite-stripped/libsqlite3_stripped.a" 2>&1 | tee configure-stripped.log
+
+      - name: Check configure-time absence detection
+        run: |
+          grep -q "Optional SQLite APIs: session=FALSE, snapshot=FALSE, serialization=FALSE" configure-stripped.log
+
+      - name: Build
+        run: cmake --build build-stripped
+
+      - name: Test
+        run: ctest --test-dir build-stripped --verbose --build-config Release
+
+      - name: Check absence reporting was exercised
+        run: |
+          ./build-stripped/vsqlitepp_tests 2>&1 | tee stripped-tests.log
+          skipped=$(grep -c "SKIPPED" stripped-tests.log || true)
+          echo "Tests skipped over absent capabilities: $skipped"
+          test "$skipped" -ge 3
