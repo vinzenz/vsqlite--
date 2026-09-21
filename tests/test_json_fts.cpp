@@ -7,6 +7,7 @@
 #include <sqlite/connection.hpp>
 #include <sqlite/execute.hpp>
 #include <sqlite/json_fts.hpp>
+#include <sqlite3.h>
 
 using namespace testhelpers;
 
@@ -79,7 +80,16 @@ TEST(JsonFtsHelpersTest, JsonPathBoundLookupMatchesSpecialKeys) {
         {"a\"b", "2"},       {"a\\b", "3"},  {"", "empty"},          {"a.b", "dot"},
         {"a[0]", "bracket"}, {"a\tb", "41"}, {"h\xc3\xa9llo", "42"},
     };
+    // SQLite's JSON path parser skips backslash escapes inside quoted labels only since
+    // 3.47.0; older builds end the label at the escaped quote and the lookup yields NULL.
+    bool const escaped_quote_supported = sqlite3_libversion_number() >= 3047000;
     for (auto const &[key, expected] : cases) {
+        if (!escaped_quote_supported && key.find('"') != std::string::npos) {
+            std::cout << "skipping key containing a double quote: SQLite "
+                      << sqlite3_libversion()
+                      << " does not resolve escaped quotes in JSON path labels\n";
+            continue;
+        }
         auto path = sqlite::json::path().key(key);
         sqlite::query q(conn, "SELECT json_extract(?, ?);");
         q % doc % path.str();

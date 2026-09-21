@@ -70,6 +70,10 @@ inline namespace v2 {
              * Inside quotes the key is escaped with JSON rules, so keys like `a"b`, `a\b`,
              * or keys with control characters round-trip through the generated path.
              *
+             * SQLite resolves an escaped double quote inside a quoted label only since
+             * 3.47.0; older versions end the label at the escaped quote, so a key that
+             * contains `"` cannot be addressed through a path on those builds.
+             *
              * @param segment Key to append.
              * @return Reference to the builder for chaining.
              */

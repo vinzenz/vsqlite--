@@ -201,9 +201,10 @@ inline namespace v2 {
         /** \brief Runs the statement with the manually bound values (advanced mode).
          *
          * Every parameter of the statement must have been bound through the \ref bind
-         * overloads since the last reset with cleared bindings, otherwise a
-         * \ref database_exception is thrown and nothing is executed. This overload never
-         * reuses values that an earlier execute(args...) call bound.
+         * overloads since the last execute(args...)/rows(args...) call or reset with
+         * cleared bindings, otherwise a \ref database_exception is thrown and nothing is
+         * executed. This overload never reuses values that an earlier execute(args...)
+         * call bound.
          */
         execution_outcome execute();
 
@@ -320,7 +321,10 @@ inline namespace v2 {
         template <typename... Args> void bind_argument_set(Args &&...args) {
             // Start from an empty binding set: an invocation must not reuse values that an
             // earlier one bound (the zero-argument overloads cover that case explicitly).
+            // The manual-binding bookkeeping is dropped with the values, so a later
+            // zero-argument call cannot run with what this argument set binds.
             query_->clear();
+            manually_bound_.clear();
             int positional = 0;
             std::vector<int> named_indexes;
             (bind_one(std::forward<Args>(args), positional, named_indexes), ...);

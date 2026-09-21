@@ -395,15 +395,17 @@ TEST(ConnectionTest, OpenMemoryFactoryRejectsUnsupportedModes) {
 TEST(ConnectionTest, OpenUriFactoryOpensPercentEncodedPaths) {
     auto dir = test_root() / "uri_factory_dir";
     std::filesystem::create_directories(dir);
-    auto odd = dir / "enc ?#.db";
+    // Every character is a legal file name character on Linux, macOS, and Windows ('?'
+    // is not on Windows), while each needs percent-encoding inside a "file:" URI.
+    auto odd = dir / "enc #%.db";
     std::error_code ec;
     std::filesystem::remove(odd, ec);
     {
         auto conn = sqlite::connection::open_file(odd);
         sqlite::execute(conn, "CREATE TABLE uri_t(id INTEGER);", true);
     }
-    // space -> %20, '?' -> %3F, '#' -> %23
-    std::string uri = "file:" + dir.string() + "/enc%20%3F%23.db";
+    // space -> %20, '#' -> %23, '%' -> %25
+    std::string uri = "file:" + dir.string() + "/enc%20%23%25.db";
     {
         auto conn = sqlite::connection::open_uri(uri);
         EXPECT_NO_THROW(sqlite::execute(conn, "SELECT COUNT(*) FROM uri_t;", true));

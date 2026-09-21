@@ -265,6 +265,29 @@ TEST(PreparedStatementTest, ZeroArgumentCallsRequireManualBindings) {
     EXPECT_EQ(count_rows(db.con, "items"), 3);
 }
 
+TEST(PreparedStatementTest, ArgumentSetCallDropsManualBindingBookkeeping) {
+    unique_schema db;
+    auto insert = db.con.prepare("INSERT INTO items(id, tag) VALUES (?, ?)");
+    insert.bind(1, 10);
+    insert.bind(2, std::string("ten"));
+    EXPECT_EQ(insert.execute().affected_rows, 1);
+
+    // An argument-set call clears every binding together with the manual bookkeeping, so
+    // a following zero-argument call must not run with the values this call bound.
+    EXPECT_EQ(insert.execute(20, "twenty").affected_rows, 1);
+    EXPECT_THROW(insert.execute(), sqlite::database_exception);
+    EXPECT_THROW(insert.rows(), sqlite::database_exception);
+    EXPECT_EQ(count_rows(db.con, "items"), 2);
+
+    // Only a complete set of fresh manual binds re-enables the zero-argument overloads.
+    insert.bind(1, 30);
+    EXPECT_THROW(insert.execute(), sqlite::database_exception);
+    EXPECT_EQ(count_rows(db.con, "items"), 2);
+    insert.bind(2, std::string("thirty"));
+    EXPECT_EQ(insert.execute().affected_rows, 1);
+    EXPECT_EQ(count_rows(db.con, "items"), 3);
+}
+
 TEST(PreparedStatementTest, ArgumentSetIsCompleteAndNotSticky) {
     events_schema db;
     auto insert = db.con.prepare("INSERT INTO events(message) VALUES (?)");

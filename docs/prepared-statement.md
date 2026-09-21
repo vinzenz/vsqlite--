@@ -58,14 +58,16 @@ and `sqlite::named(...)` parameters are all accepted).
 2. **Manual binding** (advanced mode): the `bind(idx, value)`, `bind(name, value)` and
    `bind(idx)` (NULL) overloads record what was bound. The zero-argument overloads
    `execute()` and `rows()` run with those manually bound values, but only after every
-   parameter of the statement was bound manually since the last `reset(true)`; otherwise
-   they throw the same incomplete-argument-set error. Manual binds persist across
-   zero-argument executions. They are refused while a cursor is live and after a failure
-   until `reset()` was called.
+   parameter of the statement was bound manually since the last argument-set call or
+   `reset(true)`; otherwise they throw the same incomplete-argument-set error. Manual
+   binds persist across zero-argument executions. An argument-set call
+   (`execute(args...)`, `rows(args...)`) and `reset(true)` drop them together with their
+   bookkeeping. They are refused while a cursor is live and after a failure until
+   `reset()` was called.
 
 A zero-argument call on a parameterized statement therefore never falls back to values an
-earlier `execute(args...)` call bound: either every parameter was bound manually, or the
-call is rejected.
+earlier `execute(args...)` call bound: either every parameter was bound manually after
+that call, or the zero-argument call is rejected.
 
 ## Stepping and completion
 
