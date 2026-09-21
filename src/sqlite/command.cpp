@@ -33,6 +33,7 @@
 #include <cctype>
 #include <sqlite/database_exception.hpp>
 #include <sqlite/command.hpp>
+#include <sqlite/detail/conversion.hpp>
 #include <sqlite/private/private_accessor.hpp>
 #include <sqlite3.h>
 
@@ -87,46 +88,54 @@ inline namespace v2 {
     }
 
     struct command::statement_handle {
-        statement_handle(connection &owner, std::string sql_text, sqlite3_stmt *statement,
-                         bool should_cache) :
-            con(&owner),
-            sql(std::move(sql_text)),
-            stmt(statement),
-            cacheable(should_cache) {}
+        statement_handle(std::shared_ptr<connection_state> owner_state,
+                         std::shared_ptr<void> lease_keep_alive, std::string sql_text,
+                         sqlite3_stmt *statement, bool should_cache) :
+            state(std::move(owner_state)), keep_alive(std::move(lease_keep_alive)),
+            sql(std::move(sql_text)), stmt(statement), cacheable(should_cache) {
+            state->live_statements.fetch_add(1, std::memory_order_relaxed);
+        }
 
         statement_handle(statement_handle const &)            = delete;
         statement_handle &operator=(statement_handle const &) = delete;
         statement_handle(statement_handle &&)                 = delete;
         statement_handle &operator=(statement_handle &&)      = delete;
 
-        connection *con = nullptr;
+        // Retaining the shared connection_state lets a result outlive both
+        // its query object and the connection facade: the native handle, the
+        // statement cache, and the filesystem adapter stay alive until the
+        // last dependent is destroyed. keep_alive retains a pooled
+        // connection's lease token for the same duration, so the connection
+        // returns to its pool only after this handle is gone.
+        std::shared_ptr<connection_state> state;
+        std::shared_ptr<void> keep_alive;
         std::string sql;
         sqlite3_stmt *stmt = nullptr;
-        bool cacheable = false;
+        bool cacheable     = false;
 
         ~statement_handle() {
-            if (!stmt) {
-                return;
-            }
-            if (cacheable && con) {
-                try {
-                    private_accessor::release_cached_statement(*con, sql, stmt);
-                } catch (...) {
-                    // Cache bookkeeping ran out of memory; the statement was left
-                    // unowned, so release it here instead of leaking or terminating.
-                    sqlite3_finalize(stmt);
-                }
-            } else {
+            if (stmt && cacheable) {
+                // noexcept by contract: a failed reset is reported through the
+                // connection's statement cache error hook, and every failure
+                // path (cache disabled, duplicate, eviction trouble, failed
+                // bookkeeping) finalizes the statement itself.
+                private_accessor::release_cached_statement(*state, sql, stmt);
+            } else if (stmt) {
                 sqlite3_finalize(stmt);
             }
+            // Release the statement before dropping out of the live count, so
+            // a close() that observes zero also observes the statement back
+            // in the cache (or finalized).
+            state->live_statements.fetch_sub(1, std::memory_order_release);
         }
     };
 
     command::~command() {
-        try {
-            finalize();
-        } catch (...) {
-        }
+        // Destruction must stay safe when the connection facade is already
+        // gone (deferred cleanup keeps the state alive through stmt_owner_):
+        // release the owning statement handle without consulting the facade.
+        stmt = nullptr;
+        stmt_owner_.reset();
     }
 
     void command::finalize() {
@@ -155,6 +164,11 @@ inline namespace v2 {
 
     void command::prepare() {
         private_accessor::acccess_check(m_con);
+        auto state = private_accessor::state(m_con);
+        // A statement created from a pooled connection retains the lease
+        // token, so the connection cannot return to its pool while the
+        // statement (or a result reading from it) is still alive.
+        auto lease_token   = private_accessor::keep_alive(m_con);
         bool schema_change = is_schema_changing_statement(m_sql);
         if (schema_change) {
             private_accessor::clear_statement_cache(m_con);
@@ -165,18 +179,20 @@ inline namespace v2 {
         if (cacheable) {
             auto *cached = private_accessor::acquire_cached_statement(m_con, m_sql);
             if (cached) {
-                stmt_owner_ = std::make_shared<statement_handle>(m_con, m_sql, cached, true);
+                stmt_owner_ = std::make_shared<statement_handle>(
+                    std::move(state), std::move(lease_token), m_sql, cached, true);
                 stmt = cached;
                 return;
             }
         }
-        const char *tail = 0;
+        const char *tail       = 0;
         sqlite3_stmt *prepared = nullptr;
         int err = sqlite3_prepare_v2(get_handle(), m_sql.c_str(), -1, &prepared, &tail);
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
-        stmt_owner_ = std::make_shared<statement_handle>(m_con, m_sql, prepared, cacheable);
-        stmt = prepared;
+        stmt_owner_ = std::make_shared<statement_handle>(std::move(state), std::move(lease_token),
+                                                         m_sql, prepared, cacheable);
+        stmt        = prepared;
     }
 
     bool command::step_once() {
@@ -200,70 +216,50 @@ inline namespace v2 {
     }
 
     bool command::operator()() {
-        bool result = step();
+        bool result  = step();
         last_arg_idx = 0;
         return result;
     }
 
     void command::bind(int idx) {
         access_check();
-        int err = sqlite3_bind_null(stmt, idx);
+        int err = detail::conversion::bind_adapter{stmt, idx}.bind_null();
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     void command::bind(int idx, int v) {
         access_check();
-        int err = sqlite3_bind_int(stmt, idx, v);
+        int err = detail::conversion::bind_adapter{stmt, idx}.bind_int(v);
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     void command::bind(int idx, std::int64_t v) {
         access_check();
-        int err = sqlite3_bind_int64(stmt, idx, v);
+        int err = detail::conversion::bind_adapter{stmt, idx}.bind_int64(v);
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     void command::bind(int idx, double v) {
         access_check();
-        int err = sqlite3_bind_double(stmt, idx, v);
+        int err = detail::conversion::bind_adapter{stmt, idx}.bind_double(v);
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
-    namespace {
-        const char *text_or_dummy(std::string_view view, char const *&dummy_holder) {
-            static char const kDummy = 0;
-            if (view.empty()) {
-                dummy_holder = &kDummy;
-                return dummy_holder;
-            }
-            return view.data();
-        }
-
-        const unsigned char *blob_or_dummy(std::span<const unsigned char> view,
-                                           unsigned char const *&dummy_holder) {
-            static const unsigned char kDummy = 0;
-            if (view.empty()) {
-                dummy_holder = &kDummy;
-                return dummy_holder;
-            }
-            return view.data();
-        }
-    } // namespace
-
     void command::bind_text_impl(int idx, std::string_view v) {
         access_check();
-        char const *dummy = nullptr;
-        auto ptr          = text_or_dummy(v, dummy);
-        int err = sqlite3_bind_text(stmt, idx, ptr, static_cast<int>(v.size()), SQLITE_TRANSIENT);
+        int err = detail::conversion::bind_adapter{stmt, idx}.bind_text(v);
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }
 
     void command::bind(int idx, void const *v, size_t vn) {
+        // The raw pointer overload intentionally bypasses the shared
+        // empty-value rule: a null pointer binds NULL, matching the
+        // historical contract of this lowest-level overload.
         access_check();
         int err = sqlite3_bind_blob(stmt, idx, v, int(vn), SQLITE_TRANSIENT);
         if (err != SQLITE_OK)
@@ -276,9 +272,7 @@ inline namespace v2 {
 
     void command::bind(int idx, std::span<const unsigned char> v) {
         access_check();
-        unsigned char const *dummy = nullptr;
-        auto ptr                   = blob_or_dummy(v, dummy);
-        int err = sqlite3_bind_blob(stmt, idx, ptr, static_cast<int>(v.size()), SQLITE_TRANSIENT);
+        int err = detail::conversion::bind_adapter{stmt, idx}.bind_blob(v);
         if (err != SQLITE_OK)
             throw database_exception_code(sqlite3_errmsg(get_handle()), err, m_sql);
     }

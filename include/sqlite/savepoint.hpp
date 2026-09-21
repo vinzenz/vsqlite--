@@ -72,6 +72,10 @@ inline namespace v2 {
 
         /** \brief Releases a previously created savepoint
          *
+         * Releasing an already released savepoint is a harmless no-op, since
+         * the SQL scope was consumed by the first release call. A savepoint
+         * invalidated externally (by an enclosing transaction's commit or
+         * rollback) is still reported as a failure here.
          */
         void release();
 

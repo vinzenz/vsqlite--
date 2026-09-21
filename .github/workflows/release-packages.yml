@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   cpack-linux:
-    name: CPack DEB and RPM
+    name: CPack DEB
     runs-on: ubuntu-24.04
     env:
       CC: gcc-13
@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y dpkg-dev gcc-13 g++-13 libsqlite3-dev ninja-build rpm
+          sudo apt-get install -y dpkg-dev gcc-13 g++-13 libsqlite3-dev ninja-build
 
       - name: Configure
         run: |
@@ -42,12 +42,11 @@ jobs:
         working-directory: build/package
         run: |
           cpack -G DEB
-          cpack -G RPM
           cpack -G TGZ
           cpack -G TXZ
           cpack -G ZIP
           mkdir -p "${GITHUB_WORKSPACE}/dist"
-          find . -maxdepth 1 -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.tar.gz' -o -name '*.tar.xz' -o -name '*.zip' \) \
+          find . -maxdepth 1 -type f \( -name '*.deb' -o -name '*.tar.gz' -o -name '*.tar.xz' -o -name '*.zip' \) \
             -exec cp {} "${GITHUB_WORKSPACE}/dist/" \;
 
       - name: Upload artifacts
@@ -55,6 +54,82 @@ jobs:
         with:
           name: cpack-linux
           path: dist/*
+
+  rpm-fedora:
+    name: CPack RPM (Fedora)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build package
+        run: |
+          mkdir -p dist build/rpm
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/src:ro" \
+            -v "${GITHUB_WORKSPACE}/build/rpm:/work" \
+            fedora:43 bash -euxc '
+              dnf install -y cmake ninja-build gcc-c++ rpm-build sqlite-devel
+              cmake -S /src -B /work/package -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_INSTALL_PREFIX=/usr \
+                -DBUILD_SHARED_LIBS=ON \
+                -DVSQLITE_BUILD_EXAMPLES=OFF \
+                -DVSQLITE_BUILD_TESTS=OFF \
+                -DVSQLITE_BUNDLED_SQLITE=OFF
+              cmake --build /work/package
+              cd /work/package
+              cpack -G RPM
+            '
+          cp build/rpm/package/*.rpm dist/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-fedora
+          path: dist/*.rpm
+
+  deb-install:
+    name: DEB install and run
+    runs-on: ubuntu-24.04
+    needs: cpack-linux
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cpack-linux
+          path: dist
+
+      - name: Install package and run consumer
+        run: |
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/src:ro" \
+            -v "${GITHUB_WORKSPACE}/dist:/dist:ro" \
+            ubuntu:24.04 bash -euxc '
+              apt-get update
+              apt-get install -y --no-install-recommends cmake g++ make libsqlite3-dev
+              apt-get install -y /dist/vsqlitepp*.deb
+
+              echo "==> Installed package files"
+              dpkg -L vsqlitepp
+              echo "==> Package dependencies"
+              dpkg -s vsqlitepp | grep "^Depends:"
+
+              cmake -S /src/tests/package_consumers/install -B /tmp/consumer-build \
+                -DCMAKE_BUILD_TYPE=Release
+              cmake --build /tmp/consumer-build
+              cp /tmp/consumer-build/vsqlitepp_install_consumer /tmp/deb-consumer
+              rm -rf /tmp/consumer-build
+
+              echo "==> Consumer links against the installed shared libraries"
+              ldd /tmp/deb-consumer | grep -E "libvsqlitepp|libsqlite3"
+              /tmp/deb-consumer
+            '
 
   arch-linux:
     name: Arch Linux package
@@ -93,7 +168,8 @@ jobs:
     name: Upload to GitHub release
     runs-on: ubuntu-24.04
     needs:
-      - cpack-linux
+      - deb-install
+      - rpm-fedora
       - arch-linux
 
     steps:
@@ -112,3 +188,30 @@ jobs:
           gh release view "${TAG_NAME}" >/dev/null 2>&1 || \
             gh release create "${TAG_NAME}" --title "${TAG_NAME}" --notes "Release ${TAG_NAME}"
           gh release upload "${TAG_NAME}" dist/* --clobber
+
+      - name: Verify published assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          gh release view "${TAG_NAME}" --json assets > release-assets.json
+          failed=0
+          for artifact in dist/*; do
+            name="$(basename "${artifact}")"
+            size="$(jq -r --arg name "${name}" \
+              '.assets[] | select(.name == $name) | .size' release-assets.json)"
+            if [ -z "${size}" ] || [ "${size}" = "null" ]; then
+              echo "::error::Asset ${name} is missing from release ${TAG_NAME}"
+              failed=1
+            elif [ "${size}" -le 0 ]; then
+              echo "::error::Asset ${name} was uploaded with size ${size} bytes"
+              failed=1
+            else
+              echo "Asset ${name} present (${size} bytes)"
+            fi
+          done
+          echo "==> Release assets"
+          jq -r '.assets[] | "\(.name) (\(.size) bytes)"' release-assets.json
+          exit "${failed}"

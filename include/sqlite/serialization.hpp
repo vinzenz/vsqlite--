@@ -37,12 +37,24 @@
 #include <string_view>
 #include <vector>
 
+#include <sqlite3.h>
+
 /**
  * @file sqlite/serialization.hpp
  * @brief Wraps the optional `sqlite3_serialize` / `sqlite3_deserialize` APIs.
  *
  * These helpers snapshot an entire schema into memory or hydrate a connection from an in-memory
  * image, which is useful for testing and for shipping pre-populated databases.
+ *
+ * Error taxonomy:
+ * - Build capability absent: when the SQLite implementation this library uses was built with
+ *   `SQLITE_OMIT_DESERIALIZE`, the operations throw a `database_exception` whose message
+ *   contains "not available in this build" together with the capability name (`serialization`)
+ *   and the SQLite build flag that enables it. Query
+ *   `sqlite::connection::capabilities()` to branch on this case without exceptions.
+ * - Connection-state/operation errors: when the capability exists but the operation fails
+ *   (e.g. deserializing into an unknown schema), the helpers throw a
+ *   `database_exception_code` carrying the SQLite result code where SQLite reports one.
  */
 namespace sqlite {
 inline namespace v2 {
@@ -52,21 +64,60 @@ inline namespace v2 {
     bool serialization_supported() noexcept;
 
     /**
+     * @brief Typed options for @ref serialize, mapped to the safe subset of SQLite's
+     * serialization flags.
+     *
+     * The wrapper only exposes options that keep the owning-copy contract of the result:
+     * raw `SQLITE_SERIALIZE_*` flag values have no typed equivalent here.
+     */
+    struct serialize_options {
+        /**
+         * Serialize from the connection's own in-memory image instead of letting SQLite
+         * allocate and fill a new buffer (maps to `SQLITE_SERIALIZE_NOCOPY`).
+         *
+         * The wrapper still copies the bytes into the returned vector, so the result
+         * owns its data as always; the connection keeps its buffer. SQLite can only
+         * honor this mode for a contiguous in-memory image (e.g. an in-memory or
+         * deserialized database), and the operation fails with a `database_exception`
+         * otherwise.
+         */
+        bool use_connection_image = false;
+    };
+
+    /**
      * @brief Copies the complete database image for @p schema into a byte vector.
      *
-     * The returned vector always owns its bytes. When @p flags contains
-     * `SQLITE_SERIALIZE_NOCOPY`, SQLite returns its own in-memory image without making a
-     * copy; those bytes are copied into the result and the buffer remains owned by the
-     * connection. Because no allocation is made in that case, an exception is thrown when
-     * no contiguous in-memory image exists (e.g. for a file-backed database).
+     * The returned vector always owns its bytes. When
+     * @p options.use_connection_image is set, SQLite hands out its own in-memory image
+     * without making a copy; those bytes are copied into the result and the buffer
+     * remains owned by the connection. Because no allocation is made in that case, an
+     * exception is thrown when no contiguous in-memory image exists (e.g. for a
+     * file-backed database).
      *
      * @param con Open connection whose schema should be serialized.
      * @param schema Logical database name (e.g. `"main"` or `"temp"`).
-     * @param flags Optional SQLite serialization flags.
+     * @param options Typed serialization options.
      * @throws database_exception when serialization is unavailable or fails.
      */
     std::vector<unsigned char> serialize(connection &con, std::string_view schema = "main",
-                                         unsigned int flags = 0);
+                                         serialize_options options = {});
+
+    /**
+     * @brief Deprecated raw-flag adapter of @ref serialize.
+     *
+     * @param flags SQLite serialization flags; only `SQLITE_SERIALIZE_NOCOPY` has a
+     *              meaning and maps to `serialize_options::use_connection_image`.
+     * @deprecated Pass @ref serialize_options instead. The typed options preserve the
+     *             owning-copy contract; raw flags can request combinations the wrapper
+     *             does not guarantee.
+     */
+    [[deprecated("pass sqlite::serialize_options instead of raw SQLITE_SERIALIZE_* flags")]]
+    inline std::vector<unsigned char> serialize(connection &con, std::string_view schema,
+                                                unsigned int flags) {
+        serialize_options options;
+        options.use_connection_image = (flags & SQLITE_SERIALIZE_NOCOPY) != 0;
+        return serialize(con, schema, options);
+    }
 
     /**
      * @brief Replaces the contents of @p schema with the supplied serialized image.
@@ -80,6 +131,8 @@ inline namespace v2 {
      * @param read_only When true the connection treats the schema as immutable and write
      *                 attempts fail. Otherwise the database is permitted to grow beyond the
      *                 original image size, with SQLite reallocating its buffer on demand.
+     * @throws database_exception_code with the SQLite result code when SQLite rejects the
+     *         operation (e.g. for an unknown schema).
      */
     void deserialize(connection &con, std::span<const unsigned char> image,
                      std::string_view schema = "main", bool read_only = false);

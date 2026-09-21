@@ -10,9 +10,7 @@
 using namespace testhelpers;
 
 TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
-    if (!sqlite::snapshots_supported()) {
-        GTEST_SKIP() << "SQLite snapshot APIs not available in this build.";
-    }
+    VSQLITE_REQUIRE_SNAPSHOTS_SUPPORTED();
     TempFile db("snapshot_txn");
     sqlite::connection writer(db.string());
     sqlite::enable_wal(writer);
@@ -74,9 +72,7 @@ TEST(SnapshotTest, TransactionSnapshotProvidesHistoricalReads) {
 }
 
 TEST(SnapshotTest, SavepointSnapshotControlsScope) {
-    if (!sqlite::snapshots_supported()) {
-        GTEST_SKIP() << "SQLite snapshot APIs not available in this build.";
-    }
+    VSQLITE_REQUIRE_SNAPSHOTS_SUPPORTED();
     TempFile db("snapshot_savepoint");
     sqlite::connection writer(db.string());
     sqlite::enable_wal(writer);

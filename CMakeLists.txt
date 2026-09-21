@@ -98,6 +98,7 @@ target_sources(vsqlitepp
     src/sqlite/backup.cpp
     src/sqlite/command.cpp
     src/sqlite/connection.cpp
+    src/sqlite/connection_state.cpp
     src/sqlite/execute.cpp
   src/sqlite/function.cpp
   src/sqlite/query.cpp
@@ -112,6 +113,7 @@ target_sources(vsqlitepp
   src/sqlite/serialization.cpp
   src/sqlite/json_fts.cpp
   src/sqlite/statement_cache.cpp
+  src/sqlite/prepared_statement.cpp
 )
 
 target_include_directories(vsqlitepp
@@ -249,6 +251,8 @@ set_target_properties(vsqlitepp
 if(VSQLITE_BUILD_EXAMPLES)
   add_executable(vsqlitepp_example examples/sqlite_wrapper.cpp)
   target_link_libraries(vsqlitepp_example PRIVATE vsqlite::vsqlitepp)
+  add_executable(vsqlitepp_prepared_statement_example examples/prepared_statement.cpp)
+  target_link_libraries(vsqlitepp_prepared_statement_example PRIVATE vsqlite::vsqlitepp)
   if(VSQLITE_ENABLE_INSTALL)
     install(TARGETS vsqlitepp_example RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   endif()
@@ -336,13 +340,17 @@ if(VSQLITE_BUILD_TESTS)
 
   set(VSQLITE_TEST_SOURCES
     tests/test_backup.cpp
+    tests/test_capabilities.cpp
     tests/test_command_query.cpp
     tests/test_common.hpp
     tests/test_connection.cpp
+    tests/test_connection_lifetime.cpp
     tests/test_connection_thread_safety.cpp
     tests/test_connection_pool.cpp
+    tests/test_conversions.cpp
     tests/test_function.cpp
     tests/test_json_fts.cpp
+    tests/test_prepared_statement.cpp
     tests/test_serialization.cpp
     tests/test_session.cpp
     tests/test_snapshot.cpp
@@ -359,7 +367,26 @@ if(VSQLITE_BUILD_TESTS)
       vsqlite::vsqlitepp
       GTest::gtest_main
   )
+  # Mirror the optional-API detection of the library to the tests, so capability
+  # assertions can use the same macros that select the direct symbol references in the
+  # library build instead of guessing at runtime. The EXPECT variant cross-checks the
+  # configure-time detection with the runtime capability probes: when the build verified
+  # an optional SQLite API, a runtime "unavailable" verdict must fail the test run instead
+  # of silently skipping the tests that cover it. See tests/test_common.hpp.
+  foreach(optional_api IN ITEMS SESSION SNAPSHOT SERIALIZE)
+    if(VSQLITEPP_HAVE_SQLITE3_${optional_api})
+      target_compile_definitions(vsqlitepp_tests PRIVATE
+        VSQLITE_HAVE_SQLITE3_${optional_api}=1
+        VSQLITE_EXPECT_SQLITE3_${optional_api}=1
+      )
+    endif()
+  endforeach()
   add_test(NAME vsqlitepp_tests COMMAND vsqlitepp_tests)
+
+  # Micro-benchmark for the prepared_statement facade; not part of ctest.
+  # Build and run it explicitly: cmake --build build --target vsqlitepp_benchmark_prepared_statement
+  add_executable(vsqlitepp_benchmark_prepared_statement tests/benchmark_prepared_statement.cpp)
+  target_link_libraries(vsqlitepp_benchmark_prepared_statement PRIVATE vsqlite::vsqlitepp)
 
   if(NOT BUILD_SHARED_LIBS)
     # Reproduction of GH issue #59: a consumer that statically links VSQLite++ and
@@ -394,7 +421,15 @@ set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 
 set(CPACK_RPM_PACKAGE_LICENSE "BSD-3-Clause")
 set(CPACK_RPM_PACKAGE_GROUP "Development/Libraries")
-set(CPACK_RPM_PACKAGE_REQUIRES "sqlite")
+# Target-native runtime dependency of the distributions the RPM is built for
+# (the release workflow builds it in a Fedora container): sqlite-libs owns
+# libsqlite3.so.0 there, while the sqlite package is only the command line
+# tool. The generated soname requirement covers the technical dependency;
+# this entry documents the intended runtime package.
+set(CPACK_RPM_PACKAGE_REQUIRES "sqlite-libs")
+# The RPM release is dist-tagged by rpmbuild (e.g. 1.fc43) so release assets
+# identify the distribution they were built for.
+set(CPACK_RPM_PACKAGE_RELEASE "1%{?dist}")
 set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
 
 include(CPack)

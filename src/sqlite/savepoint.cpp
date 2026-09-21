@@ -54,6 +54,13 @@ inline namespace v2 {
     }
 
     void savepoint::release() {
+        // Releasing an already released savepoint is a harmless no-op: the
+        // SQL scope was consumed by the first release call. A savepoint that
+        // was invalidated externally (by an enclosing transaction's commit or
+        // rollback) still counts as active here, so releasing it keeps
+        // reporting that failure.
+        if (!m_isActive)
+            return;
         exec("RELEASE SAVEPOINT " + m_name);
         m_isActive = false;
     }

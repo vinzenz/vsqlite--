@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <format>
+#include <optional>
 #include <string_view>
 #include <system_error>
 #include <sqlite/command.hpp>
@@ -40,16 +41,24 @@
 #include <sqlite/execute.hpp>
 #include <sqlite/connection.hpp>
 #include <sqlite/filesystem_adapter.hpp>
+#include <sqlite/private/connection_state.hpp>
+#include <sqlite/private/private_accessor.hpp>
+#include <sqlite/serialization.hpp>
+#include <sqlite/session.hpp>
+#include <sqlite/snapshot.hpp>
+#include <sqlite/prepared_statement.hpp>
 #include <sqlite3.h>
 #include <iostream>
 
 namespace {
 // Classification of a database name handed to connection::open() or attach().
 struct database_name_info {
-    bool is_uri = false; ///< the name is a "file:" URI
-    bool memory = false; ///< the database lives in memory only
-    std::string path;    ///< filesystem path (percent-decoded for URIs); empty
-                         ///< when the database has no file on disk
+    bool is_uri   = false;  ///< the name is a "file:" URI
+    bool memory   = false;  ///< the database lives in memory only
+    bool has_mode = false;  ///< the URI query carries an explicit mode parameter
+    std::string mode_value; ///< effective (last) mode parameter value, percent-decoded
+    std::string path;       ///< filesystem path (percent-decoded for URIs); empty
+                            ///< when the database has no file on disk
 };
 
 // SQLite interprets a database name as a URI exactly when it starts with
@@ -95,6 +104,36 @@ std::string percent_decode(std::string_view text) {
     return decoded;
 }
 
+// Every entry point rejects embedded NUL bytes up front: sqlite3_open_v2() and
+// the filesystem calls take NUL-terminated names, so a std::string with an
+// embedded NUL would otherwise be silently truncated.
+void reject_embedded_nul(std::string_view db) {
+    if (db.find('\0') != std::string_view::npos) {
+        throw sqlite::database_exception("Database name must not contain embedded NUL characters.");
+    }
+}
+
+// Percent-encodes a component the wrapper generates itself (the name of a
+// shared in-memory database) so SQLite's URI parser decodes it back verbatim.
+std::string percent_encode_component(std::string_view text) {
+    static constexpr char hex[] = "0123456789ABCDEF";
+    std::string encoded;
+    encoded.reserve(text.size());
+    for (unsigned char c : text) {
+        bool unreserved = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+                          (c >= '0' && c <= '9') || c == '-' || c == '.' || c == '_' || c == '~' ||
+                          c == '/';
+        if (unreserved) {
+            encoded.push_back(static_cast<char>(c));
+            continue;
+        }
+        encoded.push_back('%');
+        encoded.push_back(hex[c >> 4]);
+        encoded.push_back(hex[c & 0x0F]);
+    }
+    return encoded;
+}
+
 // Splits a database name the same way sqlite3_open_v2() does for URIs, so that
 // in-memory detection and path validation agree with what SQLite will make of
 // the name.
@@ -107,7 +146,7 @@ database_name_info classify_database_name(std::string_view db) {
     if (!is_uri_database(db)) {
         return info;
     }
-    info.is_uri = true;
+    info.is_uri           = true;
     std::string_view rest = db.substr(5);
 
     // Optional authority: SQLite accepts an empty one or "localhost" only and
@@ -142,24 +181,44 @@ database_name_info classify_database_name(std::string_view db) {
         query = query.substr(0, fragment);
     }
 
-    std::string mode;
-    bool has_mode         = false;
     std::size_t param_pos = 0;
     while (param_pos < query.size()) {
-        auto next  = query.find('&', param_pos);
-        auto param = query.substr(param_pos,
-                                  next == std::string_view::npos ? next : next - param_pos);
-        param_pos  = next == std::string_view::npos ? query.size() : next + 1;
+        auto next = query.find('&', param_pos);
+        auto param =
+            query.substr(param_pos, next == std::string_view::npos ? next : next - param_pos);
+        param_pos   = next == std::string_view::npos ? query.size() : next + 1;
         auto equals = param.find('=');
         if (percent_decode(param.substr(0, equals)) != "mode") {
             continue;
         }
-        has_mode = true;
-        mode     = equals == std::string_view::npos ? std::string()
-                                                    : percent_decode(param.substr(equals + 1));
+        info.has_mode   = true;
+        info.mode_value = equals == std::string_view::npos
+                              ? std::string()
+                              : percent_decode(param.substr(equals + 1));
     }
-    info.memory = has_mode && mode == "memory";
+    info.memory = info.has_mode && info.mode_value == "memory";
     return info;
+}
+
+// The wrapper translates open_mode into sqlite3_open_v2() flags; a URI with an
+// explicit mode parameter asks SQLite for the same decision. A wrapper mode
+// that would map onto different flags contradicts the URI and is rejected
+// before anything is opened. Mode values the wrapper cannot map (SQLite knows
+// ro, rw, memory, and create) are left to SQLite, which rejects them itself.
+void check_uri_mode_conflict(std::string const &uri_mode, sqlite::open_mode requested,
+                             std::string const &uri) {
+    std::optional<sqlite::open_mode> uri_equivalent;
+    if (uri_mode == "ro") {
+        uri_equivalent = sqlite::open_mode::open_readonly;
+    } else if (uri_mode == "rw") {
+        uri_equivalent = sqlite::open_mode::open_existing;
+    } else if (uri_mode == "create" || uri_mode == "memory") {
+        uri_equivalent = sqlite::open_mode::open_or_create;
+    }
+    if (uri_equivalent && requested != *uri_equivalent) {
+        throw sqlite::database_exception("URI mode parameter 'mode=" + uri_mode + "' in '" + uri +
+                                         "' contradicts the requested open mode");
+    }
 }
 
 std::string describe_path(std::filesystem::path const &path) {
@@ -231,6 +290,44 @@ void validate_db_path(std::string const &db, bool require_exists,
     }
 }
 
+// Validates a disk-backed database name for the requested mode and performs the
+// destructive recreation open_mode::always_create asks for. Shared by the
+// string constructors and connection::open_file().
+void prepare_disk_backed_open(std::string const &db, std::filesystem::path const &disk_path,
+                              sqlite::open_mode mode, sqlite::filesystem_adapter_ptr const &fs) {
+    validate_db_path(
+        db, mode == sqlite::open_mode::open_existing || mode == sqlite::open_mode::open_readonly,
+        fs);
+    std::error_code ec;
+    bool exists = std::filesystem::exists(disk_path, ec);
+    if (ec) {
+        throw sqlite::database_system_error("Failed to inspect database '" + db + "'", ec.value());
+    }
+
+    if ((mode == sqlite::open_mode::open_readonly || mode == sqlite::open_mode::open_existing) &&
+        !exists) {
+        throw sqlite::database_exception("Database '" + db + "' does not exist");
+    }
+    if (mode == sqlite::open_mode::always_create && exists) {
+        auto entry = fs->status(disk_path);
+        if (entry.error) {
+            throw sqlite::database_system_error("Failed to inspect existing database '" + db + "'",
+                                                entry.error.value());
+        }
+        if (std::filesystem::is_symlink(entry.status)) {
+            throw sqlite::database_exception("Refusing to remove symlinked database '" + db + "'");
+        }
+        if (!std::filesystem::is_regular_file(entry.status)) {
+            throw sqlite::database_exception("Refusing to remove non-regular database target '" +
+                                             db + "'");
+        }
+        if (!fs->remove(disk_path, ec) || ec) {
+            throw sqlite::database_system_error("Failed to remove existing database '" + db + "'",
+                                                ec.value());
+        }
+    }
+}
+
 int make_open_flags(bool readonly, bool allow_create) {
     int flags = SQLITE_OPEN_FULLMUTEX;
     // Names starting with "file:" are SQLite URIs (e.g. a named in-memory
@@ -250,6 +347,29 @@ int make_open_flags(bool readonly, bool allow_create) {
         if (allow_create) {
             flags |= SQLITE_OPEN_CREATE;
         }
+    }
+    return flags;
+}
+
+// Translates an open_mode (plus the per-call nofollow option) into the
+// sqlite3_open_v2() flags the explicit factories pass to SQLite.
+int flags_for_open_mode(sqlite::open_mode mode, bool nofollow) {
+    int flags = 0;
+    switch (mode) {
+    case sqlite::open_mode::open_readonly:
+        flags = make_open_flags(true, false);
+        break;
+    case sqlite::open_mode::open_existing:
+        flags = make_open_flags(false, false);
+        break;
+    case sqlite::open_mode::always_create:
+    case sqlite::open_mode::open_or_create:
+    default:
+        flags = make_open_flags(false, true);
+        break;
+    }
+    if (nofollow) {
+        flags |= SQLITE_OPEN_NOFOLLOW; // only strengthens the build-wide setting
     }
     return flags;
 }
@@ -275,9 +395,7 @@ inline namespace v2 {
         connection(db, std::make_shared<default_filesystem_adapter>()) {}
 
     connection::connection(std::string const &db, filesystem_adapter_ptr fs) :
-        handle(0),
-        filesystem(std::move(fs) ? std::move(fs) : std::make_shared<default_filesystem_adapter>()),
-        cache_() {
+        state_(std::make_shared<connection_state>(std::move(fs))) {
         open(db);
     }
 
@@ -286,88 +404,120 @@ inline namespace v2 {
 
     connection::connection(std::string const &db, sqlite::open_mode open_mode,
                            filesystem_adapter_ptr fs) :
-        handle(0),
-        filesystem(std::move(fs) ? std::move(fs) : std::make_shared<default_filesystem_adapter>()),
-        cache_() {
+        state_(std::make_shared<connection_state>(std::move(fs))) {
         open(db, open_mode);
     }
 
-    connection::~connection() {
-        try {
-            close();
-        } catch (...) {
+    // Opens without further validation; the explicit factories validate first
+    // and then hand the prepared name and flags to this constructor.
+    connection::connection(std::string const &db, int flags, filesystem_adapter_ptr fs) :
+        state_(std::make_shared<connection_state>(std::move(fs))) {
+        open_with_flags(db, flags);
+    }
+
+    connection connection::open_file(std::filesystem::path const &path, open_options options) {
+        std::string db = path.string();
+        reject_embedded_nul(db);
+        if (db.empty()) {
+            throw database_exception("Database path must not be empty.");
         }
+        if (is_uri_database(db)) {
+            throw database_exception("Database path '" + db +
+                                     "' starts with 'file:' and would be interpreted as a URI; "
+                                     "use connection::open_uri().");
+        }
+        if (db == ":memory:") {
+            throw database_exception("Database path ':memory:' names an in-memory database; use "
+                                     "connection::open_memory().");
+        }
+        auto fs = std::make_shared<default_filesystem_adapter>();
+        prepare_disk_backed_open(db, std::filesystem::path(db), options.mode, fs);
+        return connection(db, flags_for_open_mode(options.mode, options.nofollow), fs);
+    }
+
+    connection connection::open_memory() {
+        // The anonymous in-memory database needs no validation: it never
+        // touches the filesystem.
+        return connection(":memory:", make_open_flags(false, true),
+                          std::make_shared<default_filesystem_adapter>());
+    }
+
+    connection connection::open_memory(std::string const &name, open_options options) {
+        reject_embedded_nul(name);
+        if (name.empty()) {
+            throw database_exception(
+                "Memory database name must not be empty; use connection::open_memory() for a "
+                "private database.");
+        }
+        if (options.mode == sqlite::open_mode::always_create) {
+            throw database_exception("open_mode::always_create deletes an existing database and is "
+                                     "only supported by connection::open_file().");
+        }
+        if (options.mode != sqlite::open_mode::open_or_create) {
+            throw database_exception("connection::open_memory() only supports "
+                                     "open_mode::open_or_create.");
+        }
+        // The name is a pure key for the shared in-memory database; the
+        // filesystem is never checked, created, or deleted.
+        std::string uri = "file:" + percent_encode_component(name) + "?mode=memory&cache=shared";
+        return connection(uri, make_open_flags(false, true),
+                          std::make_shared<default_filesystem_adapter>());
+    }
+
+    connection connection::open_uri(std::string const &uri, open_options options) {
+        reject_embedded_nul(uri);
+        if (uri.empty()) {
+            throw database_exception("Database URI must not be empty.");
+        }
+        if (!is_uri_database(uri)) {
+            throw database_exception("Database URI '" + uri + "' must use the 'file:' scheme.");
+        }
+        if (options.mode == sqlite::open_mode::always_create) {
+            throw database_exception("open_mode::always_create deletes an existing database and is "
+                                     "only supported by connection::open_file().");
+        }
+        auto info = classify_database_name(uri);
+        if (info.has_mode) {
+            check_uri_mode_conflict(info.mode_value, options.mode, uri);
+        }
+        // SQLite owns the URI interpretation (including the vfs= parameter);
+        // the wrapper adds no filesystem checks of its own here.
+        return connection(uri, flags_for_open_mode(options.mode, options.nofollow),
+                          std::make_shared<default_filesystem_adapter>());
+    }
+
+    connection::~connection() {
+        // Facade destruction defers the native cleanup instead of rejecting
+        // it: the shared connection_state finalizes the cache and consumes
+        // the handle once the last dependent statement or result released
+        // it. Destruction must not throw, so it never calls close(), which
+        // reports errors.
+        state_.reset();
     }
 
     void connection::open(const std::string &db) {
-        validate_db_path(db, false, filesystem);
+        reject_embedded_nul(db);
+        validate_db_path(db, false, state_->filesystem);
         open_with_flags(db, make_open_flags(false, true));
     }
 
     void connection::open(const std::string &db, bool readonly) {
-        validate_db_path(db, readonly, filesystem);
+        reject_embedded_nul(db);
+        validate_db_path(db, readonly, state_->filesystem);
         open_with_flags(db, make_open_flags(readonly, !readonly));
     }
 
     void connection::open(std::string const &db, sqlite::open_mode open_mode) {
+        reject_embedded_nul(db);
         auto info = classify_database_name(db);
         // In-memory databases and "file:" URIs without a path never touch the
         // disk, so they need neither path validation nor an existing file.
         bool disk_backed = !info.memory && !(info.is_uri && info.path.empty());
         if (disk_backed) {
-            validate_db_path(db,
-                             open_mode == sqlite::open_mode::open_existing ||
-                                 open_mode == sqlite::open_mode::open_readonly,
-                             filesystem);
+            prepare_disk_backed_open(db, std::filesystem::path(info.is_uri ? info.path : db),
+                                     open_mode, state_->filesystem);
         }
-
-        std::filesystem::path disk_path =
-            disk_backed ? std::filesystem::path(info.is_uri ? info.path : db)
-                        : std::filesystem::path();
-        std::error_code ec;
-        bool exists = disk_backed ? std::filesystem::exists(disk_path, ec) : false;
-        if (disk_backed && ec) {
-            throw database_system_error("Failed to inspect database '" + db + "'", ec.value());
-        }
-
-        switch (open_mode) {
-        case sqlite::open_mode::open_readonly:
-            if (disk_backed && !exists) {
-                throw database_exception("Read-only database '" + db + "' does not exist");
-            }
-            open_with_flags(db, make_open_flags(true, false));
-            return;
-        case sqlite::open_mode::open_existing:
-            if (disk_backed && !exists) {
-                throw database_exception("Database '" + db + "' does not exist");
-            }
-            open_with_flags(db, make_open_flags(false, false));
-            return;
-        case sqlite::open_mode::always_create:
-            if (exists) {
-                auto entry = filesystem->status(disk_path);
-                if (entry.error) {
-                    throw database_system_error("Failed to inspect existing database '" + db + "'",
-                                                entry.error.value());
-                }
-                if (std::filesystem::is_symlink(entry.status)) {
-                    throw database_exception("Refusing to remove symlinked database '" + db + "'");
-                }
-                if (!std::filesystem::is_regular_file(entry.status)) {
-                    throw database_exception("Refusing to remove non-regular database target '" +
-                                             db + "'");
-                }
-                if (!filesystem->remove(disk_path, ec) || ec) {
-                    throw database_system_error("Failed to remove existing database '" + db + "'",
-                                                ec.value());
-                }
-            }
-            [[fallthrough]];
-        case sqlite::open_mode::open_or_create:
-        default:
-            open_with_flags(db, make_open_flags(false, true));
-            return;
-        }
+        open_with_flags(db, flags_for_open_mode(open_mode, false));
     }
 
     void connection::open_with_flags(std::string const &db, int flags) {
@@ -381,21 +531,35 @@ inline namespace v2 {
             }
             throw database_exception_code(message, err);
         }
-        handle = tmp;
-        sqlite3_extended_result_codes(handle, 1);
+        state_->handle = tmp;
+        sqlite3_extended_result_codes(state_->handle, 1);
     }
 
     void connection::close() {
-        access_check();
-        cache_.clear(handle);
-        int err = sqlite3_close(handle);
+        // Closing an already closed connection is a harmless no-op: the
+        // native handle was consumed by the first close call. A failed close
+        // keeps the handle, so a retry reports the error again.
+        if (!state_->handle)
+            return;
+        // Explicit close rejects a busy connection instead of deferring like
+        // facade destruction does: a half-closed facade that stays usable
+        // would hide lifetime errors from the caller.
+        auto outstanding = state_->live_statements.load(std::memory_order_acquire);
+        if (outstanding != 0) {
+            throw database_exception(std::format(
+                "connection::close: {} statement(s) are still in use; finish or destroy them "
+                "before closing the connection",
+                outstanding));
+        }
+        state_->cache.clear(state_->handle);
+        int err = sqlite3_close(state_->handle);
         if (err != SQLITE_OK)
-            throw database_exception_code(sqlite3_errmsg(handle), err);
-        handle = 0;
+            throw database_exception_code(sqlite3_errmsg(state_->handle), err);
+        state_->handle = nullptr;
     }
 
     void connection::access_check() {
-        if (!handle)
+        if (!state_->handle)
             throw database_exception("Database is not open.");
     }
 
@@ -403,7 +567,8 @@ inline namespace v2 {
         if (alias.empty()) {
             throw database_exception("Database alias must not be empty.");
         }
-        validate_db_path(db, false, filesystem);
+        reject_embedded_nul(db);
+        validate_db_path(db, false, state_->filesystem);
         command cmd(*this, std::format("ATTACH DATABASE ? AS {};", quote_identifier(alias)));
         cmd % db;
         cmd.step_once();
@@ -418,37 +583,53 @@ inline namespace v2 {
     }
 
     std::int64_t connection::get_last_insert_rowid() {
-        if (!handle)
+        if (!state_->handle)
             throw database_exception("Database is not open.");
-        return static_cast<std::int64_t>(sqlite3_last_insert_rowid(handle));
+        return static_cast<std::int64_t>(sqlite3_last_insert_rowid(state_->handle));
+    }
+
+    prepared_statement connection::prepare(std::string_view sql) {
+        access_check();
+        return prepared_statement(*this, std::string(sql));
     }
 
     void connection::configure_statement_cache(statement_cache_config const &cfg) {
-        cache_.reset(cfg);
+        state_->cache.reset(cfg);
     }
 
     statement_cache_config connection::statement_cache_settings() const {
-        return cache_.config();
+        return state_->cache.config();
     }
 
     sqlite3_stmt *connection::acquire_cached_statement(std::string const &sql) {
-        if (!handle)
+        if (!state_->handle)
             return nullptr;
-        return cache_.acquire(handle, sql);
+        return state_->cache.acquire(state_->handle, sql);
     }
 
-    void connection::release_cached_statement(std::string const &sql, sqlite3_stmt *stmt) {
-        if (!stmt)
-            return;
-        if (!handle) {
-            sqlite3_finalize(stmt);
-            return;
-        }
-        cache_.release(sql, stmt);
+    void connection::release_cached_statement(std::string const &sql, sqlite3_stmt *stmt) noexcept {
+        private_accessor::release_cached_statement(*state_, sql, stmt);
+    }
+
+    void connection::set_statement_cache_error_hook(statement_cache_error_hook hook) {
+        state_->cache.set_error_hook(std::move(hook));
     }
 
     void connection::clear_statement_cache() {
-        cache_.clear(handle);
+        state_->cache.clear(state_->handle);
+    }
+
+    connection_capabilities connection::capabilities() const {
+        // Each helper returns a compile-time true when the build verified the API group
+        // of the selected SQLite implementation (the wrappers then resolve the symbols
+        // through direct references). Without that verification the helpers report the
+        // runtime module lookup the wrappers themselves use, so the capability values
+        // always match what the operations can actually do.
+        connection_capabilities caps;
+        caps.sessions      = sessions_supported();
+        caps.snapshots     = snapshots_supported();
+        caps.serialization = serialization_supported();
+        return caps;
     }
 } // namespace v2
 } // namespace sqlite

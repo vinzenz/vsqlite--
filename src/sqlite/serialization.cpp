@@ -78,8 +78,11 @@ serialization_api const &serialization_symbols() {
 
 void ensure_serialization_available() {
     if (!sqlite::serialization_supported()) {
+        // Absence of the build capability, not an operation error: the message names the
+        // capability and the SQLite build flag that enables it.
         throw sqlite::database_exception(
-            "SQLite serialization APIs are not available in this build.");
+            "SQLite serialization APIs are not available in this build (capability "
+            "'serialization'). Build SQLite without SQLITE_OMIT_DESERIALIZE to enable them.");
     }
 }
 } // namespace
@@ -87,32 +90,40 @@ void ensure_serialization_available() {
 namespace sqlite {
 inline namespace v2 {
     bool serialization_supported() noexcept {
+#if defined(VSQLITE_HAVE_SQLITE3_SERIALIZE)
+        // The build verified the serialization APIs of the selected SQLite
+        // implementation, so the wrapper resolves them through direct references that
+        // always exist.
+        return true;
+#else
         auto const &api = serialization_symbols();
         return api.serialize != nullptr && api.deserialize != nullptr;
+#endif
     }
 
     std::vector<unsigned char> serialize(connection &con, std::string_view schema,
-                                         unsigned int flags) {
+                                         serialize_options options) {
         ensure_serialization_available();
-        sqlite3_int64 size  = 0;
-        auto normalized     = normalize_schema(schema);
-        auto fn             = serialization_symbols().serialize;
-        unsigned char *blob = fn ? fn(get_handle(con), normalized.c_str(), &size, flags) : nullptr;
+        unsigned const flags = options.use_connection_image ? SQLITE_SERIALIZE_NOCOPY : 0;
+        sqlite3_int64 size   = 0;
+        auto normalized      = normalize_schema(schema);
+        auto fn              = serialization_symbols().serialize;
+        unsigned char *blob  = fn ? fn(get_handle(con), normalized.c_str(), &size, flags) : nullptr;
         if (!blob) {
-            // With SQLITE_SERIALIZE_NOCOPY SQLite can also return a null pointer for
-            // an unknown schema or an internal failure, so do not blame the missing
-            // contiguous image alone.
-            if (flags & SQLITE_SERIALIZE_NOCOPY) {
-                throw database_exception("Failed to serialize database image '" + normalized +
-                                         "' with SQLITE_SERIALIZE_NOCOPY.");
+            // Reading the connection image can also fail for an unknown schema or an
+            // internal failure, so do not blame the missing contiguous image alone.
+            if (options.use_connection_image) {
+                throw database_exception(
+                    "Failed to serialize database image '" + normalized +
+                    "' from the connection's in-memory image (SQLITE_SERIALIZE_NOCOPY).");
             }
             throw database_exception("Failed to serialize database image '" + normalized + "'.");
         }
         std::vector<unsigned char> out(blob, blob + size);
-        // With SQLITE_SERIALIZE_NOCOPY the returned buffer is the connection's own
-        // storage and stays owned by SQLite — freeing it would corrupt the live
-        // database and cause a double free when the connection is closed.
-        if ((flags & SQLITE_SERIALIZE_NOCOPY) == 0) {
+        // When the connection image is read, the returned buffer is the connection's own
+        // storage and stays owned by SQLite — freeing it would corrupt the live database
+        // and cause a double free when the connection is closed.
+        if (!options.use_connection_image) {
             sqlite3_free(blob);
         }
         return out;
@@ -143,7 +154,9 @@ inline namespace v2 {
         if (!fn) {
             // The call never happened, so the buffer is still owned by us.
             sqlite3_free(buffer);
-            throw database_exception("SQLite serialization APIs are not available in this build.");
+            throw database_exception(
+                "SQLite serialization APIs are not available in this build (capability "
+                "'serialization'). Build SQLite without SQLITE_OMIT_DESERIALIZE to enable them.");
         }
         // SQLITE_DESERIALIZE_FREEONCLOSE transfers ownership of buffer to SQLite: it frees the
         // allocation on success and on failure alike, so it must not be freed here afterwards.
